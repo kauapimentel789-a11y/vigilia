@@ -2,7 +2,7 @@
 
 Jogo idle de fantasia dark para navegador. Você é um Portador da Vigília recém-desperto, o mais fraco de todos, e fica mais forte a cada portal fechado. A Caçada (PvE idle) vem primeiro; a Arena (PvP auto-battler com cartas) vem em etapas futuras.
 
-> **Status:** Etapa 4 (Caçada: profundidade). Mapa em tempo real visto de cima, em tiles: o Posto, 5 mapas da Cinza, o Exame de Rank e 5 mapas da Brasa, com chefes que invocam ajudantes, mudam de fase e marcam áreas no chão. Itens, Selos dos chefes, auto-caçar e Expedição offline.
+> **Status:** Etapa 5 (Arena contra o jogo). A Caçada tem o Posto, a Cinza, o Exame de Rank e a Brasa, com chefes de mecânicas, itens, Selos, auto-caçar e Expedição offline. A Arena é um auto-battler: loja, banco, tabuleiro 2×4, estrelas, marcas e Heróis da Arena liberados pelos Selos, contra 3 rivais controlados pelo jogo.
 
 ## Requisitos
 
@@ -42,6 +42,8 @@ npm run sim      # relatório de ritmo e equilíbrio
 8. **Exame de Rank:** depois do Cinza V, o portão **R** do Posto leva à Guardiã do Limiar. Vencê-la sobe o caçador para o rank **Brasa** e abre os portões 6 a 0 (Brasa I a V).
 9. **Chefes com mecânicas:** cada chefe da Brasa tem fases. Ao perder vida, ele anuncia a fase, pode chamar ajudantes e trocar de golpes. As áreas no chão têm formas: em volta do alvo, em volta do chefe (afaste-se), em cruz (saia da linha) e em anel (encoste no chefe).
 10. **Selos:** cada chefe deixa um Selo ao ser vencido (veja na aba Caçador). Eles serão usados na Arena.
+
+11. **Arena (aba ♜):** escolha um Herói da Arena e comece a partida. A cada rodada, compre unidades na loja, ponha no tabuleiro (frente em cima) e aperte **Lutar**. A luta é automática; quem perde perde vida. Três cópias iguais viram ★★ (e três ★★ viram ★★★). Duas ou quatro unidades diferentes da mesma marca dão bônus ao time. A colocação dá **Glória**, que vira poções e ouro na Caçada.
 
 O jogo salva sozinho no navegador. Fora do site de produção aparece um **painel de teste** (🛠) para avançar o tempo da expedição e apagar o progresso.
 
@@ -93,6 +95,7 @@ src/
 │  ├─ world/            mapas em tiles, caminhos (A*), visão
 │  ├─ realtime/         o mundo em tempo real: passos, monstros, golpes, saque, auto-caçar
 │  ├─ items/            sorteio de itens, afixos, stats e valores
+│  ├─ arena/            Arena: combate de tabuleiros, partida, loja, fusões e rivais do jogo
 │  ├─ expedition/       taxa da expedição, ganho por tempo, queda por level
 │  ├─ game/             estado completo do jogo e os comandos que o alteram
 │  └─ save/             serializar, validar e migrar o save

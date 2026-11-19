@@ -1,5 +1,6 @@
 import type { GameContent } from '../engine/definitions.ts';
 import { HABILIDADES } from './abilities.ts';
+import { ARENA } from './arena.ts';
 import { INIMIGOS } from './enemies.ts';
 import { ITENS } from './items.ts';
 import { ORDEM_PORTAIS, PORTAIS } from './portals.ts';
@@ -20,5 +21,6 @@ export const CONTEUDO: GameContent = {
   itens: ITENS,
   ranks: RANKS,
   selos: SELOS,
+  arena: ARENA,
   mapaInicial: 'posto',
 };

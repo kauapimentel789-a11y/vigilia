@@ -6,6 +6,7 @@ import { HABILIDADES } from '../src/content/abilities.ts';
 import { PROGRESSAO } from '../src/content/progression.ts';
 import { ITENS } from '../src/content/items.ts';
 import { RANKS, SELOS } from '../src/content/ranks.ts';
+import { ARENA } from '../src/content/arena.ts';
 import { MUNDO } from '../src/content/world.ts';
 import type { EnemyDef, GameContent, PortalDef } from '../src/engine/definitions.ts';
 import type { HunterProfile } from '../src/engine/hunter/stats.ts';
@@ -141,6 +142,7 @@ export const TEST_CONTENT: GameContent = {
   mundo: MUNDO,
   ranks: RANKS,
   selos: SELOS,
+  arena: ARENA,
   mapas: {
     base: {
       id: 'base',

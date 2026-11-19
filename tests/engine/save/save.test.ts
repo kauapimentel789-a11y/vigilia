@@ -59,7 +59,7 @@ describe('migrações', () => {
     const v1 = { v: 1, salvoEm: 5, estado: { ...estado, cacador } };
     const r = deserialize(JSON.stringify(v1), C);
     expect(r.erro).toBeUndefined();
-    expect(r.estado?.versao).toBe(3);
+    expect(r.estado?.versao).toBe(4);
     expect(r.estado?.mochila).toEqual([]);
     expect(r.estado?.cacador.equipamento).toEqual({});
     expect(r.estado?.rank).toBe('cinza');
@@ -76,9 +76,26 @@ describe('migrações', () => {
     expect(r.estado?.selos).toEqual({});
   });
 
+  it('um save da Etapa 4 ganha a Arena zerada', () => {
+    const atual = newGame(C, 7, 0);
+    const estado: Record<string, unknown> = { ...atual, versao: 3 };
+    delete estado.arena;
+    const r = deserialize(JSON.stringify({ v: 3, salvoEm: 5, estado }), C);
+    expect(r.erro).toBeUndefined();
+    expect(r.estado?.arena).toMatchObject({ gloria: 0, heroi: 'vigia', partida: null });
+  });
+
+  it('partida da Arena estragada é descartada ao carregar', () => {
+    const e = newGame(C, 7, 0) as unknown as Record<string, unknown>;
+    e.arena = { gloria: 3, heroi: 'vigia', partida: { rodada: 'x' }, partidas: 1, melhorLugar: 2 };
+    const r = deserialize(JSON.stringify({ v: 4, salvoEm: 1, estado: e }), C);
+    expect(r.estado?.arena.partida).toBeNull();
+    expect(r.estado?.arena.gloria).toBe(3);
+  });
+
   it('rank inválido é recusado', () => {
     const e = { ...newGame(C, 7, 0), rank: 'sol' };
-    expect(deserialize(JSON.stringify({ v: 3, salvoEm: 1, estado: e }), C).erro).toMatch(/rank/);
+    expect(deserialize(JSON.stringify({ v: 4, salvoEm: 1, estado: e }), C).erro).toMatch(/rank/);
   });
 
   it('itens de base desconhecida somem ao carregar', () => {

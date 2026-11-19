@@ -7,19 +7,21 @@ import { ProgressBar } from '../components/ProgressBar.tsx';
 import { ReturnReport } from '../components/ReturnReport.tsx';
 import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
+import { Arena } from '../screens/Arena/Arena.tsx';
 import { Expedition } from '../screens/Expedition/Expedition.tsx';
 import { Hunt } from '../screens/Hunt/Hunt.tsx';
 import { Hunter } from '../screens/Hunter/Hunter.tsx';
 import { useGame } from '../store/game.ts';
 import s from './App.module.css';
 
-type Aba = 'cacar' | 'cacador' | 'habilidades' | 'expedicao';
+type Aba = 'cacar' | 'cacador' | 'habilidades' | 'expedicao' | 'arena';
 
 const ABAS: Array<{ id: Aba; nome: string; icone: string }> = [
   { id: 'cacar', nome: 'Caçar', icone: '⚔' },
   { id: 'cacador', nome: 'Caçador', icone: '◆' },
   { id: 'habilidades', nome: 'Habilidades', icone: '✦' },
   { id: 'expedicao', nome: 'Expedição', icone: '⧗' },
+  { id: 'arena', nome: 'Arena', icone: '♜' },
 ];
 
 export function App() {
@@ -84,6 +86,8 @@ export function App() {
           <Hunter />
         ) : aba === 'habilidades' ? (
           <Abilities />
+        ) : aba === 'arena' ? (
+          <Arena />
         ) : (
           <Expedition />
         )}

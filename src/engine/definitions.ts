@@ -307,6 +307,117 @@ export interface ItemsDef {
   pocao: { preco: number; curaPct: number; recargaS: number; maximo: number };
 }
 
+/* ---------- Arena (auto-battler) ---------- */
+
+export type MarcaId = 'cinzas' | 'ossos' | 'veu' | 'chama' | 'abismo';
+export const MARCAS: readonly MarcaId[] = ['cinzas', 'ossos', 'veu', 'chama', 'abismo'];
+
+/** Bônus que uma marca, um herói ou uma posição dá às unidades. */
+export interface ArenaBonus {
+  /** Fração a mais de vida máxima (0,2 = +20%). */
+  vidaPct?: number;
+  ataquePct?: number;
+  /** Bloqueio inicial, em fração da vida máxima. */
+  bloqueioPct?: number;
+  critico?: number;
+  danoCritico?: number;
+  rouboVida?: number;
+  /** Queimadura aplicada a cada ataque básico. */
+  queimaduraAoAcertar?: number;
+  manaInicial?: number;
+  /** Velocidade a mais (100 = uma ação por segundo). */
+  velocidade?: number;
+}
+
+export interface ArenaUnitDef {
+  id: string;
+  nome: string;
+  /** Custo na loja e raridade (1 a 3). */
+  custo: number;
+  marcas: [MarcaId, MarcaId];
+  vida: number;
+  ataque: number;
+  velocidade: number;
+  /** 1 = corpo a corpo (atrás de um aliado, só ataca quando a frente da coluna cai). */
+  alcance: number;
+  habilidade: { nome: string; descricao: string; efeitos: Effect[] };
+}
+
+export interface MarcaDef {
+  id: MarcaId;
+  nome: string;
+  descricao: string;
+  /** Níveis em ordem crescente de quantidade de unidades diferentes. */
+  niveis: Array<{ qtd: number; texto: string; bonus: ArenaBonus }>;
+}
+
+export interface HeroiArenaDef {
+  id: string;
+  nome: string;
+  descricao: string;
+  /** Selo da Caçada que libera o herói (ausente = livre). */
+  selo?: string;
+  efeito: {
+    ouroInicial?: number;
+    /** Rolagens grátis da loja por rodada. */
+    rolagemGratis?: number;
+    xpExtra?: number;
+    vidaJogador?: number;
+    /** Bônus para todas as unidades. */
+    bonus?: ArenaBonus;
+    /** Bônus só para as unidades da fileira da frente. */
+    bonusFrente?: ArenaBonus;
+  };
+}
+
+export interface ArenaRules {
+  jogadores: number;
+  vidaJogador: number;
+  rodadasMax: number;
+  banco: number;
+  colunas: number;
+  custoRolar: number;
+  custoXp: number;
+  xpPorCompra: number;
+  xpPorRodada: number;
+  /** XP para ir do nível n ao n+1 (índice n − 1). */
+  xpParaNivel: number[];
+  nivelMax: number;
+  nivelInicial: number;
+  /** Renda por rodada (índice = rodada − 1; a última se repete). */
+  renda: number[];
+  jurosCada: number;
+  jurosMax: number;
+  bonusVitoria: number;
+  /** Cópias de cada unidade no estoque, por custo (índice = custo − 1). */
+  copias: number[];
+  /** Chance de cada custo na loja, por nível do jogador (índice = nível − 1). */
+  chances: number[][];
+  tamanhoLoja: number;
+  /** Multiplicador de vida e ataque por estrela (índice = estrelas − 1). */
+  multEstrela: number[];
+  /** Duração máxima de um combate, em segundos. Estourou: os dois perdem. */
+  limiteS: number;
+  manaMax: number;
+  manaPorAtaque: number;
+  manaPorDano: number;
+  /** Dano ao jogador que perde: base + unidades inimigas vivas + 1 a cada 5 rodadas. */
+  danoBase: number;
+  /** Glória por colocação (índice 0 = 1º lugar). */
+  gloria: number[];
+}
+
+export interface ArenaDef {
+  unidades: Record<string, ArenaUnitDef>;
+  marcas: Record<MarcaId, MarcaDef>;
+  herois: Record<string, HeroiArenaDef>;
+  regras: ArenaRules;
+  /** Nomes dos adversários controlados pelo jogo. */
+  nomesBots: string[];
+  /** O que a Glória compra para a Caçada. */
+  ofertas: { pocao: { custo: number }; ouro: { custo: number; porLevel: number } };
+}
+
 export interface GameContent {
   progressao: ProgressionDef;
   habilidades: Record<string, AbilityDef>;
@@ -319,6 +430,7 @@ export interface GameContent {
   itens: ItemsDef;
   ranks: Record<RankId, RankDef>;
   selos: Record<string, SeloDef>;
+  arena: ArenaDef;
   /** Mapa onde o caçador começa e para onde volta ao morrer. */
   mapaInicial: string;
 }

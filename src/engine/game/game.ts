@@ -17,8 +17,10 @@ import { buildProfile } from '../hunter/stats.ts';
 import type { ItemInstance } from '../items/items.ts';
 import { baseOf, rollItem, sellValue } from '../items/items.ts';
 import { createRng } from '../core/index.ts';
+import type { ArenaState } from './arena.ts';
+import { newArenaState } from './arena.ts';
 
-export const VERSAO_DO_ESTADO = 3;
+export const VERSAO_DO_ESTADO = 4;
 
 export interface GameState {
   versao: typeof VERSAO_DO_ESTADO;
@@ -40,6 +42,7 @@ export interface GameState {
   rank: RankId;
   /** Selos de chefes: id → quantidade. */
   selos: Record<string, number>;
+  arena: ArenaState;
 }
 
 export type GameResult<Extra = object> =
@@ -61,6 +64,7 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     pocoes: 3,
     rank: 'cinza',
     selos: {},
+    arena: newArenaState(),
   };
 }
 

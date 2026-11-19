@@ -10,6 +10,7 @@ import { ATRIBUTOS, RANKS_ORDEM, SLOTS } from '../definitions.ts';
 import type { ItemInstance } from '../items/items.ts';
 import type { GameState } from '../game/game.ts';
 import { VERSAO_DO_ESTADO } from '../game/game.ts';
+import { newArenaState } from '../game/arena.ts';
 
 export interface SaveFile {
   v: number;
@@ -27,6 +28,8 @@ const MIGRACOES: Record<number, (estado: unknown) => unknown> = {
   },
   // v2 → v3 (Etapa 4): rank do caçador e Selos.
   2: (estado) => (isObj(estado) ? { ...estado, versao: 3, rank: 'cinza', selos: {} } : estado),
+  // v3 → v4 (Etapa 5): Arena.
+  3: (estado) => (isObj(estado) ? { ...estado, versao: 4, arena: newArenaState() } : estado),
 };
 
 export function serialize(estado: GameState, agora: number): string {
@@ -90,6 +93,9 @@ function validate(e: unknown, content: GameContent): string | null {
   if (typeof e.rank !== 'string' || !(RANKS_ORDEM as readonly string[]).includes(e.rank))
     return 'rank';
   if (!isObj(e.selos) || !Object.values(e.selos).every((n) => isInt(n))) return 'selos';
+  const ar = e.arena;
+  if (!isObj(ar) || !isInt(ar.gloria) || typeof ar.heroi !== 'string' || !isInt(ar.partidas))
+    return 'arena';
   if (!isObj(c.equipamento) || !Object.values(c.equipamento).every(isItem)) return 'equipamento';
   if (e.expedicao !== null) {
     const x = e.expedicao;
@@ -106,6 +112,9 @@ function sanitize(estado: GameState, content: GameContent): GameState {
   const e = structuredClone(estado);
   e.portaisFechados = e.portaisFechados.filter((id) => content.portais[id]);
   e.selos = Object.fromEntries(Object.entries(e.selos).filter(([id]) => content.selos[id]));
+  if (!content.arena.herois[e.arena.heroi]) e.arena.heroi = 'vigia';
+  // Uma partida salva com unidades que saíram do conteúdo (ou estragada) é descartada.
+  if (e.arena.partida !== null && !validMatch(e.arena.partida, content)) e.arena.partida = null;
   e.cacador.equipadas = e.cacador.equipadas
     .filter((id) => content.habilidades[id])
     .slice(0, content.progressao.espacosDeHabilidade);
@@ -126,6 +135,27 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     else e.cacador.equipamento[slot] = limpo(i);
   }
   return e;
+}
+
+function validMatch(m: unknown, content: GameContent): boolean {
+  if (!isObj(m) || !isInt(m.rodada, 1) || !isInt(m.rngState) || !Array.isArray(m.jogadores))
+    return false;
+  if (!isObj(m.estoque) || typeof m.fim !== 'boolean') return false;
+  const unidade = (u: unknown) =>
+    u === null || (isObj(u) && typeof u.def === 'string' && !!content.arena.unidades[u.def]);
+  return m.jogadores.every(
+    (p) =>
+      isObj(p) &&
+      isNum(p.vida) &&
+      isInt(p.ouro) &&
+      isInt(p.nivel, 1) &&
+      Array.isArray(p.banco) &&
+      p.banco.every(unidade) &&
+      Array.isArray(p.tabuleiro) &&
+      p.tabuleiro.every(unidade) &&
+      Array.isArray(p.loja) &&
+      p.loja.every((id) => id === null || !!content.arena.unidades[id as string]),
+  );
 }
 
 export function deserialize(texto: string, content: GameContent): LoadResult {
