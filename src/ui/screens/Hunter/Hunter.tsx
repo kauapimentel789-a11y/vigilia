@@ -3,6 +3,7 @@ import { CONTEUDO } from '../../../content/index.ts';
 import type { AtributoId } from '../../../engine/definitions.ts';
 import { ATRIBUTOS } from '../../../engine/definitions.ts';
 import { deriveStats } from '../../../engine/hunter/stats.ts';
+import { Account } from '../../components/Account.tsx';
 import ui from '../../components/common.module.css';
 import { pct } from '../../format.ts';
 import { useGame } from '../../store/game.ts';
@@ -150,8 +151,9 @@ export function Hunter() {
       </section>
 
       <section className={ui.panel}>
-        <h2 className={ui.title}>Progresso</h2>
+        <h2 className={ui.title}>Conta e progresso</h2>
         <p className={ui.muted}>O jogo salva sozinho neste navegador.</p>
+        <Account />
         {confirmar ? (
           <div className={ui.row}>
             <span>Apagar tudo e recomeçar?</span>

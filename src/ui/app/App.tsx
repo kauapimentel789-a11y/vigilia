@@ -5,6 +5,7 @@ import ui from '../components/common.module.css';
 import { DEV_PANEL_VISIVEL, DevPanel } from '../components/DevPanel.tsx';
 import { ProgressBar } from '../components/ProgressBar.tsx';
 import { ReturnReport } from '../components/ReturnReport.tsx';
+import { SaveConflict } from '../components/Account.tsx';
 import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
 import { Arena } from '../screens/Arena/Arena.tsx';
@@ -102,6 +103,7 @@ export function App() {
         </div>
       )}
       <ReturnReport />
+      <SaveConflict />
       {DEV_PANEL_VISIVEL && <DevPanel />}
     </div>
   );

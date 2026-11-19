@@ -105,6 +105,8 @@ interface Store {
   apagarProgresso(): void;
   /** Painel de teste: faz o tempo passar para a expedição. */
   avancarTempo(ms: number): void;
+  /** Troca o estado inteiro (save vindo da nuvem). */
+  substituirEstado(estado: GameState): void;
 }
 
 const semente = () => Math.floor(Math.random() * 2 ** 31);
@@ -227,6 +229,7 @@ export const useGame = create<Store>()((set, get) => {
       });
     },
     avancarTempo: (ms) => set({ estado: advanceTime(get().estado, ms) }),
+    substituirEstado: (estado) => set({ estado, relatorio: null, aviso: null }),
   };
 });
 
