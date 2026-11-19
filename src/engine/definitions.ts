@@ -179,11 +179,15 @@ export interface MapDef {
   tipo: 'posto' | 'portal';
   /** Portal (da Caçada) que este mapa representa: define escala e recompensas. */
   portal?: string;
+  /** Multiplicadores do chefe deste mapa (padrão: vida ×4, ataque ×1,3). */
+  chefe?: { vida: number; ataque: number };
   linhas: string[];
   legenda: {
     monstros?: Record<string, string>;
     chefes?: Record<string, string>;
     portoes?: Record<string, { destino: string; rotulo: string }>;
+    /** Objetos: personagens do Posto ('mercadora', 'bau', 'altar', 'expedicao') ou 'tesouro'. */
+    objetos?: Record<string, string>;
   };
 }
 
@@ -241,12 +245,17 @@ export interface ItemsDef {
   bases: Record<string, ItemBaseDef>;
   afixos: Record<string, AffixDef>;
   /** Peso de cada raridade no sorteio, multiplicador dos números base e quantos afixos ela tem. */
-  raridades: Record<Raridade, { peso: number; multBase: number; afixos: number; multValor: number }>;
+  raridades: Record<
+    Raridade,
+    { peso: number; multBase: number; afixos: number; multValor: number }
+  >;
   /** Chance de um monstro comum deixar um item. O chefe sempre deixa um, no mínimo Incomum. */
   chanceDeSaque: number;
   /** Faixas de item (ItemBaseDef.nivel) que caem em cada portal. */
   saquePorPortal: Record<string, number[]>;
   capacidadeMochila: number;
+  capacidadeBau: number;
+  pocao: { preco: number; curaPct: number; recargaS: number; maximo: number };
 }
 
 export interface GameContent {

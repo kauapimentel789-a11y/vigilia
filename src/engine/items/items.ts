@@ -127,9 +127,7 @@ export function rollItem(
       rng,
       RARIDADES.filter((_, i) => i >= piso).map((r) => [r, it.raridades[r].peso] as const),
     ) ?? minimo;
-  const possiveis = Object.values(it.afixos).filter(
-    (a) => !a.slots || a.slots.includes(base.slot),
-  );
+  const possiveis = Object.values(it.afixos).filter((a) => !a.slots || a.slots.includes(base.slot));
   const afixos: ItemInstance['afixos'] = [];
   for (let i = 0; i < it.raridades[raridade].afixos && possiveis.length > 0; i++) {
     const def = possiveis.splice(Math.floor(rng.next() * possiveis.length), 1)[0] as AffixDef;

@@ -12,6 +12,8 @@ export const Tile = {
   Agua: 2,
   Portao: 3,
   ChaoDetalhe: 4,
+  /** Objeto com que se interage (personagem do Posto, baú de tesouro). Não se pisa. */
+  Objeto: 5,
 } as const;
 export type Tile = (typeof Tile)[keyof typeof Tile];
 
@@ -44,6 +46,8 @@ export interface WorldMap {
   tiles: Tile[];
   inicio: { x: number; y: number };
   portoes: Record<number, MapGate>;
+  /** Índice do tile → id do objeto (ex.: 'mercadora', 'tesouro'). */
+  objetos: Record<number, string>;
   spawns: MapSpawn[];
 }
 
@@ -55,6 +59,8 @@ export interface MapLegend {
   chefes?: Record<string, string>;
   /** Caractere → portão. */
   portoes?: Record<string, MapGate>;
+  /** Caractere → objeto de interação. */
+  objetos?: Record<string, string>;
 }
 
 export function parseMap(id: string, linhas: readonly string[], legenda: MapLegend = {}): WorldMap {
@@ -63,6 +69,7 @@ export function parseMap(id: string, linhas: readonly string[], legenda: MapLege
   const tiles: Tile[] = new Array<Tile>(largura * altura).fill(Tile.Parede);
   const portoes: Record<number, MapGate> = {};
   const spawns: MapSpawn[] = [];
+  const objetos: Record<number, string> = {};
   let inicio: { x: number; y: number } | null = null;
 
   for (let y = 0; y < altura; y++) {
@@ -82,13 +89,16 @@ export function parseMap(id: string, linhas: readonly string[], legenda: MapLege
       } else if (legenda.portoes?.[c]) {
         tiles[i] = Tile.Portao;
         portoes[i] = legenda.portoes[c];
+      } else if (legenda.objetos?.[c]) {
+        tiles[i] = Tile.Objeto;
+        objetos[i] = legenda.objetos[c];
       } else {
         throw new Error(`Mapa ${id}: caractere desconhecido "${c}" em (${x}, ${y})`);
       }
     }
   }
   if (!inicio) throw new Error(`Mapa ${id}: falta o ponto de início "@"`);
-  return { id, largura, altura, tiles, inicio, portoes, spawns };
+  return { id, largura, altura, tiles, inicio, portoes, objetos, spawns };
 }
 
 export function inBounds(m: WorldMap, x: number, y: number): boolean {
@@ -115,6 +125,10 @@ export function gateAt(m: WorldMap, x: number, y: number): MapGate | undefined {
 }
 
 /** Distância em tiles contando diagonais como 1 (vizinhança de 8). */
+export function objectAt(m: WorldMap, x: number, y: number): string | undefined {
+  return inBounds(m, x, y) ? m.objetos[y * m.largura + x] : undefined;
+}
+
 export function chebyshev(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 }

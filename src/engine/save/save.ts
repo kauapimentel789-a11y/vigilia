@@ -23,7 +23,7 @@ const MIGRACOES: Record<number, (estado: unknown) => unknown> = {
   1: (estado) => {
     if (!isObj(estado)) return estado;
     const cacador = isObj(estado.cacador) ? { ...estado.cacador, equipamento: {} } : estado.cacador;
-    return { ...estado, versao: 2, cacador, mochila: [], proximoItem: 1 };
+    return { ...estado, versao: 2, cacador, mochila: [], proximoItem: 1, bau: [], pocoes: 3 };
   },
 };
 
@@ -83,6 +83,8 @@ function validate(e: unknown, content: GameContent): string | null {
   }
   if (!Array.isArray(e.mochila) || !e.mochila.every(isItem)) return 'mochila';
   if (!isInt(e.proximoItem, 1)) return 'contador de itens';
+  if (!Array.isArray(e.bau) || !e.bau.every(isItem)) return 'baú';
+  if (!isInt(e.pocoes)) return 'poções';
   if (!isObj(c.equipamento) || !Object.values(c.equipamento).every(isItem)) return 'equipamento';
   if (e.expedicao !== null) {
     const x = e.expedicao;
@@ -109,6 +111,7 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     afixos: i.afixos.filter((a) => content.itens.afixos[a.id]),
   });
   e.mochila = e.mochila.filter(valido).map(limpo);
+  e.bau = e.bau.filter(valido).map(limpo);
   for (const slot of SLOTS) {
     const i = e.cacador.equipamento[slot];
     if (!i) continue;

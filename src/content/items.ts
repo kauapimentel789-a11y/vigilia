@@ -139,4 +139,6 @@ export const ITENS: ItemsDef = {
     cinza5: [11, 16],
   },
   capacidadeMochila: 20,
+  capacidadeBau: 60,
+  pocao: { preco: 12, curaPct: 0.3, recargaS: 10, maximo: 10 },
 };

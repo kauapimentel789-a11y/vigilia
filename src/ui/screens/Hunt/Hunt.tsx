@@ -9,10 +9,11 @@ import { buildProfile } from '../../../engine/hunter/stats.ts';
 import type { RtEvent } from '../../../engine/realtime/state.ts';
 import { heroOf } from '../../../engine/realtime/state.ts';
 import { loadMap } from '../../../engine/realtime/world.ts';
-import { chebyshev, isWalkable } from '../../../engine/world/map.ts';
+import { chebyshev, isWalkable, objectAt } from '../../../engine/world/map.ts';
 import { useGame } from '../../store/game.ts';
 import { COR_RARIDADE, nomeItem } from '../../items.ts';
 import { Inventory } from '../../windows/Inventory.tsx';
+import { Altar, Chest, ExpeditionTable, Merchant } from '../../windows/PostoWindows.tsx';
 import { takeGroundItem } from '../../../engine/realtime/world.ts';
 import type { Camera } from './render.ts';
 import { TILE, actorPos, cameraFor, render } from './render.ts';
@@ -28,7 +29,11 @@ interface Hud {
   alvo: { nome: string; vida: number; vidaMax: number; chefe: boolean } | null;
   habilidades: Array<{ nome: string; resta: number; total: number }>;
   caido: boolean;
+  pocaoResta: number;
 }
+
+type JanelaId = 'mochila' | 'mercadora' | 'bau' | 'altar' | 'expedicao';
+const JANELAS = new Set<string>(['mochila', 'mercadora', 'bau', 'altar', 'expedicao']);
 
 function hudOf(se: Sessao): Hud {
   const h = heroOf(se.w);
@@ -47,6 +52,7 @@ function hudOf(se: Sessao): Hud {
       total: x.recargaMs,
     })),
     caido: se.w.heroiCaido,
+    pocaoResta: se.w.recargaPocao,
   };
 }
 
@@ -69,12 +75,15 @@ export function Hunt() {
   const camRef = useRef<Camera | null>(null);
   const [hud, setHud] = useState<Hud>(() => hudOf(getSessao(perfil)));
   const [mensagem, setMensagem] = useState<string | null>(null);
-  const [janela, setJanela] = useState<'mochila' | null>(null);
-  const alternarRef = useRef<(j: 'mochila') => void>(() => {});
+  const [janela, setJanela] = useState<JanelaId | null>(null);
+  const [perdidos, setPerdidos] = useState(0);
+  const pocoes = useGame((g) => g.estado.pocoes);
+  const alternarRef = useRef<(j: JanelaId | null) => void>(() => {});
   useEffect(() => {
-    alternarRef.current = (j) => setJanela((atual) => (atual === j ? null : j));
+    alternarRef.current = (j) => setJanela((atual) => (j === null || atual === j ? null : j));
   }, []);
   const msgTimer = useRef(0);
+  const beberRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     perfilRef.current = perfil;
@@ -94,6 +103,12 @@ export function Hunt() {
     const tratar = (se: Sessao, ev: RtEvent) => {
       efeitosVisuais(se, ev);
       if (ev.tipo === 'aviso') avisar(ev.texto);
+      if (ev.tipo === 'interagir' && JANELAS.has(ev.objeto)) setJanela(ev.objeto as JanelaId);
+      if (ev.tipo === 'pocao') useGame.getState().gastarPocao();
+      if (ev.tipo === 'heroiCaiu') {
+        setJanela(null);
+        setPerdidos(useGame.getState().morrer());
+      }
       if (ev.tipo === 'abate') {
         const portal = CONTEUDO.mapas[se.w.mapa]?.portal;
         if (!portal) return;
@@ -189,6 +204,13 @@ export function Hunt() {
     };
     raf = requestAnimationFrame(quadro);
 
+    const beber = () => {
+      if (useGame.getState().estado.pocoes <= 0)
+        return avisar('Sem poções. Compre na Mercadora do Posto.');
+      getSessao(perfilRef.current).fila.push({ pocao: true });
+    };
+    beberRef.current = beber;
+
     /* ---------- Teclado ---------- */
     const seguradas = new Set<string>();
     const atualizarDir = () => {
@@ -235,7 +257,20 @@ export function Hunt() {
         proximoAlvo(se);
       } else if (e.code === 'KeyI') {
         alternarRef.current('mochila');
+      } else if (e.code === 'KeyQ') {
+        beber();
+      } else if (e.code === 'KeyE') {
+        const h = heroOf(se.w);
+        const m = loadMap(CONTEUDO.mapas[se.w.mapa]!);
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++)
+            if (objectAt(m, h.x + dx, h.y + dy)) {
+              se.fila.push({ interagir: [h.x + dx, h.y + dy] });
+              return;
+            }
+        avisar('Nada por perto para usar.');
       } else if (e.code === 'Escape') {
+        alternarRef.current(null);
         se.fila.push({ alvo: null });
       }
     };
@@ -267,6 +302,10 @@ export function Hunt() {
         return;
       }
       const m = loadMap(CONTEUDO.mapas[se.w.mapa]!);
+      if (objectAt(m, tx, ty) && se.w.revelado[ty * m.largura + tx]) {
+        se.fila.push({ interagir: [tx, ty] });
+        return;
+      }
       if (isWalkable(m, tx, ty) && se.w.revelado[ty * m.largura + tx])
         se.fila.push({ irPara: [tx, ty] });
     };
@@ -330,6 +369,10 @@ export function Hunt() {
       )}
 
       {janela === 'mochila' && <Inventory onFechar={() => setJanela(null)} />}
+      {janela === 'mercadora' && <Merchant onFechar={() => setJanela(null)} />}
+      {janela === 'bau' && <Chest onFechar={() => setJanela(null)} />}
+      {janela === 'altar' && <Altar onFechar={() => setJanela(null)} />}
+      {janela === 'expedicao' && <ExpeditionTable onFechar={() => setJanela(null)} />}
 
       <div className={s.habilidades}>
         {hud.habilidades.map((h, i) => {
@@ -354,6 +397,25 @@ export function Hunt() {
         })}
         <button
           className={s.hab}
+          onClick={() => beberRef.current()}
+          disabled={hud.caido}
+          title="Poção de vida (tecla Q)"
+        >
+          <span className={s.tecla}>Q</span>
+          <span className={s.habNome}>Poção ×{pocoes}</span>
+          {hud.pocaoResta > 0 && (
+            <span
+              className={s.recarga}
+              style={{
+                height: `${(hud.pocaoResta / (CONTEUDO.itens.pocao.recargaS * 1000)) * 100}%`,
+              }}
+            >
+              {Math.ceil(hud.pocaoResta / 1000)}
+            </span>
+          )}
+        </button>
+        <button
+          className={s.hab}
           onClick={() => setJanela((j) => (j ? null : 'mochila'))}
           title="Mochila (tecla I)"
         >
@@ -364,13 +426,17 @@ export function Hunt() {
 
       <p className={s.ajuda}>
         WASD ou setas: andar · Clique no chão: ir até lá · Clique no monstro ou Tab: atacar · 1 a 4:
-        habilidades · I: mochila · Esc: soltar alvo
+        habilidades · Q: poção · E: usar · I: mochila · Esc: soltar alvo
       </p>
 
       {hud.caido && (
         <div className={s.caido}>
           <h2>Você caiu</h2>
-          <p>Nada de XP foi perdido. Volte ao Posto para se recompor.</p>
+          <p>
+            Nada de XP foi perdido.
+            {perdidos > 0 &&
+              ` Você perdeu ${perdidos} ${perdidos === 1 ? 'item' : 'itens'} da mochila.`}
+          </p>
           <button className={s.botao} onClick={voltar} autoFocus>
             Voltar ao Posto
           </button>

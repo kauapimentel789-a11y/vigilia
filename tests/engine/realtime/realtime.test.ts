@@ -130,3 +130,25 @@ describe('grupos', () => {
     expect(longe?.agressivo).toBe(true);
   });
 });
+
+describe('objetos e poção', () => {
+  it('ir até o baú de tesouro abre uma vez e deixa um item para pegar', () => {
+    const w = createWorld(C, 'tesouro', PERFIL, 3);
+    const ev = run(w, 60, (i) => (i === 0 ? { interagir: [5, 1] } : {}));
+    expect(ev.find((e) => e.tipo === 'interagir')).toMatchObject({ objeto: 'tesouro' });
+    expect(ev.some((e) => e.tipo === 'itemNoChao')).toBe(true);
+    expect(w.chao).toHaveLength(1);
+    expect(w.chao[0]?.item.raridade).not.toBe('comum');
+    const de_novo = run(w, 5, (i) => (i === 0 ? { interagir: [5, 1] } : {}));
+    expect(de_novo.some((e) => e.tipo === 'aviso')).toBe(true);
+    expect(w.chao).toHaveLength(1);
+  });
+
+  it('a poção cura e entra em recarga', () => {
+    const w = createWorld(C, 'arena', PERFIL, 1, 10);
+    const ev = stepWorld(w, C, PERFIL, { pocao: true });
+    expect(ev.find((e) => e.tipo === 'pocao')).toBeDefined();
+    expect(heroOf(w).vida).toBe(10 + Math.round(PERFIL.stats.vidaMax * C.itens.pocao.curaPct));
+    expect(stepWorld(w, C, PERFIL, { pocao: true }).some((e) => e.tipo === 'aviso')).toBe(true);
+  });
+});

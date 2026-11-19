@@ -83,3 +83,27 @@ describe('mochila', () => {
     expect(e.mochila.map((i) => i.uid)).toEqual([b!.uid]);
   });
 });
+
+describe('Posto', () => {
+  it('vender, comprar poções, baú e morte', async () => {
+    const g = await import('../../../src/engine/game/game.ts');
+    let e = g.pickUp(newGame(C, 1, 0), C, espada).estado!;
+    e = g.pickUp(e, C, { ...espada, raridade: 'rara' }).estado!;
+    const [a, b] = e.mochila;
+    const v = g.sellItems(e, C, [a!.uid]);
+    expect(v.ouro).toBe(C.itens.bases.laminaDeCinza!.valor);
+    e = v.estado!;
+    expect(g.buyPotions({ ...e, ouro: 100 }, C, 1).estado?.pocoes).toBe(e.pocoes + 1);
+    expect(g.buyPotions({ ...e, ouro: 0 }, C, 1).erro).toBe('Ouro insuficiente.');
+    e = g.storeItem(e, C, b!.uid).estado!;
+    expect(e.bau).toHaveLength(1);
+    e = g.pickUp(e, C, espada).estado!;
+    const morto = g.dieInMap(e);
+    expect(morto.perdidos).toBe(1);
+    expect(morto.estado!.mochila).toEqual([]);
+    expect(morto.estado!.bau).toHaveLength(1);
+    e = g.retrieveItem(morto.estado!, C, b!.uid).estado!;
+    expect(e.mochila.map((i) => i.uid)).toEqual([b!.uid]);
+    expect(g.consumePotion({ ...e, pocoes: 0 }).erro).toBeDefined();
+  });
+});

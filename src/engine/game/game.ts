@@ -14,7 +14,7 @@ import { changeAttribute, createHunter, gainXp, resetAttributes } from '../hunte
 import { setBehavior, setEquipped, upgradeAbility } from '../hunter/abilities.ts';
 import { buildProfile } from '../hunter/stats.ts';
 import type { ItemInstance } from '../items/items.ts';
-import { baseOf } from '../items/items.ts';
+import { baseOf, sellValue } from '../items/items.ts';
 
 export const VERSAO_DO_ESTADO = 2;
 
@@ -31,6 +31,9 @@ export interface GameState {
   mochila: ItemInstance[];
   /** Contador para dar um id único a cada item que entra no jogo. */
   proximoItem: number;
+  /** Baú do Posto: o que está aqui nunca se perde. */
+  bau: ItemInstance[];
+  pocoes: number;
 }
 
 export type GameResult<Extra = object> =
@@ -48,6 +51,8 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     registro: { lutas: 0, vitorias: 0, criadoEm: agora },
     mochila: [],
     proximoItem: 1,
+    bau: [],
+    pocoes: 3,
   };
 }
 
@@ -323,4 +328,68 @@ export function discardItem(estado: GameState, uid: string): GameResult {
   const novo = structuredClone(estado);
   novo.mochila = novo.mochila.filter((x) => x.uid !== uid);
   return { estado: novo };
+}
+
+/* ---------- Posto ---------- */
+
+/** Vende itens da mochila para a mercadora. */
+export function sellItems(
+  estado: GameState,
+  content: GameContent,
+  uids: readonly string[],
+): GameResult<{ ouro: number }> {
+  const vender = estado.mochila.filter((i) => uids.includes(i.uid));
+  if (vender.length === 0) return { erro: 'Nada para vender.' };
+  const novo = structuredClone(estado);
+  const ouro = vender.reduce((s, i) => s + sellValue(content, i), 0);
+  novo.mochila = novo.mochila.filter((i) => !uids.includes(i.uid));
+  novo.ouro += ouro;
+  return { estado: novo, ouro };
+}
+
+export function buyPotions(estado: GameState, content: GameContent, qtd: number): GameResult {
+  const p = content.itens.pocao;
+  const n = Math.min(Math.floor(qtd), p.maximo - estado.pocoes);
+  if (n <= 0) return { erro: `Você já carrega o máximo de ${p.maximo} poções.` };
+  if (estado.ouro < n * p.preco) return { erro: 'Ouro insuficiente.' };
+  const novo = structuredClone(estado);
+  novo.pocoes += n;
+  novo.ouro -= n * p.preco;
+  return { estado: novo };
+}
+
+/** Gasta uma poção (a cura acontece no mapa). */
+export function consumePotion(estado: GameState): GameResult {
+  if (estado.pocoes <= 0) return { erro: 'Sem poções. Compre na mercadora do Posto.' };
+  return { estado: { ...structuredClone(estado), pocoes: estado.pocoes - 1 } };
+}
+
+/** Mochila → baú. */
+export function storeItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const item = estado.mochila.find((i) => i.uid === uid);
+  if (!item) return { erro: 'Item não está na mochila.' };
+  if (estado.bau.length >= content.itens.capacidadeBau) return { erro: 'O baú está cheio.' };
+  const novo = structuredClone(estado);
+  novo.mochila = novo.mochila.filter((i) => i.uid !== uid);
+  novo.bau.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** Baú → mochila. */
+export function retrieveItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const item = estado.bau.find((i) => i.uid === uid);
+  if (!item) return { erro: 'Item não está no baú.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  novo.bau = novo.bau.filter((i) => i.uid !== uid);
+  novo.mochila.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** O caçador caiu no mapa: perde a mochila. Equipamento, baú, XP e poções ficam. */
+export function dieInMap(estado: GameState): GameResult<{ perdidos: number }> {
+  const novo = structuredClone(estado);
+  const perdidos = novo.mochila.length;
+  novo.mochila = [];
+  return { estado: novo, perdidos };
 }

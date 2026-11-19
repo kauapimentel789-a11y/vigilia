@@ -39,6 +39,8 @@ export interface RtActor extends BattleUnit {
   renascer: number;
   xp: number;
   ouro: number;
+  /** Índice do tile do objeto com que o caçador vai interagir ao chegar perto. */
+  interagir: number | null;
   /** Golpe forte sendo preparado: a área avisada no chão e o tempo que falta. */
   preparo: { acao: string; restante: number; total: number; tiles: Array<[number, number]> } | null;
 }
@@ -57,6 +59,10 @@ export interface WorldState {
   chefeDerrotado: boolean;
   /** Itens caídos no chão, esperando alguém pegar. */
   chao: GroundItem[];
+  /** Baús de tesouro já abertos neste mapa (índice do tile). */
+  abertos: number[];
+  /** Recarga da poção, em ms. */
+  recargaPocao: number;
 }
 
 type Body =
@@ -84,6 +90,9 @@ type Body =
   | { tipo: 'saque'; id: string; x: number; y: number }
   /** O caçador pisou num tile com itens. */
   | { tipo: 'itemNoChao'; ids: string[] }
+  /** Chegou perto de um objeto (personagem do Posto ou baú). */
+  | { tipo: 'interagir'; objeto: string; x: number; y: number }
+  | { tipo: 'pocao'; cura: number }
   | { tipo: 'heroiCaiu' }
   | { tipo: 'portao'; destino: string; rotulo: string };
 
@@ -99,6 +108,10 @@ export interface RtInput {
   alvo?: string | null;
   /** Usar a habilidade do espaço indicado (0 a 3). */
   habilidade?: number;
+  /** Ir até um objeto e interagir com ele. */
+  interagir?: readonly [number, number];
+  /** Beber uma poção (a interface confere se há poções). */
+  pocao?: boolean;
 }
 
 export const HEROI = 'heroi';

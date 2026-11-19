@@ -1,6 +1,7 @@
 /**
  * Posto da Vigília: a base segura. Sem monstros.
  * Legenda: # parede · . chão · , chão com detalhe · ~ água · @ início · 1-5 portões dos portais
+ * M mercadora · B baú · A altar dos atributos · X mesa de expedições
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -12,7 +13,7 @@ export const POSTO: MapDef = {
     '############################',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '#,#####,,,,,,,,,,,,,,#####,#',
-    '#,#...#,,,,,,,,,,,,,,#...#,#',
+    '#,#M.B#,,,,,,,,,,,,,,#A.X#,#',
     '#,#...#,,,,~~~~~~,,,,#...#,#',
     '#,##.##,,,,~~~~~~,,,,##.##,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
@@ -26,6 +27,7 @@ export const POSTO: MapDef = {
     '############################',
   ],
   legenda: {
+    objetos: { M: 'mercadora', B: 'bau', A: 'altar', X: 'expedicao' },
     portoes: {
       '1': { destino: 'cinza1', rotulo: 'Cinza I' },
       '2': { destino: 'cinza2', rotulo: 'Cinza II' },

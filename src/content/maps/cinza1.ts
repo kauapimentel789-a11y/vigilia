@@ -1,6 +1,6 @@
 /**
  * Cinza I: carniçais perto da entrada. O chefe espera na sala do fundo.
- * Legenda: c carniçal · C chefe (carniçal ancião) · E saída para o Posto
+ * Legenda: c carniçal · C chefe (carniçal ancião) · T baú de tesouro · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -12,7 +12,7 @@ export const CINZA1: MapDef = {
   linhas: [
     '########################################',
     '#E@.....#,,,,,,,,,,,,,#................#',
-    '#.......#,,,c,,,,,,,,,#.....c..........#',
+    '#.......#,,,c,,,,,,,,,#.....c........T.#',
     '#.......#,,,,,,,,,c,,,#..........c.....#',
     '#.......,,,,,,,,,,,,,,,................#',
     '#.......#,,,,,,c,,,,,,#.......c........#',
@@ -31,13 +31,14 @@ export const CINZA1: MapDef = {
     '#....................#.....#,,,#.......#',
     '#..........................#,C,#.......#',
     '#....................#.....#,,,#.......#',
-    '#.......c............#.....##.##.......#',
+    '#T......c............#.....##.##.......#',
     '#....................#.................#',
     '########################################',
   ],
   legenda: {
     monstros: { c: 'carnical' },
     chefes: { C: 'carnical' },
+    objetos: { T: 'tesouro' },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

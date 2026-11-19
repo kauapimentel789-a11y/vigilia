@@ -16,7 +16,7 @@ import { addStatus, tickSecond } from '../statuses/statuses.ts';
 import { rollItem } from '../items/items.ts';
 import { computeHit } from '../autobattle/damage.ts';
 import type { WorldMap } from '../world/map.ts';
-import { chebyshev, gateAt, isWalkable, parseMap } from '../world/map.ts';
+import { chebyshev, gateAt, isWalkable, objectAt, parseMap } from '../world/map.ts';
 import { hasLineOfSight } from '../world/los.ts';
 import { DIRECOES, canStep, findPath } from '../world/path.ts';
 import type { RtActor, RtEvent, RtInput, WorldState } from './state.ts';
@@ -98,6 +98,7 @@ function baseActor(
     agressivo: false,
     renascer: -1,
     preparo: null,
+    interagir: null,
   };
 }
 
@@ -144,11 +145,13 @@ export function createWorld(
     heroiCaido: false,
     chefeDerrotado: false,
     chao: [],
+    abertos: [],
+    recargaPocao: 0,
   };
   for (const sp of m.spawns) {
     const e = content.inimigos[sp.defId];
     if (!e) throw new Error(`Mapa ${mapaId}: inimigo desconhecido ${sp.defId}`);
-    const mult = sp.chefe ? CHEFE : { vida: 1, ataque: 1, recompensa: 1 };
+    const mult = sp.chefe ? { ...CHEFE, ...def.chefe } : { vida: 1, ataque: 1, recompensa: 1 };
     const vidaMax = Math.round(e.vidaMax * escala.vida * mult.vida);
     w.atores.push({
       ...baseActor(`m${w.proximoId++}`, sp.x, sp.y),
@@ -423,6 +426,47 @@ function useAbility(ctx: StepCtx, host: EffectHost<RtActor>, slot: number): void
   runEffects(host, hab.def.efeitos, { unidade: h, fonte: hab.def.id, alvo }, hab.escala);
 }
 
+function drinkPotion(ctx: StepCtx): void {
+  const h = ctx.heroi;
+  const p = ctx.content.itens.pocao;
+  if (ctx.w.recargaPocao > 0) {
+    emit(ctx, { tipo: 'aviso', texto: 'A poção ainda está em recarga.' });
+    return;
+  }
+  const cura = Math.min(Math.round(h.vidaMax * p.curaPct), h.vidaMax - h.vida);
+  if (cura <= 0) {
+    emit(ctx, { tipo: 'aviso', texto: 'Sua vida já está cheia.' });
+    return;
+  }
+  h.vida += cura;
+  ctx.w.recargaPocao = p.recargaS * 1000;
+  emit(ctx, { tipo: 'pocao', cura });
+  emit(ctx, { tipo: 'cura', alvo: h.uid, valor: cura });
+}
+
+function interact(ctx: StepCtx, idx: number, x: number, y: number): void {
+  const objeto = ctx.m.objetos[idx];
+  if (!objeto) return;
+  if (objeto !== 'tesouro') {
+    emit(ctx, { tipo: 'interagir', objeto, x, y });
+    return;
+  }
+  if (ctx.w.abertos.includes(idx)) {
+    emit(ctx, { tipo: 'aviso', texto: 'Este baú já está vazio.' });
+    return;
+  }
+  ctx.w.abertos.push(idx);
+  const portal = ctx.content.mapas[ctx.w.mapa]?.portal;
+  const h = ctx.heroi;
+  const id = `c${ctx.w.proximoId++}`;
+  const item = portal ? rollItem(ctx.content, portal, ctx.rng, id, 'incomum') : undefined;
+  emit(ctx, { tipo: 'interagir', objeto, x, y });
+  if (!item) return;
+  ctx.w.chao.push({ id, item, x: h.x, y: h.y });
+  emit(ctx, { tipo: 'saque', id, x: h.x, y: h.y });
+  emit(ctx, { tipo: 'itemNoChao', ids: [id] });
+}
+
 function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: number): void {
   const h = ctx.heroi;
   const w = ctx.w;
@@ -442,8 +486,19 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
     const [tx, ty] = input.irPara;
     pathTowards(ctx, h, tx, ty, 0);
     h.alvo = input.alvo === undefined ? null : h.alvo;
+    h.interagir = null;
   }
+  if (input.interagir) {
+    const [ox, oy] = input.interagir;
+    if (objectAt(ctx.m, ox, oy)) {
+      h.interagir = oy * ctx.m.largura + ox;
+      h.alvo = null;
+      pathTowards(ctx, h, ox, oy, 1);
+    }
+  }
+  if (input.dir && (input.dir[0] !== 0 || input.dir[1] !== 0)) h.interagir = null;
   if (input.habilidade !== undefined) useAbility(ctx, host, input.habilidade);
+  if (input.pocao) drinkPotion(ctx);
 
   h.moverRestante = Math.max(0, h.moverRestante - dt);
   h.recalcular -= dt;
@@ -471,6 +526,14 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
       const aqui = w.chao.filter((c) => c.x === h.x && c.y === h.y).map((c) => c.id);
       if (aqui.length > 0) emit(ctx, { tipo: 'itemNoChao', ids: aqui });
     }
+  }
+
+  if (h.interagir !== null && h.moverRestante <= 0 && h.caminho.length === 0) {
+    const idx = h.interagir;
+    const ox = idx % ctx.m.largura;
+    const oy = (idx - ox) / ctx.m.largura;
+    h.interagir = null;
+    if (chebyshev(h.x, h.y, ox, oy) <= 1) interact(ctx, idx, ox, oy);
   }
 
   h.atkCd = Math.max(0, h.atkCd - dt);
@@ -688,6 +751,7 @@ export function stepWorld(
   const segundoAntes = Math.floor(w.t / 1000);
   w.t += dt;
 
+  w.recargaPocao = Math.max(0, w.recargaPocao - dt);
   for (const id of Object.keys(w.recargas))
     w.recargas[id] = Math.max(0, (w.recargas[id] ?? 0) - dt);
 

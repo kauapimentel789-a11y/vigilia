@@ -24,6 +24,12 @@ import {
   equipItem,
   unequipItem,
   discardItem,
+  sellItems,
+  buyPotions,
+  consumePotion,
+  storeItem,
+  retrieveItem,
+  dieInMap,
   spendPoint,
   startExpedition,
   upgrade,
@@ -67,6 +73,14 @@ interface Store {
   equiparItem(uid: string): void;
   desequipar(slot: SlotId): void;
   descartar(uid: string): void;
+  vender(uids: string[]): void;
+  comprarPocoes(qtd: number): void;
+  /** Mapa: gasta uma poção. false se não há poções. */
+  gastarPocao(): boolean;
+  guardar(uid: string): void;
+  retirar(uid: string): void;
+  /** Mapa: o caçador caiu. Devolve quantos itens da mochila foram perdidos. */
+  morrer(): number;
   /** Mapa: paga um abate. Devolve a recompensa para a tela mostrar. */
   recompensarAbate(
     portal: string,
@@ -144,6 +158,22 @@ export const useGame = create<Store>()((set, get) => {
     equiparItem: (uid) => apply(equipItem(get().estado, CONTEUDO, uid)),
     desequipar: (slot) => apply(unequipItem(get().estado, CONTEUDO, slot)),
     descartar: (uid) => apply(discardItem(get().estado, uid)),
+    vender: (uids) => apply(sellItems(get().estado, CONTEUDO, uids)),
+    comprarPocoes: (qtd) => apply(buyPotions(get().estado, CONTEUDO, qtd)),
+    gastarPocao() {
+      const r = consumePotion(get().estado);
+      if (r.erro !== undefined) return false;
+      set({ estado: r.estado });
+      return true;
+    },
+    guardar: (uid) => apply(storeItem(get().estado, CONTEUDO, uid)),
+    retirar: (uid) => apply(retrieveItem(get().estado, CONTEUDO, uid)),
+    morrer() {
+      const r = dieInMap(get().estado);
+      if (r.erro !== undefined) return 0;
+      set({ estado: r.estado });
+      return r.perdidos;
+    },
     recompensarAbate(portal, abate) {
       const r = rewardKill(get().estado, CONTEUDO, portal, abate);
       return apply(r) && r.recompensa ? r.recompensa : null;

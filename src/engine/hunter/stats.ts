@@ -57,7 +57,8 @@ export function deriveStats(cacador: HunterState, content: GameContent): HunterS
       s.criticoBase + s.criticoPorPercepcao * a.percepcao + (it.critico ?? 0),
       s.criticoMax,
     ),
-    danoCritico: s.danoCriticoBase + s.danoCriticoPorPercepcao * a.percepcao + (it.danoCritico ?? 0),
+    danoCritico:
+      s.danoCriticoBase + s.danoCriticoPorPercepcao * a.percepcao + (it.danoCritico ?? 0),
     poder: 1 + s.poderPorVontade * a.vontade + (it.poder ?? 0),
     recargaMult: 1 - Math.min(s.recargaPorVontade * a.vontade, s.recargaReducaoMax),
     rouboVida: it.rouboVida ?? 0,

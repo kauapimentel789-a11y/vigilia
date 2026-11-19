@@ -87,6 +87,7 @@ function drawTile(
   px: number,
   py: number,
   t: number,
+  aberto = false,
 ) {
   const tile = m.tiles[y * m.largura + x];
   const r = hash(x, y);
@@ -129,6 +130,10 @@ function drawTile(
   }
   ctx.fillStyle = (x + y) % 2 === 0 ? COR.chao : COR.chaoB;
   ctx.fillRect(px, py, TILE, TILE);
+  if (tile === Tile.Objeto) {
+    drawObject(ctx, m.objetos[y * m.largura + x] ?? '', px, py, t, aberto);
+    return;
+  }
   // Sombra da parede logo acima.
   if (y > 0 && m.tiles[(y - 1) * m.largura + x] === Tile.Parede) {
     ctx.fillStyle = COR.paredeSombra;
@@ -156,6 +161,82 @@ function drawTile(
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(cx, cy, TILE * 0.32, TILE * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+export const NOME_OBJETO: Record<string, string> = {
+  mercadora: 'Mercadora',
+  bau: 'Baú',
+  altar: 'Altar',
+  expedicao: 'Expedições',
+  tesouro: '',
+};
+
+function drawObject(
+  ctx: CanvasRenderingContext2D,
+  id: string,
+  px: number,
+  py: number,
+  t: number,
+  aberto: boolean,
+) {
+  const cx = px + TILE / 2;
+  const cy = py + TILE / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + TILE * 0.3, TILE * 0.36, TILE * 0.12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (id === 'mercadora') {
+    ctx.fillStyle = '#7a5a3a';
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy + 12);
+    ctx.quadraticCurveTo(cx - 12, cy - 12, cx, cy - 13);
+    ctx.quadraticCurveTo(cx + 12, cy - 12, cx + 10, cy + 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#1a1410';
+    ctx.beginPath();
+    ctx.arc(cx, cy - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(242,181,107,${0.75 + 0.25 * Math.sin(t / 300)})`;
+    ctx.beginPath();
+    ctx.arc(cx + 11, cy + 2, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (id === 'bau' || id === 'tesouro') {
+    ctx.fillStyle = id === 'bau' ? '#6b4a2b' : aberto ? '#3d3329' : '#8a6a2a';
+    ctx.fillRect(cx - 12, cy - 4, 24, 15);
+    ctx.fillStyle = aberto ? '#2a231c' : '#a07d3a';
+    ctx.fillRect(cx - 12, cy - 10, 24, 7);
+    ctx.fillStyle = '#d9c27a';
+    ctx.fillRect(cx - 2, cy - 4, 4, 5);
+    if (id === 'tesouro' && !aberto) {
+      ctx.fillStyle = `rgba(242,181,107,${0.25 + 0.2 * Math.sin(t / 250)})`;
+      ctx.fillRect(cx - 14, cy - 12, 28, 25);
+    }
+  } else if (id === 'altar') {
+    ctx.fillStyle = '#4a4f66';
+    ctx.fillRect(cx - 11, cy - 2, 22, 13);
+    ctx.fillStyle = '#5c6280';
+    ctx.fillRect(cx - 13, cy - 5, 26, 4);
+    const g = ctx.createRadialGradient(cx, cy - 10, 1, cx, cy - 10, 12);
+    g.addColorStop(0, `rgba(190,180,255,${0.8 + 0.2 * Math.sin(t / 350)})`);
+    g.addColorStop(1, 'rgba(139,124,246,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - 14, cy - 24, 28, 24);
+  } else if (id === 'expedicao') {
+    ctx.fillStyle = '#5a4330';
+    ctx.fillRect(cx - 13, cy - 4, 26, 6);
+    ctx.fillRect(cx - 11, cy + 2, 3, 9);
+    ctx.fillRect(cx + 8, cy + 2, 3, 9);
+    ctx.fillStyle = '#d8ccb0';
+    ctx.fillRect(cx - 9, cy - 8, 16, 6);
+    ctx.strokeStyle = '#8b5a4a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, cy - 4);
+    ctx.lineTo(cx - 2, cy - 7);
+    ctx.lineTo(cx + 4, cy - 5);
     ctx.stroke();
   }
 }
@@ -281,8 +362,24 @@ export function render(
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       if (!s.w.revelado[y * m.largura + x]) continue;
-      drawTile(ctx, m, x, y, x * TILE, y * TILE, t);
+      drawTile(ctx, m, x, y, x * TILE, y * TILE, t, s.w.abertos.includes(y * m.largura + x));
     }
+  }
+
+  // Nomes dos personagens do Posto.
+  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  for (const [idx, id] of Object.entries(m.objetos)) {
+    const nome = NOME_OBJETO[id];
+    const i = Number(idx);
+    if (!nome || !s.w.revelado[i]) continue;
+    const ox = (i % m.largura) * TILE + TILE / 2;
+    const oy = Math.floor(i / m.largura) * TILE;
+    const w = ctx.measureText(nome).width + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(ox - w / 2, oy - 16, w, 15);
+    ctx.fillStyle = '#f2d9b0';
+    ctx.fillText(nome, ox, oy - 5);
   }
 
   // Rótulos dos portões.
