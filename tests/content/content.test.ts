@@ -19,9 +19,11 @@ describe('integridade do conteúdo', () => {
     for (const [k, v] of Object.entries(C.portais)) expect(v.id).toBe(k);
   });
 
-  it('9 habilidades com recarga positiva, ao menos 1 disponível no level 1', () => {
+  it('9 habilidades comuns + 4 por classe, com recarga positiva', () => {
     const lista = Object.values(C.habilidades);
-    expect(lista).toHaveLength(9);
+    expect(lista.filter((h) => !h.classe)).toHaveLength(9);
+    for (const c of Object.keys(C.classes))
+      expect(lista.filter((h) => h.classe === c)).toHaveLength(4);
     for (const h of lista) {
       expect(h.recarga).toBeGreaterThan(0);
       expect(h.desbloqueio).toBeLessThanOrEqual(C.progressao.levelMax);

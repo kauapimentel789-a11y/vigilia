@@ -6,7 +6,8 @@
  */
 import type { AbilityDef, GameContent } from '../definitions.ts';
 import type { Comportamento, HunterState } from './hunter.ts';
-import { abilityLevel } from './abilities.ts';
+import { abilityLevel, isUnlocked } from './abilities.ts';
+import { classOf } from './hunter.ts';
 import { equipmentStats } from '../items/items.ts';
 
 export interface HunterStats {
@@ -26,6 +27,8 @@ export interface HunterStats {
   rouboVida: number;
   /** Veneno aplicado a cada ataque básico (itens). */
   venenoAoAcertar: number;
+  /** Alcance do ataque básico, em tiles (vem da classe). */
+  alcance: number;
 }
 
 export function deriveStats(cacador: HunterState, content: GameContent): HunterStats {
@@ -41,28 +44,33 @@ export function deriveStats(cacador: HunterState, content: GameContent): HunterS
     vontade: at.vontade + (it.vontade ?? 0),
   };
   const lv = cacador.level - 1;
+  const cl = content.classes[classOf(cacador)];
+  const m = cl?.mult ?? { vida: 1, ataque: 1, velocidade: 1 };
+  const b = cl?.bonus ?? { critico: 0, reducao: 0, poder: 0 };
   const ataqueBase =
     s.ataqueBase + s.ataquePorLevel * lv + s.ataquePorForca * a.forca + (it.ataque ?? 0);
   return {
     vidaMax: Math.round(
-      s.vidaBase + s.vidaPorLevel * lv + s.vidaPorVigor * a.vigor + (it.vida ?? 0),
+      (s.vidaBase + s.vidaPorLevel * lv + s.vidaPorVigor * a.vigor + (it.vida ?? 0)) * m.vida,
     ),
-    ataque: ataqueBase * (1 + s.danoPctPorForca * a.forca),
+    ataque: ataqueBase * (1 + s.danoPctPorForca * a.forca) * m.ataque,
     velocidade:
-      s.velocidadeBase *
+      (s.velocidadeBase *
         (1 + Math.min(s.velocidadePctPorAgilidade * a.agilidade, s.velocidadeBonusMax)) +
-      (it.velocidade ?? 0),
-    reducao: Math.min(s.reducaoPorVigor * a.vigor + (it.reducao ?? 0), s.reducaoMax),
+        (it.velocidade ?? 0)) *
+      m.velocidade,
+    reducao: Math.min(s.reducaoPorVigor * a.vigor + (it.reducao ?? 0) + b.reducao, s.reducaoMax),
     critico: Math.min(
-      s.criticoBase + s.criticoPorPercepcao * a.percepcao + (it.critico ?? 0),
+      s.criticoBase + s.criticoPorPercepcao * a.percepcao + (it.critico ?? 0) + b.critico,
       s.criticoMax,
     ),
     danoCritico:
       s.danoCriticoBase + s.danoCriticoPorPercepcao * a.percepcao + (it.danoCritico ?? 0),
-    poder: 1 + s.poderPorVontade * a.vontade + (it.poder ?? 0),
+    poder: 1 + s.poderPorVontade * a.vontade + (it.poder ?? 0) + b.poder,
     recargaMult: 1 - Math.min(s.recargaPorVontade * a.vontade, s.recargaReducaoMax),
     rouboVida: it.rouboVida ?? 0,
     venenoAoAcertar: it.venenoAoAcertar ?? 0,
+    alcance: cl?.alcance ?? 1,
   };
 }
 
@@ -88,7 +96,7 @@ export function buildProfile(cacador: HunterState, content: GameContent): Hunter
   const porNivel = content.progressao.escalaPorNivelDeHabilidade;
   const habilidades = cacador.equipadas.flatMap((id) => {
     const def = content.habilidades[id];
-    if (!def || cacador.level < def.desbloqueio) return [];
+    if (!def || !isUnlocked(cacador, def)) return [];
     const nivel = abilityLevel(cacador, id);
     return [
       {

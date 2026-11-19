@@ -7,6 +7,7 @@ import { PROGRESSAO } from '../src/content/progression.ts';
 import { ITENS } from '../src/content/items.ts';
 import { RANKS, SELOS } from '../src/content/ranks.ts';
 import { ARENA } from '../src/content/arena.ts';
+import { CLASSES } from '../src/content/classes.ts';
 import { MUNDO } from '../src/content/world.ts';
 import type { EnemyDef, GameContent, PortalDef } from '../src/engine/definitions.ts';
 import type { HunterProfile } from '../src/engine/hunter/stats.ts';
@@ -135,6 +136,7 @@ const portais: PortalDef[] = [
 
 export const TEST_CONTENT: GameContent = {
   progressao: PROGRESSAO,
+  classes: CLASSES,
   habilidades: HABILIDADES,
   inimigos: Object.fromEntries(inimigos.map((i) => [i.id, i])),
   portais: Object.fromEntries(portais.map((p) => [p.id, p])),

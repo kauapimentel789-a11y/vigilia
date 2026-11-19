@@ -4,14 +4,27 @@
  * Todo comando é puro: recebe o estado atual e devolve um estado novo (ou um
  * erro), sem alterar a entrada. A interface só chama estes comandos.
  */
-import type { AtributoId, GameContent, PortalDef, RankId, SlotId } from '../definitions.ts';
+import type {
+  AtributoId,
+  ClasseId,
+  GameContent,
+  PortalDef,
+  RankId,
+  SlotId,
+} from '../definitions.ts';
 import { RANKS_ORDEM } from '../definitions.ts';
 import type { PortalBattleOutput } from '../autobattle/simulate.ts';
 import { simulatePortal } from '../autobattle/simulate.ts';
 import type { ExpeditionGains, ExpeditionState } from '../expedition/expedition.ts';
 import { accruedGains, calculateRate, rewardMultiplier } from '../expedition/expedition.ts';
 import type { Comportamento, HunterResult, HunterState } from '../hunter/hunter.ts';
-import { changeAttribute, createHunter, gainXp, resetAttributes } from '../hunter/hunter.ts';
+import {
+  changeAttribute,
+  chooseClass,
+  createHunter,
+  gainXp,
+  resetAttributes,
+} from '../hunter/hunter.ts';
 import { setBehavior, setEquipped, upgradeAbility } from '../hunter/abilities.ts';
 import { buildProfile } from '../hunter/stats.ts';
 import type { ItemInstance } from '../items/items.ts';
@@ -107,6 +120,10 @@ export function respec(estado: GameState, content: GameContent): GameResult {
   return {
     estado: { ...structuredClone(estado), cacador: resetAttributes(estado.cacador, content) },
   };
+}
+
+export function changeClass(estado: GameState, content: GameContent, classe: ClasseId): GameResult {
+  return withHunter(estado, chooseClass(estado.cacador, content, classe));
 }
 
 export function equip(estado: GameState, content: GameContent, ids: readonly string[]): GameResult {

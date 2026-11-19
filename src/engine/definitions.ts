@@ -84,11 +84,46 @@ export interface ProgressionDef {
 
 export type CategoriaHabilidade = 'ataque' | 'defesa' | 'cura';
 
+export type ClasseId = 'vigia' | 'guardiao' | 'arcanista' | 'lamina' | 'atiradora';
+export const CLASSES_ORDEM: readonly ClasseId[] = [
+  'vigia',
+  'guardiao',
+  'arcanista',
+  'lamina',
+  'atiradora',
+];
+
+/** Classe do caçador: muda os números de combate, o alcance e as habilidades exclusivas. */
+export interface ClasseDef {
+  id: ClasseId;
+  nome: string;
+  /** Papel em poucas palavras (ex.: "Tanque"). */
+  papel: string;
+  descricao: string;
+  /** Alcance do ataque básico, em tiles. */
+  alcance: number;
+  /** Multiplicadores sobre os números derivados dos atributos. */
+  mult: { vida: number; ataque: number; velocidade: number };
+  /** Somas diretas (frações). */
+  bonus: { critico: number; reducao: number; poder: number };
+}
+
+/** Como a habilidade aparece no mapa (só a tela usa). */
+export interface VisualHabilidade {
+  tipo: 'corte' | 'projetil' | 'nova' | 'escudo' | 'cura' | 'chuva' | 'explosao' | 'sombra';
+  cor: string;
+}
+
 export interface AbilityDef {
   id: string;
   nome: string;
   descricao: string;
   categoria: CategoriaHabilidade;
+  /** Só esta classe pode usar. Sem classe: todas podem. */
+  classe?: ClasseId;
+  /** Mapa: raio, em tiles, dos efeitos em "inimigos" em volta do caçador (padrão 1). */
+  raio?: number;
+  visual?: VisualHabilidade;
   /** Level do caçador em que a habilidade fica disponível. */
   desbloqueio: number;
   /** Recarga em segundos. */
@@ -425,6 +460,7 @@ export interface ArenaDef {
 
 export interface GameContent {
   progressao: ProgressionDef;
+  classes: Record<ClasseId, ClasseDef>;
   habilidades: Record<string, AbilityDef>;
   inimigos: Record<string, EnemyDef>;
   portais: Record<string, PortalDef>;

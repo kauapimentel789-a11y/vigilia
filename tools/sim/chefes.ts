@@ -1,7 +1,7 @@
 /**
  * Lutas de chefe nos mapas jogáveis, com auto-caçar: quanto tempo dura a luta
  * (do chefe notar o caçador até cair), a vida mais baixa do caçador e as poções
- * gastas. Uso: node tools/sim/chefes.ts
+ * gastas. Uso: node tools/sim/chefes.ts [classe]
  *
  * Os números são indicadores, não metas: a mecânica vem primeiro.
  */
@@ -10,7 +10,8 @@ import type { AtributoId, GameContent } from '../../src/engine/definitions.ts';
 import type { GameState } from '../../src/engine/game/game.ts';
 import { equip, newGame, spendPoint, upgrade } from '../../src/engine/game/game.ts';
 import { abilityLevel, isUnlocked, upgradeCost } from '../../src/engine/hunter/abilities.ts';
-import { gainXp } from '../../src/engine/hunter/hunter.ts';
+import { chooseClass, gainXp } from '../../src/engine/hunter/hunter.ts';
+import type { ClasseId } from '../../src/engine/definitions.ts';
 import { buildProfile } from '../../src/engine/hunter/stats.ts';
 import { createWorld, stepWorld } from '../../src/engine/realtime/world.ts';
 import { autoHuntInput } from '../../src/engine/realtime/auto.ts';
@@ -54,7 +55,15 @@ function bestLoadout(e: GameState): string[] {
     'corteRapido',
     'laminaVenenosa',
   ];
-  return pref.filter((id) => isUnlocked(e.cacador, C.habilidades[id]!)).slice(0, 4);
+  const daClasse = Object.values(C.habilidades)
+    .filter((h) => h.classe && isUnlocked(e.cacador, h))
+    .sort((a, b) => b.desbloqueio - a.desbloqueio)
+    .map((h) => h.id)
+    .slice(0, 2);
+  return [...daClasse, ...pref.filter((id) => isUnlocked(e.cacador, C.habilidades[id]!))].slice(
+    0,
+    4,
+  );
 }
 
 function upgradeAll(e: GameState): GameState {
@@ -70,6 +79,8 @@ function upgradeAll(e: GameState): GameState {
 }
 
 function prepare(e: GameState): GameState {
+  const classe = process.argv[2] as ClasseId | undefined;
+  if (classe) e = { ...e, cacador: chooseClass(e.cacador, C, classe).cacador! };
   e = spendAll(e, ORDEM_EQUILIBRADA);
   e = must(equip(e, C, bestLoadout(e))).estado;
   return upgradeAll(e);
@@ -88,7 +99,9 @@ function levelUpTo(level: number): GameState {
 
 const pct = (x: number) => `${Math.round(x * 100)}%`.padStart(5);
 
-console.log('\nLutas de chefe (auto-caçar, 5 poções, 3 sementes por linha)');
+console.log(
+  `\nLutas de chefe (${process.argv[2] ?? 'vigia'}, auto-caçar, 5 poções, 3 sementes por linha)`,
+);
 console.log('  mapa           level | venceu  luta média  vida mínima  poções  caiu na luta');
 for (const portal of C.ordemPortais) {
   const mapa = Object.values(C.mapas).find((m) => m.portal === portal)!;

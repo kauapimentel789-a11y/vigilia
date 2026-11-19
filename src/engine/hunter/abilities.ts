@@ -3,9 +3,16 @@
  */
 import type { AbilityDef, GameContent } from '../definitions.ts';
 import type { Comportamento, HunterResult, HunterState } from './hunter.ts';
+import { classOf } from './hunter.ts';
 
+/** Liberada pelo level e, se for exclusiva, pela classe do caçador. */
 export function isUnlocked(cacador: HunterState, def: AbilityDef): boolean {
-  return cacador.level >= def.desbloqueio;
+  return cacador.level >= def.desbloqueio && (!def.classe || def.classe === classOf(cacador));
+}
+
+/** A habilidade é de outra classe (não só bloqueada pelo level). */
+export function isOtherClass(cacador: HunterState, def: AbilityDef): boolean {
+  return !!def.classe && def.classe !== classOf(cacador);
 }
 
 export function abilityLevel(cacador: HunterState, id: string): number {
@@ -33,7 +40,12 @@ export function setEquipped(
   for (const id of equipadas) {
     const def = content.habilidades[id];
     if (!def) return { erro: `Habilidade desconhecida: ${id}` };
-    if (!isUnlocked(cacador, def)) return { erro: `${def.nome} ainda está bloqueada.` };
+    if (!isUnlocked(cacador, def))
+      return {
+        erro: isOtherClass(cacador, def)
+          ? `${def.nome} é de outra classe.`
+          : `${def.nome} ainda está bloqueada.`,
+      };
   }
   return { cacador: { ...structuredClone(cacador), equipadas: [...equipadas] } };
 }
