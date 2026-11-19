@@ -228,3 +228,42 @@ export function advanceTime(estado: GameState, ms: number): GameState {
   }
   return novo;
 }
+
+/* ---------- Mapa ---------- */
+
+export interface KillReward {
+  xp: number;
+  ouro: number;
+  levelsGanhos: number;
+  /** O abate fechou o portal pela primeira vez (chefe). */
+  primeiraVitoria: boolean;
+}
+
+/**
+ * Paga um abate no mapa. O XP e o ouro do monstro já vêm escalados pelo portal;
+ * aqui entra a queda por level e, no chefe, o bônus da primeira vitória.
+ */
+export function rewardKill(
+  estado: GameState,
+  content: GameContent,
+  portalId: string,
+  abate: { xp: number; ouro: number; chefe: boolean },
+): GameResult<{ recompensa: KillReward }> {
+  const portal = portalOrError(content, portalId);
+  if (typeof portal === 'string') return { erro: portal };
+  const novo = structuredClone(estado);
+  const mult = rewardMultiplier(content, portal, estado.cacador.level);
+  const primeiraVitoria = abate.chefe && !estado.portaisFechados.includes(portalId);
+  const bonus = primeiraVitoria ? portal.primeiraVitoria : { xp: 0, ouro: 0 };
+  const xp = Math.round(abate.xp * mult) + bonus.xp;
+  const ouro = Math.round(abate.ouro * mult) + bonus.ouro;
+  if (primeiraVitoria) novo.portaisFechados.push(portalId);
+  if (abate.chefe) {
+    novo.registro.lutas++;
+    novo.registro.vitorias++;
+  }
+  const r = gainXp(novo.cacador, content, xp);
+  novo.cacador = r.cacador;
+  novo.ouro += ouro;
+  return { estado: novo, recompensa: { xp, ouro, levelsGanhos: r.levelsGanhos, primeiraVitoria } };
+}

@@ -9,7 +9,7 @@ import { CONTEUDO } from '../../content/index.ts';
 import type { AtributoId } from '../../engine/definitions.ts';
 import type { ExpeditionGains } from '../../engine/expedition/expedition.ts';
 import { accruedGains } from '../../engine/expedition/expedition.ts';
-import type { GameState, Reward } from '../../engine/game/game.ts';
+import type { GameState, KillReward, Reward } from '../../engine/game/game.ts';
 import {
   advanceTime,
   changeBehavior,
@@ -18,6 +18,7 @@ import {
   fightPortal,
   newGame,
   respec,
+  rewardKill,
   spendPoint,
   startExpedition,
   upgrade,
@@ -56,6 +57,11 @@ interface Store {
   definirComportamento(c: Comportamento): void;
   entrarNoPortal(id: string): void;
   fecharCombate(): void;
+  /** Mapa: paga um abate. Devolve a recompensa para a tela mostrar. */
+  recompensarAbate(
+    portal: string,
+    abate: { xp: number; ouro: number; chefe: boolean },
+  ): KillReward | null;
   enviarExpedicao(portal: string): void;
   coletar(encerrar?: boolean): void;
   fecharRelatorio(): void;
@@ -119,6 +125,10 @@ export const useGame = create<Store>()((set, get) => {
       }
     },
     fecharCombate: () => set({ combate: null }),
+    recompensarAbate(portal, abate) {
+      const r = rewardKill(get().estado, CONTEUDO, portal, abate);
+      return apply(r) && r.recompensa ? r.recompensa : null;
+    },
 
     enviarExpedicao: (portal) => apply(startExpedition(get().estado, CONTEUDO, portal, Date.now())),
     coletar(encerrar = false) {

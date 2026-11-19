@@ -171,6 +171,28 @@ export function createWorld(
   return w;
 }
 
+/**
+ * Atualiza o caçador quando o perfil muda no meio do mapa (subiu de level,
+ * trocou habilidades). A vida perdida continua perdida.
+ */
+export function applyProfile(w: WorldState, content: GameContent, perfil: HunterProfile): void {
+  const h = w.atores.find((a) => a.uid === HEROI);
+  if (!h) return;
+  const s = perfil.stats;
+  const perdida = h.vidaMax - h.vida;
+  h.nome = perfil.nome;
+  h.vidaMax = s.vidaMax;
+  h.vida = h.vida > 0 ? Math.max(1, s.vidaMax - perdida) : 0;
+  h.ataque = s.ataque;
+  h.velocidade = s.velocidade;
+  h.reducao = s.reducao;
+  h.critico = s.critico;
+  h.danoCritico = s.danoCritico;
+  h.passoMs = heroPasso(content, s.velocidade);
+  h.atkIntervalo = attackInterval(content, s.velocidade);
+  for (const hab of perfil.habilidades) w.recargas[hab.def.id] ??= 0;
+}
+
 function reveal(w: WorldState, m: WorldMap, h: RtActor, raio: number): void {
   for (let y = h.y - raio; y <= h.y + raio; y++) {
     for (let x = h.x - raio; x <= h.x + raio; x++) {
@@ -275,6 +297,8 @@ function createHost(ctx: StepCtx): EffectHost<RtActor> {
         critico,
       });
       if (alvo.lado === 'inimigo' && !alvo.agressivo) alvo.agressivo = true;
+      // Quem apanha sem alvo revida contra quem bateu.
+      if (alvo.uid === HEROI && !alvo.alvo && atk.lado === 'inimigo') alvo.alvo = atk.uid;
       if (alvo.vida === 0) onDeath(ctx, alvo);
     },
     gainBlock(alvo, valor) {
@@ -370,7 +394,11 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
         ? undefined
         : w.atores.find((a) => a.uid === input.alvo && a.lado === 'inimigo' && vivo(a));
     h.alvo = alvo ? alvo.uid : null;
-    if (alvo) alvo.agressivo = true;
+    if (alvo) {
+      alvo.agressivo = true;
+      h.caminho = [];
+      h.recalcular = 0;
+    }
   }
   if (input.irPara) {
     const [tx, ty] = input.irPara;

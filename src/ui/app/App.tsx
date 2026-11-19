@@ -9,14 +9,16 @@ import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
 import { AutoBattle } from '../screens/AutoBattle/AutoBattle.tsx';
 import { Expedition } from '../screens/Expedition/Expedition.tsx';
+import { Hunt } from '../screens/Hunt/Hunt.tsx';
 import { Hunter } from '../screens/Hunter/Hunter.tsx';
 import { Portals } from '../screens/Portals/Portals.tsx';
 import { useGame } from '../store/game.ts';
 import s from './App.module.css';
 
-type Aba = 'cacador' | 'habilidades' | 'portais' | 'expedicao';
+type Aba = 'cacar' | 'cacador' | 'habilidades' | 'portais' | 'expedicao';
 
 const ABAS: Array<{ id: Aba; nome: string; icone: string }> = [
+  { id: 'cacar', nome: 'Caçar', icone: '⚔' },
   { id: 'cacador', nome: 'Caçador', icone: '◆' },
   { id: 'habilidades', nome: 'Habilidades', icone: '✦' },
   { id: 'portais', nome: 'Portais', icone: '◎' },
@@ -24,7 +26,7 @@ const ABAS: Array<{ id: Aba; nome: string; icone: string }> = [
 ];
 
 export function App() {
-  const [aba, setAba] = useState<Aba>('portais');
+  const [aba, setAba] = useState<Aba>('cacar');
   const estado = useGame((g) => g.estado);
   const combate = useGame((g) => g.combate);
   const aviso = useGame((g) => g.aviso);
@@ -94,6 +96,8 @@ export function App() {
               setRodada((r) => r + 1);
             }}
           />
+        ) : aba === 'cacar' ? (
+          <Hunt />
         ) : aba === 'cacador' ? (
           <Hunter />
         ) : aba === 'habilidades' ? (
