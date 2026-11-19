@@ -168,8 +168,7 @@ function validMatch(m: unknown, content: GameContent): boolean {
       Array.isArray(p.loja) &&
       p.loja.every((id) => id === null || !!content.arena.unidades[id as string]) &&
       (p.sombra === undefined ||
-        (Array.isArray(p.sombra) &&
-          p.sombra.every((t) => Array.isArray(t) && t.every(unidade)))),
+        (Array.isArray(p.sombra) && p.sombra.every((t) => Array.isArray(t) && t.every(unidade)))),
   );
 }
 

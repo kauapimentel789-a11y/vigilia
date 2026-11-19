@@ -17,6 +17,8 @@ import { isHeroUnlocked } from '../../../engine/game/arena.ts';
 import type { LinhaRanking, ResultadoOnline } from '../../cloud/arena.ts';
 import { buscarRanking, buscarRivais, registrarPartida } from '../../cloud/arena.ts';
 import { useCloud } from '../../cloud/cloud.ts';
+import { Sprite } from '../../art/Sprite.tsx';
+import { APARENCIA_ARENA } from '../../art/sprites.ts';
 import ui from '../../components/common.module.css';
 import { useGame } from '../../store/game.ts';
 import s from './Arena.module.css';
@@ -299,6 +301,7 @@ function Compras({
                 >
                   {def ? (
                     <>
+                      <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={40} />
                       <span className={s.cartaNome}>{def.nome}</span>
                       <span className={s.marcasMini}>
                         {def.marcas.map((m) => (
@@ -398,6 +401,7 @@ function Casa({
       {def && u ? (
         <>
           <span className={s.estrelas}>{'★'.repeat(u.estrelas)}</span>
+          <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={32} />
           <span className={s.casaNome}>{def.nome}</span>
           <span className={s.marcasMini}>
             {def.marcas.map((m) => (
@@ -590,6 +594,11 @@ function Replay({
               return (
                 <div key={col} className={`${s.lutador} ${vida <= 0 ? s.morto : ''}`}>
                   <span className={s.estrelas}>{'★'.repeat(un.estrelas)}</span>
+                  <Sprite
+                    ap={APARENCIA_ARENA[un.def]}
+                    tamanho={36}
+                    className={time === 1 ? s.espelhado : undefined}
+                  />
                   <span className={s.casaNome}>{un.nome}</span>
                   <div className={s.hp}>
                     <div style={{ width: `${(vida / un.vidaMax) * 100}%` }} />

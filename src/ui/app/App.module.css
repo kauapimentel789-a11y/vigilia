@@ -19,8 +19,22 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
+}
+
+.icone {
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(242, 120, 74, 0.35));
+}
+
+.nome {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #fff1d6 10%, #f2b56b 60%, #c2603a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .level {
@@ -75,12 +89,23 @@
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.05em;
   cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.aba:hover {
+  color: var(--color-text);
 }
 
 .ativa {
-  color: var(--color-text);
-  border-bottom-color: var(--color-arcane);
+  color: #f4ead8;
+  border-bottom-color: var(--color-ember);
+  background: linear-gradient(0deg, rgba(242, 181, 107, 0.1), transparent 70%);
 }
 
 .conteudo {

@@ -423,3 +423,7 @@
   gap: var(--space-3);
   align-items: baseline;
 }
+
+.espelhado {
+  transform: scaleX(-1);
+}

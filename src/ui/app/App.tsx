@@ -39,7 +39,8 @@ export function App() {
     <div className={s.app}>
       <header className={s.topo}>
         <div className={s.marca}>
-          <strong>Vigília</strong>
+          <img className={s.icone} src="/icone.svg" alt="" width={28} height={28} />
+          <strong className={s.nome}>Vigília</strong>
           <span className={ui.tag}>Rank {CONTEUDO.ranks[estado.rank].nome}</span>
         </div>
         <div className={s.level}>

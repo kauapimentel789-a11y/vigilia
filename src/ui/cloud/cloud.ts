@@ -84,11 +84,16 @@ export const useCloud = create<CloudStore>()((set, get) => ({
     const u = get().usuario;
     if (!supabase || !u) return;
     if (!NOME_OK.test(nome))
-      return set({ mensagem: 'O nome precisa ter de 3 a 20 letras, números, espaço, ponto ou traço.' });
+      return set({
+        mensagem: 'O nome precisa ter de 3 a 20 letras, números, espaço, ponto ou traço.',
+      });
     const { error } = await supabase.from('perfis').upsert({ user_id: u.id, nome });
     if (error)
       return set({
-        mensagem: error.code === '23505' ? 'Esse nome já é de outro caçador.' : 'Não deu para salvar o nome.',
+        mensagem:
+          error.code === '23505'
+            ? 'Esse nome já é de outro caçador.'
+            : 'Não deu para salvar o nome.',
       });
     set({ nome, mensagem: null });
   },
@@ -131,7 +136,12 @@ async function enviar(): Promise<void> {
   enviando = (async () => {
     const { error } = await supabase
       .from('saves')
-      .upsert({ user_id: u.id, dados: serialize(estado, agora), versao: estado.versao, salvo_em: new Date(agora).toISOString() });
+      .upsert({
+        user_id: u.id,
+        dados: serialize(estado, agora),
+        versao: estado.versao,
+        salvo_em: new Date(agora).toISOString(),
+      });
     if (error) useCloud.setState({ status: 'erro' });
     else {
       ultimoEnviado = estado;
