@@ -116,6 +116,12 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
     case 'bloqueio':
       flut(ev.alvo, `+${ev.valor} ⛨`, '#6aa8e8');
       break;
+    case 'preparo':
+      flut(ev.origem, `⚠ ${ev.nome}`, '#ff8a8a');
+      break;
+    case 'esquiva':
+      flut(ev.alvo, 'Esquivou!', '#d9d3ff');
+      break;
     case 'ataque': {
       const de = pos(s, ev.origem);
       const para = pos(s, ev.alvo);

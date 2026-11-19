@@ -31,6 +31,8 @@ export interface RtActor extends BattleUnit {
   renascer: number;
   xp: number;
   ouro: number;
+  /** Golpe forte sendo preparado: a área avisada no chão e o tempo que falta. */
+  preparo: { acao: string; restante: number; total: number; tiles: Array<[number, number]> } | null;
 }
 
 export interface WorldState {
@@ -65,6 +67,8 @@ type Body =
   | { tipo: 'habilidade'; origem: string; id: string; nome: string }
   | { tipo: 'aviso'; texto: string }
   | { tipo: 'especial'; origem: string; anuncio: string }
+  | { tipo: 'preparo'; origem: string; nome: string; tiles: Array<[number, number]> }
+  | { tipo: 'esquiva'; origem: string; alvo: string }
   | { tipo: 'abate'; alvo: string; defId: string; xp: number; ouro: number; chefe: boolean }
   | { tipo: 'renasceu'; alvo: string }
   | { tipo: 'heroiCaiu' }

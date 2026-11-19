@@ -15,7 +15,7 @@ import type { HunterProfile } from '../hunter/stats.ts';
 import { addStatus, tickSecond } from '../statuses/statuses.ts';
 import { computeHit } from '../autobattle/damage.ts';
 import type { WorldMap } from '../world/map.ts';
-import { chebyshev, gateAt, parseMap } from '../world/map.ts';
+import { chebyshev, gateAt, isWalkable, parseMap } from '../world/map.ts';
 import { hasLineOfSight } from '../world/los.ts';
 import { DIRECOES, canStep, findPath } from '../world/path.ts';
 import type { RtActor, RtEvent, RtInput, WorldState } from './state.ts';
@@ -96,6 +96,7 @@ function baseActor(
     origemY: y,
     agressivo: false,
     renascer: -1,
+    preparo: null,
   };
 }
 
@@ -243,6 +244,7 @@ function onDeath(ctx: StepCtx, a: RtActor): void {
     return;
   }
   a.agressivo = false;
+  a.preparo = null;
   a.caminho = [];
   a.status = {};
   a.bloqueio = 0;
@@ -250,6 +252,16 @@ function onDeath(ctx: StepCtx, a: RtActor): void {
   if (a.chefe) ctx.w.chefeDerrotado = true;
   if (ctx.heroi.alvo === a.uid) ctx.heroi.alvo = null;
   emit(ctx, { tipo: 'abate', alvo: a.uid, defId: a.defId, xp: a.xp, ouro: a.ouro, chefe: a.chefe });
+}
+
+/** Um monstro entra na luta e chama o grupo dele (origens próximas). */
+function provoke(ctx: StepCtx, a: RtActor): void {
+  const raio = ctx.content.mundo.raioGrupo;
+  for (const o of ctx.w.atores) {
+    if (o.lado !== 'inimigo' || !vivo(o) || o.agressivo) continue;
+    if (o === a || chebyshev(o.origemX, o.origemY, a.origemX, a.origemY) <= raio)
+      o.agressivo = true;
+  }
 }
 
 function createHost(ctx: StepCtx): EffectHost<RtActor> {
@@ -296,7 +308,7 @@ function createHost(ctx: StepCtx): EffectHost<RtActor> {
         bloqueado,
         critico,
       });
-      if (alvo.lado === 'inimigo' && !alvo.agressivo) alvo.agressivo = true;
+      if (alvo.lado === 'inimigo' && !alvo.agressivo) provoke(ctx, alvo);
       // Quem apanha sem alvo revida contra quem bateu.
       if (alvo.uid === HEROI && !alvo.alvo && atk.lado === 'inimigo') alvo.alvo = atk.uid;
       if (alvo.vida === 0) onDeath(ctx, alvo);
@@ -395,7 +407,7 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
         : w.atores.find((a) => a.uid === input.alvo && a.lado === 'inimigo' && vivo(a));
     h.alvo = alvo ? alvo.uid : null;
     if (alvo) {
-      alvo.agressivo = true;
+      provoke(ctx, alvo);
       h.caminho = [];
       h.recalcular = 0;
     }
@@ -487,6 +499,42 @@ function chooseIntent(ctx: StepCtx, a: RtActor): EnemyActionDef {
   return escolhida;
 }
 
+function startPrepare(ctx: StepCtx, a: RtActor, acao: EnemyActionDef): void {
+  const h = ctx.heroi;
+  const r = acao.area ?? 0;
+  const tiles: Array<[number, number]> = [];
+  for (let y = h.y - r; y <= h.y + r; y++) {
+    for (let x = h.x - r; x <= h.x + r; x++) if (isWalkable(ctx.m, x, y)) tiles.push([x, y]);
+  }
+  const total = ctx.content.mundo.preparoForteMs;
+  a.preparo = { acao: acao.id, restante: total, total, tiles };
+  emit(ctx, { tipo: 'preparo', origem: a.uid, nome: acao.nome, tiles });
+}
+
+function strikePrepared(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): void {
+  const p = a.preparo;
+  a.preparo = null;
+  if (!p) return;
+  const h = ctx.heroi;
+  const acao = enemyDef(ctx, a).acoes.find((x) => x.id === p.acao);
+  a.atkCd = a.atkIntervalo;
+  if (!acao) return;
+  const dentro = p.tiles.some(([x, y]) => x === h.x && y === h.y);
+  emit(ctx, {
+    tipo: 'ataque',
+    origem: a.uid,
+    alvo: h.uid,
+    distancia: chebyshev(a.x, a.y, h.x, h.y),
+  });
+  // Fora da área: os efeitos que acertariam o caçador não acontecem.
+  const efeitos = dentro
+    ? acao.efeitos
+    : acao.efeitos.filter((e) => e.alvo !== 'alvo' && e.alvo !== 'inimigos');
+  if (!dentro) emit(ctx, { tipo: 'esquiva', origem: a.uid, alvo: h.uid });
+  runEffects(host, efeitos, { unidade: a, fonte: acao.id, alvo: h });
+  if (vivo(a)) chooseIntent(ctx, a);
+}
+
 function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: number): void {
   const h = ctx.heroi;
   const mundo = ctx.content.mundo;
@@ -506,6 +554,7 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       a.intencao = null;
       a.cicloIndice = 0;
       a.especialUsado = false;
+      a.preparo = null;
       emit(ctx, { tipo: 'renasceu', alvo: a.uid });
     }
     return;
@@ -522,10 +571,11 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
     dist <= mundo.visaoMonstro &&
     hasLineOfSight(ctx.m, a.x, a.y, h.x, h.y)
   ) {
-    a.agressivo = true;
+    provoke(ctx, a);
   }
   if (a.agressivo && (!heroiVivo || chebyshev(a.x, a.y, a.origemX, a.origemY) > mundo.coleira)) {
     a.agressivo = false;
+    a.preparo = null;
     a.intencao = null;
     pathTowards(ctx, a, a.origemX, a.origemY, 0);
   }
@@ -539,6 +589,12 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: esp.anuncio });
       runEffects(host, esp.efeitos, { unidade: a, fonte: 'especial' });
     }
+    // Golpe forte em preparo: fica parado e acerta a área avisada no fim.
+    if (a.preparo) {
+      a.preparo.restante -= dt;
+      if (a.preparo.restante <= 0) strikePrepared(ctx, host, a);
+      return;
+    }
     const alcance = inRange(ctx, a, h, a.alcance);
     if (alcance && a.moverRestante <= 0) {
       // Atiradores recuam quando o caçador encosta.
@@ -550,6 +606,10 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       if (a.atkCd <= 0) {
         const acao =
           enemyDef(ctx, a).acoes.find((x) => x.id === a.intencao) ?? chooseIntent(ctx, a);
+        if (acao.forte) {
+          startPrepare(ctx, a, acao);
+          return;
+        }
         a.atkCd = a.atkIntervalo;
         emit(ctx, { tipo: 'ataque', origem: a.uid, alvo: h.uid, distancia: dist });
         runEffects(host, acao.efeitos, { unidade: a, fonte: acao.id, alvo: h });

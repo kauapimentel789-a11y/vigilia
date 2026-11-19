@@ -102,6 +102,8 @@ export interface EnemyActionDef {
   efeitos: Effect[];
   /** Golpe forte: a regra "Guarda contra golpe forte" reage a ele. */
   forte?: boolean;
+  /** Mapa: raio da área avisada no chão de um golpe forte (0 = só o tile do alvo). */
+  area?: number;
   /** Peso no sorteio, quando o padrão é aleatório. */
   peso?: number;
   /** Só é escolhida se houver outro inimigo vivo (ex.: proteger um aliado). */
@@ -165,6 +167,10 @@ export interface WorldDef {
   renascerS: number;
   /** Raio revelado da névoa em volta do caçador. */
   raioRevelado: number;
+  /** Tempo entre o aviso no chão e o golpe forte, em ms. */
+  preparoForteMs: number;
+  /** Monstros cuja origem está a esta distância entram juntos na luta. */
+  raioGrupo: number;
 }
 
 export interface MapDef {

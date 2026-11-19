@@ -136,6 +136,7 @@ const lista: EnemyDef[] = [
         id: 'execucao',
         nome: 'Execução',
         forte: true,
+        area: 1,
         efeitos: [{ tipo: 'dano', mult: 3.2, alvo: 'alvo' }],
       },
     ],

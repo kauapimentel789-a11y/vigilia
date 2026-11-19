@@ -129,6 +129,13 @@ export const TEST_CONTENT: GameContent = {
         portoes: { E: { destino: 'base', rotulo: 'Base' } },
       },
     },
+    grupo: {
+      id: 'grupo',
+      nome: 'Grupo',
+      tipo: 'portal',
+      linhas: ['############', '#@.....b.#b#', '############'],
+      legenda: { monstros: { b: 'brutamontes' } },
+    },
   },
   mapaInicial: 'base',
 };

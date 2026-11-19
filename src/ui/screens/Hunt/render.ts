@@ -234,6 +234,18 @@ function drawActor(
       ctx.stroke();
     }
   }
+  // Próxima ação é golpe forte: sinal de alerta sobre o monstro.
+  if (
+    !heroi &&
+    a.agressivo &&
+    a.intencao &&
+    CONTEUDO.inimigos[a.defId]?.acoes.find((x) => x.id === a.intencao)?.forte
+  ) {
+    ctx.font = '700 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = a.preparo ? '#ff5a6e' : '#f2b56b';
+    ctx.fillText('⚠', cx + raio + 7, y - raio * 0.4);
+  }
   if (heroi || alvo || a.vida < a.vidaMax) {
     const w = a.chefe ? TILE * 1.1 : TILE * 0.8;
     bar(ctx, cx - w / 2, cy - raio - 14, w, a.vida / a.vidaMax, heroi ? '#6fcf97' : COR.vida);
@@ -284,6 +296,25 @@ export function render(
     ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
     ctx.fillStyle = '#d9d3ff';
     ctx.fillText(g.rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
+  }
+
+  // Avisos de golpe forte: área vermelha que enche até o golpe.
+  for (const a of s.w.atores) {
+    const p = a.vida > 0 ? a.preparo : null;
+    if (!p) continue;
+    const k = 1 - Math.max(0, p.restante - alpha * tick) / p.total;
+    for (const [x, y] of p.tiles) {
+      const px = x * TILE;
+      const py = y * TILE;
+      ctx.fillStyle = `rgba(229,83,107,${0.16 + 0.1 * Math.sin(t / 90)})`;
+      ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = 'rgba(229,83,107,0.45)';
+      const lado = (TILE - 2) * k;
+      ctx.fillRect(px + TILE / 2 - lado / 2, py + TILE / 2 - lado / 2, lado, lado);
+      ctx.strokeStyle = '#e5536b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4);
+    }
   }
 
   // Atores, de cima para baixo (quem está mais embaixo cobre quem está atrás).

@@ -84,3 +84,49 @@ describe('mundo em tempo real', () => {
     expect(w.recargas[id]).toBe(0);
   });
 });
+
+describe('golpe forte com aviso no chão', () => {
+  // O brutamontes alterna Soco e Esmagar (forte, ×3).
+  const tanque = { ...PERFIL, stats: { ...PERFIL.stats, vidaMax: 5000, ataque: 1 } };
+
+  function ateOPreparo(w: WorldState): RtEvent | undefined {
+    for (let i = 0; i < 2000; i++) {
+      const ev = stepWorld(w, C, tanque, {}).find((e) => e.tipo === 'preparo');
+      if (ev) return ev;
+    }
+    return undefined;
+  }
+
+  it('avisa a área antes e acerta quem ficou nela', () => {
+    const w = createWorld(C, 'arena', tanque, 5);
+    const aviso = ateOPreparo(w);
+    expect(aviso).toMatchObject({ tipo: 'preparo', nome: 'Esmagar' });
+    const h = heroOf(w);
+    expect(aviso?.tipo === 'preparo' && aviso.tiles).toContainEqual([h.x, h.y]);
+    const antes = h.vida;
+    const ev: RtEvent[] = [];
+    for (let i = 0; i < 25; i++) ev.push(...stepWorld(w, C, tanque, {}));
+    expect(ev.some((e) => e.tipo === 'esquiva')).toBe(false);
+    expect(antes - heroOf(w).vida).toBeGreaterThanOrEqual(25);
+  });
+
+  it('sair da área evita o golpe', () => {
+    const w = createWorld(C, 'arena', tanque, 5);
+    ateOPreparo(w);
+    const antes = heroOf(w).vida;
+    const ev: RtEvent[] = [];
+    for (let i = 0; i < 25; i++) ev.push(...stepWorld(w, C, tanque, { dir: [-1, 1] }));
+    expect(ev.some((e) => e.tipo === 'esquiva')).toBe(true);
+    expect(heroOf(w).vida).toBe(antes);
+  });
+});
+
+describe('grupos', () => {
+  it('quem é visto chama os vizinhos, mesmo atrás da parede', () => {
+    const w = createWorld(C, 'grupo', PERFIL, 1);
+    stepWorld(w, C, PERFIL, {});
+    const [perto, longe] = w.atores.filter((a) => a.lado === 'inimigo');
+    expect(perto?.agressivo).toBe(true);
+    expect(longe?.agressivo).toBe(true);
+  });
+});

@@ -9,4 +9,6 @@ export const MUNDO: WorldDef = {
   coleira: 14,
   renascerS: 90,
   raioRevelado: 7,
+  preparoForteMs: 1000,
+  raioGrupo: 3,
 };
