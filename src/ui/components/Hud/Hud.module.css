@@ -1,0 +1,107 @@
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.resources,
+.piles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.energy {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: radial-gradient(circle, #3b3480, #1d1a45);
+  border: 2px solid var(--color-arcane);
+  border-radius: 50%;
+  cursor: help;
+}
+
+.energyValue {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.label {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.brasa {
+  display: grid;
+  gap: 4px;
+  cursor: help;
+}
+
+.embers {
+  display: flex;
+  gap: 6px;
+}
+
+.ember {
+  width: 16px;
+  height: 22px;
+  border: 1px solid var(--color-ember);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  opacity: 0.35;
+}
+
+.emberOn {
+  background: radial-gradient(circle at 50% 70%, #ffe1a8, var(--color-ember) 60%, #b5652a);
+  opacity: 1;
+  box-shadow: 0 0 10px rgb(242 181 107 / 0.6);
+}
+
+.rituals {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rituals li {
+  padding: 2px 8px;
+  border: 1px solid var(--rarity-rara);
+  border-radius: 999px;
+  color: var(--rarity-rara);
+  font-size: 0.75rem;
+  cursor: help;
+}
+
+.piles span {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.piles strong {
+  color: var(--color-text);
+}
+
+.endTurn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-arcane);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #0b0d14;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.endTurn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

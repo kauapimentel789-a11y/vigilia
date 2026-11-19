@@ -1,32 +1,29 @@
-import { createRng } from '../../engine/core';
-import styles from './App.module.css';
+import { useState } from 'react';
+import { Battle } from '../screens/Battle/Battle.tsx';
+import { EncounterSelect, randomSeed } from '../screens/EncounterSelect/EncounterSelect.tsx';
 
-const DEMO_SEED = 42;
-
-// Tela provisória da Etapa 0: só prova que a interface consegue ler o motor.
-const rng = createRng(DEMO_SEED);
-const demoNumbers = Array.from({ length: 5 }, () => rng.int(1, 9));
+type Tela =
+  { tipo: 'selecao' } | { tipo: 'batalha'; encontro: string; semente: number; rodada: number };
 
 export function App() {
-  return (
-    <main className={styles.screen}>
-      <div className={styles.content}>
-        <header>
-          <h1 className={styles.title}>
-            Vigília <span className={styles.stage}>· Etapa 0</span>
-          </h1>
-          <p className={styles.subtitle}>Fundação do projeto. Ainda sem gameplay.</p>
-        </header>
+  const [tela, setTela] = useState<Tela>({ tipo: 'selecao' });
 
-        <section className={styles.panel} aria-label="Estado do motor">
-          <p className={styles.status}>
-            <span className={styles.dot} aria-hidden="true" />
-            Motor OK
-          </p>
-          <p className={styles.label}>RNG (semente {DEMO_SEED})</p>
-          <p className={styles.numbers}>{demoNumbers.join(', ')}</p>
-        </section>
-      </div>
-    </main>
+  if (tela.tipo === 'selecao') {
+    return (
+      <EncounterSelect
+        onLutar={(encontro, semente) => setTela({ tipo: 'batalha', encontro, semente, rodada: 0 })}
+      />
+    );
+  }
+
+  return (
+    <Battle
+      key={`${tela.encontro}-${tela.semente}-${tela.rodada}`}
+      encontroId={tela.encontro}
+      semente={tela.semente}
+      onRepetir={() => setTela({ ...tela, rodada: tela.rodada + 1 })}
+      onNovaSemente={() => setTela({ ...tela, semente: randomSeed(), rodada: 0 })}
+      onVoltar={() => setTela({ tipo: 'selecao' })}
+    />
   );
 }

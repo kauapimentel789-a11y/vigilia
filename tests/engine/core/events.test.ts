@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createEventBus } from '../../../src/engine/core';
+import { createEventBus } from '../../../src/engine/core/index.ts';
 
 type TestEvents = {
   danoCausado: { alvo: string; valor: number };

@@ -34,6 +34,11 @@ export default tseslint.config(
               group: ['**/ui', '**/ui/**'],
               message: 'O motor (src/engine) não pode importar código da interface (src/ui).',
             },
+            {
+              group: ['**/content', '**/content/**'],
+              message:
+                'O motor (src/engine) não pode importar o conteúdo (src/content). Receba as definições como parâmetro.',
+            },
           ],
         },
       ],
