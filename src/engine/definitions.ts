@@ -137,6 +137,11 @@ export interface EnemyDef {
    * mapa) e pode trocar as ações por uma lista nova.
    */
   fases?: FaseDef[];
+  /**
+   * Quando o inimigo é o chefe de um mapa: ações a mais (somadas às normais) e
+   * fases próprias. Assim um monstro comum vira uma luta de chefe de verdade.
+   */
+  comoChefe?: { acoes?: EnemyActionDef[]; fases?: FaseDef[]; padrao?: 'ciclo' | 'aleatorio' };
   /** Mapa: XP e ouro por abate (antes da escala do portal). */
   xp: number;
   ouro: number;

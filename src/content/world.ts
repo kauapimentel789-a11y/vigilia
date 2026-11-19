@@ -8,7 +8,7 @@ export const MUNDO: WorldDef = {
   visaoMonstro: 5,
   coleira: 14,
   renascerS: 90,
-  raioRevelado: 7,
+  raioRevelado: 9,
   preparoForteMs: 1000,
   raioGrupo: 2,
   ritmoMonstros: 1.5,

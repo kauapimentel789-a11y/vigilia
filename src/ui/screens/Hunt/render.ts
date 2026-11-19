@@ -7,7 +7,7 @@
 import { CONTEUDO } from '../../../content/index.ts';
 import type { RtActor } from '../../../engine/realtime/state.ts';
 import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
-import { loadMap } from '../../../engine/realtime/world.ts';
+import { actorEnemyDef, loadMap } from '../../../engine/realtime/world.ts';
 import type { WorldMap } from '../../../engine/world/map.ts';
 import { Tile } from '../../../engine/world/map.ts';
 import type { Sessao } from './session.ts';
@@ -42,7 +42,8 @@ const COR_BASE = {
   vidaFundo: 'rgba(0,0,0,0.6)',
   alvo: '#e5536b',
   chefe: '#f2b56b',
-  nevoa: 'rgba(5,6,10,0.6)',
+  sombra: '5,6,12',
+  luz: '255,214,160',
 };
 
 /** Paletas por tema de mapa. Na Brasa, a água vira lava. */
@@ -56,7 +57,8 @@ const TEMAS: Record<string, Partial<typeof COR_BASE>> = {
     paredeFace: '#170f0e',
     agua: '#5c1d0c',
     aguaBrilho: 'rgba(255,160,70,0.5)',
-    nevoa: 'rgba(8,4,4,0.6)',
+    sombra: '10,4,4',
+    luz: '255,170,110',
   },
 };
 
@@ -281,6 +283,16 @@ function bar(
 /** Para que lado cada ator olha (os sprites de fera olham para a direita). */
 const OLHANDO_ESQUERDA = new Map<string, boolean>();
 
+interface Animacao {
+  /** 0 a 1 enquanto anda de um tile para o outro; -1 parado. */
+  passo: number;
+  /** Deslocamento do corpo (investida, tremida), em px. */
+  dx: number;
+  dy: number;
+  lampejo: number;
+  opacidade: number;
+}
+
 function drawActor(
   ctx: CanvasRenderingContext2D,
   a: RtActor,
@@ -288,14 +300,45 @@ function drawActor(
   cy: number,
   t: number,
   alvo: boolean,
+  an: Animacao,
 ) {
   const heroi = a.uid === HEROI;
   const raio = heroi ? TILE * 0.3 : a.chefe ? TILE * 0.42 : TILE * 0.3;
-  const bob = Math.sin(t / 260 + (heroi ? 0 : a.origemX * 1.7)) * 1.2;
-  // Sombra.
+  const respira = Math.sin(t / 260 + (heroi ? 0 : a.origemX * 1.7));
+  // Andando: pulinho a cada passo, com o corpo esticando no ar e achatando no chão.
+  const pulo = an.passo >= 0 ? Math.sin(an.passo * Math.PI) : 0;
+  const bob = an.passo >= 0 ? -pulo * 4 : respira * 1.2;
+  const escalaY = an.passo >= 0 ? 1 + pulo * 0.08 - (1 - pulo) * 0.04 : 1 + respira * 0.025;
+  const escalaX = 2 - escalaY;
+  ctx.globalAlpha = an.opacidade;
+  // Chefe: aura pulsando embaixo (mais forte na fúria final).
+  if (a.chefe) {
+    const furia = a.furiaFinal ? 1 : 0;
+    const k = 0.5 + 0.5 * Math.sin(t / (furia ? 120 : 380));
+    const r = TILE * (0.9 + 0.15 * k + 0.25 * furia);
+    const g = ctx.createRadialGradient(cx, cy + raio, 2, cx, cy + raio, r);
+    g.addColorStop(
+      0,
+      furia ? `rgba(255,70,60,${0.45 + 0.2 * k})` : `rgba(242,181,107,${0.25 + 0.15 * k})`,
+    );
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + raio, r, r * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Sombra no chão: encolhe quando o corpo sobe.
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy + raio * 0.95, raio * 0.95, raio * 0.35, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    cx + an.dx * 0.5,
+    cy + raio * 0.95,
+    raio * (0.95 - pulo * 0.15),
+    raio * 0.35,
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.fill();
   if (alvo) {
     ctx.strokeStyle = COR.alvo;
@@ -307,26 +350,46 @@ function drawActor(
     ctx.stroke();
     ctx.setLineDash([]);
   }
-  const y = cy + bob - 2;
+  const x = cx + an.dx;
+  const y = cy + bob - 2 + an.dy;
   // Vira para o lado em que andou por último.
   if (a.moverTotal > 0 && a.x !== a.deX) OLHANDO_ESQUERDA.set(a.uid, a.x < a.deX);
   const tamanho = a.chefe ? TILE * 1.5 : TILE;
   const ap = APARENCIA[heroi ? 'cacador' : a.defId] ?? APARENCIA.carnical!;
-  drawSprite(ctx, ap, cx, cy + TILE * 0.42 + bob, tamanho, {
+  drawSprite(ctx, ap, x, cy + TILE * 0.42 + bob + an.dy, tamanho, {
     espelhar: OLHANDO_ESQUERDA.get(a.uid) ?? false,
+    escalaX,
+    escalaY,
+    lampejo: an.lampejo,
     ...(!heroi && a.agressivo && ap.forma !== 'olho' ? { olhos: '#ff5a6e' } : {}),
   });
+  // Preparando golpe forte: brilho vermelho crescendo em volta do corpo.
+  if (a.preparo) {
+    const k = 1 - a.preparo.restante / a.preparo.total;
+    const g = ctx.createRadialGradient(
+      x,
+      y - tamanho * 0.2,
+      2,
+      x,
+      y - tamanho * 0.2,
+      tamanho * 0.9,
+    );
+    g.addColorStop(0, `rgba(255,90,110,${0.15 + 0.35 * k})`);
+    g.addColorStop(1, 'rgba(255,90,110,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - tamanho, y - tamanho * 1.2, tamanho * 2, tamanho * 2);
+  }
   if (a.chefe) {
-    const topo = cy + TILE * 0.42 + bob - tamanho - 2;
-    ctx.fillStyle = COR.chefe;
+    const topo = cy + TILE * 0.42 + bob + an.dy - tamanho - 2;
+    ctx.fillStyle = a.furiaFinal ? '#ff5a6e' : COR.chefe;
     ctx.beginPath();
-    ctx.moveTo(cx - 9, topo + 6);
-    ctx.lineTo(cx - 9, topo);
-    ctx.lineTo(cx - 4.5, topo + 3);
-    ctx.lineTo(cx, topo - 3);
-    ctx.lineTo(cx + 4.5, topo + 3);
-    ctx.lineTo(cx + 9, topo);
-    ctx.lineTo(cx + 9, topo + 6);
+    ctx.moveTo(x - 9, topo + 6);
+    ctx.lineTo(x - 9, topo);
+    ctx.lineTo(x - 4.5, topo + 3);
+    ctx.lineTo(x, topo - 3);
+    ctx.lineTo(x + 4.5, topo + 3);
+    ctx.lineTo(x + 9, topo);
+    ctx.lineTo(x + 9, topo + 6);
     ctx.closePath();
     ctx.fill();
   }
@@ -335,18 +398,29 @@ function drawActor(
     !heroi &&
     a.agressivo &&
     a.intencao &&
-    CONTEUDO.inimigos[a.defId]?.acoes.find((x) => x.id === a.intencao)?.forte
+    actorEnemyDef(CONTEUDO, a).acoes.find((q) => q.id === a.intencao)?.forte
   ) {
+    const pisca = a.preparo ? 0.6 + 0.4 * Math.sin(t / 60) : 1;
+    ctx.globalAlpha = an.opacidade * pisca;
     ctx.font = '700 15px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = a.preparo ? '#ff5a6e' : '#f2b56b';
-    ctx.fillText('⚠', cx + raio + 7, y - raio * 0.4);
+    ctx.fillText('⚠', x + raio + 7, y - raio * 0.4);
+    ctx.globalAlpha = an.opacidade;
   }
   if (heroi || alvo || a.vida < a.vidaMax) {
     const w = a.chefe ? TILE * 1.1 : TILE * 0.8;
     const topoBarra = a.chefe ? cy + TILE * 0.42 - TILE * 1.5 - 12 : cy - TILE * 0.62 - 6;
     bar(ctx, cx - w / 2, topoBarra, w, a.vida / a.vidaMax, heroi ? '#6fcf97' : COR.vida);
   }
+  ctx.globalAlpha = 1;
+}
+
+/** Progresso do passo atual (0 a 1), ou -1 se está parado. */
+function stepProgress(a: RtActor, alpha: number, tickMs: number): number {
+  if (a.moverTotal <= 0 || a.moverRestante <= 0) return -1;
+  const resta = Math.max(0, a.moverRestante - alpha * tickMs);
+  return 1 - resta / a.moverTotal;
 }
 
 export function render(
@@ -366,54 +440,30 @@ export function render(
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = COR.vazio;
   ctx.fillRect(0, 0, cam.largura, cam.altura);
-  ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+  // Tremor: sacode a câmera enquanto durar, cada vez mais fraco.
+  let tx = 0;
+  let ty = 0;
+  if (t < s.tremor.ate) {
+    const f = s.tremor.forca * Math.min(1, (s.tremor.ate - t) / 200);
+    tx = Math.round((Math.random() * 2 - 1) * f);
+    ty = Math.round((Math.random() * 2 - 1) * f);
+  }
+  ctx.translate(-Math.round(cam.x) + tx, -Math.round(cam.y) + ty);
+  const [hx, hy] = actorPos(heroi, alpha, tick);
 
   const x0 = Math.max(0, Math.floor(cam.x / TILE));
   const y0 = Math.max(0, Math.floor(cam.y / TILE));
   const x1 = Math.min(m.largura - 1, Math.ceil((cam.x + cam.largura) / TILE));
   const y1 = Math.min(m.altura - 1, Math.ceil((cam.y + cam.altura) / TILE));
-  const visivel = (x: number, y: number) =>
-    (x - heroi.x) ** 2 + (y - heroi.y) ** 2 <= raio * raio + 1;
+  /** Some aos poucos perto da borda da luz, em vez de sumir de uma vez. */
+  const opacidade = (x: number, y: number) =>
+    Math.max(0, Math.min(1, (raio + 0.5 - Math.hypot(x - hx, y - hy)) / 1.6));
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       if (!s.w.revelado[y * m.largura + x]) continue;
       drawTile(ctx, m, x, y, x * TILE, y * TILE, t, s.w.abertos.includes(y * m.largura + x));
     }
-  }
-
-  // Nomes dos personagens do Posto.
-  ctx.font = '600 11px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  for (const [idx, id] of Object.entries(m.objetos)) {
-    const nome = NOME_OBJETO[id];
-    const i = Number(idx);
-    if (!nome || !s.w.revelado[i]) continue;
-    const ox = (i % m.largura) * TILE + TILE / 2;
-    const oy = Math.floor(i / m.largura) * TILE;
-    const w = ctx.measureText(nome).width + 10;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(ox - w / 2, oy - 16, w, 15);
-    ctx.fillStyle = '#f2d9b0';
-    ctx.fillText(nome, ox, oy - 5);
-  }
-
-  // Rótulos dos portões.
-  ctx.font = '600 11px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  for (const [idx, g] of Object.entries(m.portoes)) {
-    const i = Number(idx);
-    const gx = i % m.largura;
-    const gy = Math.floor(i / m.largura);
-    if (!s.w.revelado[i]) continue;
-    const destino = CONTEUDO.mapas[g.destino]?.portal;
-    const fechado = !!destino && !isPortalOpen(useGame.getState().estado, CONTEUDO, destino);
-    const rotulo = fechado ? `🔒 ${g.rotulo}` : g.rotulo;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    const w = ctx.measureText(rotulo).width + 10;
-    ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
-    ctx.fillStyle = fechado ? '#7d7f8f' : '#d9d3ff';
-    ctx.fillText(rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
   }
 
   // Itens no chão: losango com brilho na cor da raridade.
@@ -457,12 +507,57 @@ export function render(
   }
 
   // Atores, de cima para baixo (quem está mais embaixo cobre quem está atrás).
+  // Quem caiu afunda, achata e some.
+  s.mortes = s.mortes.filter((d) => t - d.nasceu < (d.chefe ? 1400 : 700));
+  for (const d of s.mortes) {
+    const dur = d.chefe ? 1400 : 700;
+    const k = (t - d.nasceu) / dur;
+    const ap = APARENCIA[d.defId] ?? APARENCIA.carnical!;
+    const tam = d.chefe ? TILE * 1.5 : TILE;
+    ctx.globalAlpha = (1 - k) * opacidade(d.x, d.y);
+    drawSprite(ctx, ap, (d.x + 0.5) * TILE, (d.y + 0.5) * TILE + TILE * 0.42, tam, {
+      espelhar: d.esquerda,
+      escalaX: 1 + k * 0.5,
+      escalaY: Math.max(0.05, 1 - k),
+      lampejo: k < 0.25 ? 1 - k * 4 : 0,
+    });
+  }
+  ctx.globalAlpha = 1;
+
   const atores = s.w.atores
-    .filter((a) => a.vida > 0 && (a.uid === HEROI || visivel(a.x, a.y)))
-    .map((a) => ({ a, p: actorPos(a, alpha, tick) }))
+    .filter((a) => a.vida > 0)
+    .map((a) => {
+      const p = actorPos(a, alpha, tick);
+      return { a, p, o: a.uid === HEROI ? 1 : opacidade(p[0], p[1]) };
+    })
+    .filter((x) => x.o > 0)
     .sort((p, q) => p.p[1] - q.p[1]);
-  for (const { a, p } of atores) {
-    drawActor(ctx, a, (p[0] + 0.5) * TILE, (p[1] + 0.5) * TILE, t, a.uid === heroi.alvo);
+  for (const { a, p, o } of atores) {
+    let dx = 0;
+    let dy = 0;
+    // Investida: o corpo vai na direção do alvo e volta (180 ms).
+    const inv = s.investidas.get(a.uid);
+    if (inv && t - inv.t < 180) {
+      const k = Math.sin(((t - inv.t) / 180) * Math.PI) * TILE * 0.28;
+      dx += inv.dx * k;
+      dy += inv.dy * k;
+    }
+    // Levou golpe: tremidinha e lampejo branco.
+    const ac = s.acertos.get(a.uid);
+    const desdeGolpe = ac === undefined ? Infinity : t - ac;
+    if (desdeGolpe < 140) dx += Math.sin(desdeGolpe / 12) * 2.5;
+    // Preparando golpe forte: treme no lugar.
+    if (a.preparo) {
+      const k = 1 - a.preparo.restante / a.preparo.total;
+      dx += Math.sin(t / 25) * (0.6 + 1.6 * k);
+    }
+    drawActor(ctx, a, (p[0] + 0.5) * TILE, (p[1] + 0.5) * TILE, t, a.uid === heroi.alvo, {
+      passo: stepProgress(a, alpha, tick),
+      dx,
+      dy,
+      lampejo: desdeGolpe < 120 ? 1 - desdeGolpe / 120 : 0,
+      opacidade: o,
+    });
   }
 
   // Golpes: corte curto no corpo a corpo, projétil à distância.
@@ -491,13 +586,97 @@ export function render(
     ctx.globalAlpha = 1;
   }
 
-  // Névoa: o que já foi visto mas está longe fica escuro.
-  ctx.fillStyle = COR.nevoa;
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      if (s.w.revelado[y * m.largura + x] && !visivel(x, y))
-        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-    }
+  // Fagulhas: pixels que voam e caem.
+  s.particulas = s.particulas.filter((q) => t - q.nasceu < q.vida);
+  for (const q of s.particulas) {
+    const dt = (t - q.nasceu) / 1000;
+    const px = (q.x + q.vx * dt) * TILE;
+    const py = (q.y + q.vy * dt + 3.2 * dt * dt) * TILE;
+    ctx.globalAlpha = 1 - (t - q.nasceu) / q.vida;
+    ctx.fillStyle = q.cor;
+    ctx.fillRect(Math.round(px), Math.round(py), q.tam, q.tam);
+  }
+  ctx.globalAlpha = 1;
+
+  // Ondas de chefe (fase nova, queda): anel que se abre.
+  s.ondas = s.ondas.filter((o) => t - o.nasceu < 700);
+  for (const o of s.ondas) {
+    const k = (t - o.nasceu) / 700;
+    ctx.globalAlpha = 1 - k;
+    ctx.strokeStyle = o.cor;
+    ctx.lineWidth = 4 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.ellipse(
+      (o.x + 0.5) * TILE,
+      (o.y + 0.7) * TILE,
+      TILE * (0.5 + 3 * k),
+      TILE * (0.25 + 1.5 * k),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Luz e sombra: um círculo de luz suave em volta do caçador, que treme como
+  // tocha. Fora dele, o mapa já visto fica na penumbra, sem bordas de tile.
+  {
+    const lx = (hx + 0.5) * TILE;
+    const ly = (hy + 0.5) * TILE;
+    const tocha = 1 + 0.018 * Math.sin(t / 170) + 0.012 * Math.sin(t / 61 + 1.3);
+    const dentro = TILE * 3.2 * tocha;
+    const fora = TILE * (raio + 0.3) * tocha;
+    const g = ctx.createRadialGradient(lx, ly, dentro, lx, ly, fora);
+    g.addColorStop(0, `rgba(${COR.sombra},0)`);
+    g.addColorStop(0.5, `rgba(${COR.sombra},0.22)`);
+    g.addColorStop(0.82, `rgba(${COR.sombra},0.6)`);
+    g.addColorStop(1, `rgba(${COR.sombra},0.82)`);
+    ctx.fillStyle = g;
+    const margem = TILE * 2;
+    ctx.fillRect(cam.x - margem, cam.y - margem, cam.largura + margem * 2, cam.altura + margem * 2);
+    // Calor da tocha bem perto do caçador.
+    ctx.globalCompositeOperation = 'lighter';
+    const q = ctx.createRadialGradient(lx, ly, 0, lx, ly, TILE * 3 * tocha);
+    q.addColorStop(0, `rgba(${COR.luz},0.07)`);
+    q.addColorStop(1, `rgba(${COR.luz},0)`);
+    ctx.fillStyle = q;
+    ctx.fillRect(lx - TILE * 3.2, ly - TILE * 3.2, TILE * 6.4, TILE * 6.4);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Nomes dos personagens do Posto.
+  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  for (const [idx, id] of Object.entries(m.objetos)) {
+    const nome = NOME_OBJETO[id];
+    const i = Number(idx);
+    if (!nome || !s.w.revelado[i]) continue;
+    const ox = (i % m.largura) * TILE + TILE / 2;
+    const oy = Math.floor(i / m.largura) * TILE;
+    const w = ctx.measureText(nome).width + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(ox - w / 2, oy - 16, w, 15);
+    ctx.fillStyle = '#f2d9b0';
+    ctx.fillText(nome, ox, oy - 5);
+  }
+
+  // Rótulos dos portões.
+  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  for (const [idx, g] of Object.entries(m.portoes)) {
+    const i = Number(idx);
+    const gx = i % m.largura;
+    const gy = Math.floor(i / m.largura);
+    if (!s.w.revelado[i]) continue;
+    const destino = CONTEUDO.mapas[g.destino]?.portal;
+    const fechado = !!destino && !isPortalOpen(useGame.getState().estado, CONTEUDO, destino);
+    const rotulo = fechado ? `🔒 ${g.rotulo}` : g.rotulo;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    const w = ctx.measureText(rotulo).width + 10;
+    ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
+    ctx.fillStyle = fechado ? '#7d7f8f' : '#d9d3ff';
+    ctx.fillText(rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
   }
 
   // Números flutuantes.

@@ -302,26 +302,55 @@ export function spriteCanvas(ap: Aparencia, olhos?: string): HTMLCanvasElement {
   return c;
 }
 
-/** Desenha o sprite com o pé em (cx, base), com `tamanho` px de lado. */
+const brancos = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+/** Silhueta branca do sprite, para o lampejo de quem leva golpe. */
+function silhueta(img: HTMLCanvasElement): HTMLCanvasElement {
+  const pronto = brancos.get(img);
+  if (pronto) return pronto;
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  brancos.set(img, c);
+  return c;
+}
+
+/**
+ * Desenha o sprite com o pé em (cx, base), com `tamanho` px de lado.
+ * `escalaX`/`escalaY` achatam ou esticam a partir do pé; `lampejo` (0 a 1) pinta de branco.
+ */
 export function drawSprite(
   ctx: CanvasRenderingContext2D,
   ap: Aparencia,
   cx: number,
   base: number,
   tamanho: number,
-  opcoes: { espelhar?: boolean; olhos?: string } = {},
+  opcoes: {
+    espelhar?: boolean;
+    olhos?: string;
+    escalaX?: number;
+    escalaY?: number;
+    lampejo?: number;
+  } = {},
 ): void {
   const img = spriteCanvas(ap, opcoes.olhos);
   const suave = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
-  const x = Math.round(cx - tamanho / 2);
-  const y = Math.round(base - tamanho);
-  if (opcoes.espelhar) {
-    ctx.save();
-    ctx.translate(x + tamanho, y);
-    ctx.scale(-1, 1);
-    ctx.drawImage(img, 0, 0, tamanho, tamanho);
-    ctx.restore();
-  } else ctx.drawImage(img, x, y, tamanho, tamanho);
+  const sx = opcoes.escalaX ?? 1;
+  const sy = opcoes.escalaY ?? 1;
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(base));
+  ctx.scale(opcoes.espelhar ? -sx : sx, sy);
+  ctx.drawImage(img, -tamanho / 2, -tamanho, tamanho, tamanho);
+  if (opcoes.lampejo && opcoes.lampejo > 0) {
+    ctx.globalAlpha *= Math.min(1, opcoes.lampejo);
+    ctx.drawImage(silhueta(img), -tamanho / 2, -tamanho, tamanho, tamanho);
+  }
+  ctx.restore();
   ctx.imageSmoothingEnabled = suave;
 }
