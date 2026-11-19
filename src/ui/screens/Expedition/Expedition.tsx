@@ -1,5 +1,6 @@
 import { CONTEUDO } from '../../../content/index.ts';
 import { accruedGains, rewardMultiplier } from '../../../engine/expedition/expedition.ts';
+import { Icone } from '../../art/Icone.tsx';
 import ui from '../../components/common.module.css';
 import { ProgressBar } from '../../components/ProgressBar.tsx';
 import { duracao, num, pct } from '../../format.ts';
@@ -19,22 +20,27 @@ export function Expedition() {
   if (!exp) {
     const fechados = CONTEUDO.ordemPortais.filter((id) => estado.portaisFechados.includes(id));
     return (
-      <section className={ui.panel}>
+      <section className={`${ui.panel} ${s.vazio}`}>
+        <Icone id="ampulheta" tamanho={56} className={s.grande} />
         <h2 className={ui.title}>Expedição</h2>
-        <p className={ui.muted}>
+        <p className={`${ui.muted} ${s.texto}`}>
           Envie o caçador a um portal já fechado. Ele luta sozinho, mesmo com o jogo fechado (até{' '}
           {CONTEUDO.progressao.expedicao.tetoHoras} h acumuladas sem coletar). Portais fáceis demais
           para o seu level rendem menos.
         </p>
         {fechados.length === 0 ? (
-          <p>Feche o primeiro portal para liberar a Expedição.</p>
+          <p className={s.aviso}>
+            <Icone id="portal" tamanho={18} /> Feche o primeiro portal (
+            {CONTEUDO.portais[CONTEUDO.ordemPortais[0] ?? '']?.nome}) para liberar.
+          </p>
         ) : (
           <ul className={s.opcoes}>
             {fechados.map((id) => {
               const p = CONTEUDO.portais[id]!;
               const mult = rewardMultiplier(CONTEUDO, p, estado.cacador.level);
               return (
-                <li key={id} className={ui.row}>
+                <li key={id} className={s.opcao}>
+                  <Icone id="portal" tamanho={24} />
                   <strong>{p.nome}</strong>
                   <span className={ui.muted}>
                     {mult < 1

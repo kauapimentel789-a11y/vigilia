@@ -3,7 +3,10 @@ import { CONTEUDO } from '../../content/index.ts';
 import { xpParaProximo } from '../../engine/hunter/hunter.ts';
 import ui from '../components/common.module.css';
 import { DEV_PANEL_VISIVEL, DevPanel } from '../components/DevPanel.tsx';
-import { ProgressBar } from '../components/ProgressBar.tsx';
+import { Icone } from '../art/Icone.tsx';
+import type { IconeId } from '../art/icons.ts';
+import { Sprite } from '../art/Sprite.tsx';
+import { APARENCIA } from '../art/sprites.ts';
 import { ReturnReport } from '../components/ReturnReport.tsx';
 import { SaveConflict } from '../components/Account.tsx';
 import { num } from '../format.ts';
@@ -17,12 +20,12 @@ import s from './App.module.css';
 
 type Aba = 'cacar' | 'cacador' | 'habilidades' | 'expedicao' | 'arena';
 
-const ABAS: Array<{ id: Aba; nome: string; icone: string }> = [
-  { id: 'cacar', nome: 'Caçar', icone: '⚔' },
-  { id: 'cacador', nome: 'Caçador', icone: '◆' },
-  { id: 'habilidades', nome: 'Habilidades', icone: '✦' },
-  { id: 'expedicao', nome: 'Expedição', icone: '⧗' },
-  { id: 'arena', nome: 'Arena', icone: '♜' },
+const ABAS: Array<{ id: Aba; nome: string; icone: IconeId }> = [
+  { id: 'cacar', nome: 'Caçar', icone: 'ataque' },
+  { id: 'cacador', nome: 'Caçador', icone: 'elmo' },
+  { id: 'habilidades', nome: 'Habilidades', icone: 'livro' },
+  { id: 'expedicao', nome: 'Expedição', icone: 'ampulheta' },
+  { id: 'arena', nome: 'Arena', icone: 'torre' },
 ];
 
 export function App() {
@@ -39,32 +42,49 @@ export function App() {
     <div className={s.app}>
       <header className={s.topo}>
         <div className={s.marca}>
-          <img className={s.icone} src="/icone.svg" alt="" width={28} height={28} />
+          <img className={s.icone} src="/icone.svg" alt="" width={30} height={30} />
           <strong className={s.nome}>Vigília</strong>
-          <span className={ui.tag}>Rank {CONTEUDO.ranks[estado.rank].nome}</span>
         </div>
-        <div className={s.level}>
-          <div className={ui.row}>
-            <strong>Level {c.level}</strong>
-            <span className={ui.muted}>
-              {noMax ? 'máximo nesta etapa' : `${num(c.xp)} / ${num(proximo)} XP`}
+
+        <button className={s.placa} onClick={() => setAba('cacador')} title="Ver o caçador">
+          <Sprite ap={APARENCIA.cacador} tamanho={40} className={s.retrato} />
+          <span className={s.placaInfo}>
+            <span className={s.placaLinha}>
+              <strong>Level {c.level}</strong>
+              <span className={s.rank}>{CONTEUDO.ranks[estado.rank].nome}</span>
+              {c.pontosLivres > 0 && <span className={s.pontos}>+{c.pontosLivres} pontos</span>}
             </span>
-            {c.pontosLivres > 0 && (
-              <button className={s.pontos} onClick={() => setAba('cacador')}>
-                {c.pontosLivres} pontos
-              </button>
-            )}
-          </div>
-          <ProgressBar valor={noMax ? 1 : c.xp} max={noMax ? 1 : proximo} rotulo="Experiência" />
+            <span
+              className={s.xp}
+              role="progressbar"
+              aria-label="Experiência"
+              aria-valuemin={0}
+              aria-valuemax={noMax ? 1 : proximo}
+              aria-valuenow={noMax ? 1 : c.xp}
+            >
+              <span style={{ width: `${noMax ? 100 : Math.min(100, (c.xp / proximo) * 100)}%` }} />
+              <em>{noMax ? 'Level máximo' : `${num(c.xp)} / ${num(proximo)} XP`}</em>
+            </span>
+          </span>
+        </button>
+
+        <div className={s.recursos}>
+          <span className={s.recurso} title="Ouro">
+            <Icone id="moeda" tamanho={18} /> {num(estado.ouro)}
+          </span>
+          <span className={s.recurso} title="Poções de vida">
+            <Icone id="pocao" tamanho={18} /> {estado.pocoes}
+          </span>
+          <span className={s.recurso} title="Glória da Arena">
+            <Icone id="gloria" tamanho={18} /> {num(estado.arena.gloria)}
+          </span>
+          {estado.expedicao && (
+            <button className={s.expedicao} onClick={() => setAba('expedicao')}>
+              <Icone id="ampulheta" tamanho={16} />
+              {CONTEUDO.portais[estado.expedicao.portal]?.nome}
+            </button>
+          )}
         </div>
-        <div className={s.ouro} title="Ouro">
-          <span aria-hidden>●</span> {num(estado.ouro)}
-        </div>
-        {estado.expedicao && (
-          <button className={s.expedicao} onClick={() => setAba('expedicao')}>
-            ⧗ Em expedição: {CONTEUDO.portais[estado.expedicao.portal]?.nome}
-          </button>
-        )}
       </header>
 
       <nav className={s.abas} aria-label="Telas">
@@ -75,8 +95,8 @@ export function App() {
             onClick={() => setAba(a.id)}
             aria-current={aba === a.id ? 'page' : undefined}
           >
-            <span aria-hidden>{a.icone}</span>
-            {a.nome}
+            <Icone id={a.icone} tamanho={20} />
+            <span>{a.nome}</span>
           </button>
         ))}
       </nav>

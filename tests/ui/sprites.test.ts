@@ -23,3 +23,16 @@ describe('sprites', () => {
     expect(px[2]![7]).not.toBeNull();
   });
 });
+
+describe('ícones', () => {
+  it('todo ícone é uma grade 12 × 12 com cores para cada letra', async () => {
+    const { ICONES } = await import('../../src/ui/art/icons.ts');
+    for (const [nome, d] of Object.entries(ICONES)) {
+      expect(d.grade, nome).toHaveLength(12);
+      for (const linha of d.grade) {
+        expect(linha, `${nome}: "${linha}"`).toHaveLength(12);
+        for (const c of linha) if (c !== '.') expect(d.cores[c], `${nome}: ${c}`).toBeDefined();
+      }
+    }
+  });
+});
