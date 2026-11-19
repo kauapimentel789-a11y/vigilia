@@ -11,6 +11,9 @@ import { heroOf } from '../../../engine/realtime/state.ts';
 import { loadMap } from '../../../engine/realtime/world.ts';
 import { chebyshev, isWalkable } from '../../../engine/world/map.ts';
 import { useGame } from '../../store/game.ts';
+import { COR_RARIDADE, nomeItem } from '../../items.ts';
+import { Inventory } from '../../windows/Inventory.tsx';
+import { takeGroundItem } from '../../../engine/realtime/world.ts';
 import type { Camera } from './render.ts';
 import { TILE, actorPos, cameraFor, render } from './render.ts';
 import type { Sessao } from './session.ts';
@@ -66,6 +69,11 @@ export function Hunt() {
   const camRef = useRef<Camera | null>(null);
   const [hud, setHud] = useState<Hud>(() => hudOf(getSessao(perfil)));
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [janela, setJanela] = useState<'mochila' | null>(null);
+  const alternarRef = useRef<(j: 'mochila') => void>(() => {});
+  useEffect(() => {
+    alternarRef.current = (j) => setJanela((atual) => (atual === j ? null : j));
+  }, []);
   const msgTimer = useRef(0);
 
   useEffect(() => {
@@ -111,6 +119,24 @@ export function Hunt() {
           avisar(`${CONTEUDO.portais[portal]?.nome} fechado! O próximo portal se abriu.`);
         else if (r.levelsGanhos > 0)
           avisar(`Subiu de level! (${useGame.getState().estado.cacador.level})`);
+      }
+      if (ev.tipo === 'itemNoChao') {
+        for (const id of ev.ids) {
+          const g = se.w.chao.find((c) => c.id === id);
+          if (!g) continue;
+          if (!useGame.getState().pegarItem(g.item)) {
+            avisar('Mochila cheia. Jogue algo fora ou volte ao Posto.');
+            break;
+          }
+          takeGroundItem(se.w, id);
+          se.flutuantes.push({
+            x: g.x,
+            y: g.y - 0.3,
+            texto: nomeItem(g.item),
+            cor: COR_RARIDADE[g.item.raridade],
+            nasceu: se.agora,
+          });
+        }
       }
       if (ev.tipo === 'portao') {
         const def = CONTEUDO.mapas[ev.destino];
@@ -207,6 +233,8 @@ export function Hunt() {
       } else if (e.code === 'Tab') {
         e.preventDefault();
         proximoAlvo(se);
+      } else if (e.code === 'KeyI') {
+        alternarRef.current('mochila');
       } else if (e.code === 'Escape') {
         se.fila.push({ alvo: null });
       }
@@ -301,6 +329,8 @@ export function Hunt() {
         </div>
       )}
 
+      {janela === 'mochila' && <Inventory onFechar={() => setJanela(null)} />}
+
       <div className={s.habilidades}>
         {hud.habilidades.map((h, i) => {
           const pct = h.total > 0 ? h.resta / h.total : 0;
@@ -322,11 +352,19 @@ export function Hunt() {
             </button>
           );
         })}
+        <button
+          className={s.hab}
+          onClick={() => setJanela((j) => (j ? null : 'mochila'))}
+          title="Mochila (tecla I)"
+        >
+          <span className={s.tecla}>I</span>
+          <span className={s.habNome}>Mochila</span>
+        </button>
       </div>
 
       <p className={s.ajuda}>
         WASD ou setas: andar · Clique no chão: ir até lá · Clique no monstro ou Tab: atacar · 1 a 4:
-        habilidades · Esc: soltar alvo
+        habilidades · I: mochila · Esc: soltar alvo
       </p>
 
       {hud.caido && (

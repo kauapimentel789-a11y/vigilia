@@ -6,7 +6,8 @@
  * entre versões.
  */
 import type { AtributoId, GameContent } from '../definitions.ts';
-import { ATRIBUTOS } from '../definitions.ts';
+import { ATRIBUTOS, SLOTS } from '../definitions.ts';
+import type { ItemInstance } from '../items/items.ts';
 import type { GameState } from '../game/game.ts';
 import { VERSAO_DO_ESTADO } from '../game/game.ts';
 
@@ -17,7 +18,14 @@ export interface SaveFile {
 }
 
 /** Migrações: a chave é a versão de origem; cada função leva à versão seguinte. */
-const MIGRACOES: Record<number, (estado: unknown) => unknown> = {};
+const MIGRACOES: Record<number, (estado: unknown) => unknown> = {
+  // v1 → v2 (Etapa 3): mochila, contador de itens e equipamento do caçador.
+  1: (estado) => {
+    if (!isObj(estado)) return estado;
+    const cacador = isObj(estado.cacador) ? { ...estado.cacador, equipamento: {} } : estado.cacador;
+    return { ...estado, versao: 2, cacador, mochila: [], proximoItem: 1 };
+  },
+};
 
 export function serialize(estado: GameState, agora: number): string {
   const arquivo: SaveFile = { v: VERSAO_DO_ESTADO, salvoEm: agora, estado };
@@ -34,6 +42,16 @@ const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFin
 const isInt = (x: unknown, min = 0): x is number => Number.isInteger(x) && (x as number) >= min;
 const isStrArr = (x: unknown): x is string[] =>
   Array.isArray(x) && x.every((i) => typeof i === 'string');
+
+const RARIDADES_OK = new Set(['comum', 'incomum', 'rara']);
+const isItem = (x: unknown): boolean =>
+  isObj(x) &&
+  typeof x.uid === 'string' &&
+  typeof x.base === 'string' &&
+  typeof x.raridade === 'string' &&
+  RARIDADES_OK.has(x.raridade) &&
+  Array.isArray(x.afixos) &&
+  x.afixos.every((a) => isObj(a) && typeof a.id === 'string' && isNum(a.valor));
 
 function validate(e: unknown, content: GameContent): string | null {
   if (!isObj(e)) return 'estado ausente';
@@ -63,6 +81,9 @@ function validate(e: unknown, content: GameContent): string | null {
   ) {
     return 'comportamento';
   }
+  if (!Array.isArray(e.mochila) || !e.mochila.every(isItem)) return 'mochila';
+  if (!isInt(e.proximoItem, 1)) return 'contador de itens';
+  if (!isObj(c.equipamento) || !Object.values(c.equipamento).every(isItem)) return 'equipamento';
   if (e.expedicao !== null) {
     const x = e.expedicao;
     if (!isObj(x) || typeof x.portal !== 'string' || !isNum(x.inicio) || !isNum(x.ultimaColeta))
@@ -81,6 +102,20 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     .filter((id) => content.habilidades[id])
     .slice(0, content.progressao.espacosDeHabilidade);
   if (e.expedicao && !content.portais[e.expedicao.portal]) e.expedicao = null;
+  // Itens cuja base saiu do conteúdo somem; afixos desconhecidos são ignorados.
+  const valido = (i: ItemInstance) => !!content.itens.bases[i.base];
+  const limpo = (i: ItemInstance): ItemInstance => ({
+    ...i,
+    afixos: i.afixos.filter((a) => content.itens.afixos[a.id]),
+  });
+  e.mochila = e.mochila.filter(valido).map(limpo);
+  for (const slot of SLOTS) {
+    const i = e.cacador.equipamento[slot];
+    if (!i) continue;
+    const base = content.itens.bases[i.base];
+    if (!base || base.slot !== slot) delete e.cacador.equipamento[slot];
+    else e.cacador.equipamento[slot] = limpo(i);
+  }
   return e;
 }
 

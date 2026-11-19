@@ -4,7 +4,7 @@
  * Todo comando é puro: recebe o estado atual e devolve um estado novo (ou um
  * erro), sem alterar a entrada. A interface só chama estes comandos.
  */
-import type { AtributoId, GameContent, PortalDef } from '../definitions.ts';
+import type { AtributoId, GameContent, PortalDef, SlotId } from '../definitions.ts';
 import type { PortalBattleOutput } from '../autobattle/simulate.ts';
 import { simulatePortal } from '../autobattle/simulate.ts';
 import type { ExpeditionGains, ExpeditionState } from '../expedition/expedition.ts';
@@ -13,8 +13,10 @@ import type { Comportamento, HunterResult, HunterState } from '../hunter/hunter.
 import { changeAttribute, createHunter, gainXp, resetAttributes } from '../hunter/hunter.ts';
 import { setBehavior, setEquipped, upgradeAbility } from '../hunter/abilities.ts';
 import { buildProfile } from '../hunter/stats.ts';
+import type { ItemInstance } from '../items/items.ts';
+import { baseOf } from '../items/items.ts';
 
-export const VERSAO_DO_ESTADO = 1;
+export const VERSAO_DO_ESTADO = 2;
 
 export interface GameState {
   versao: typeof VERSAO_DO_ESTADO;
@@ -25,6 +27,10 @@ export interface GameState {
   /** Próxima semente de combate. Avança a cada uso, para as lutas variarem. */
   proximaSemente: number;
   registro: { lutas: number; vitorias: number; criadoEm: number };
+  /** Itens carregados (fora o que está vestido). Perdidos se o caçador cair. */
+  mochila: ItemInstance[];
+  /** Contador para dar um id único a cada item que entra no jogo. */
+  proximoItem: number;
 }
 
 export type GameResult<Extra = object> =
@@ -40,6 +46,8 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     expedicao: null,
     proximaSemente: semente >>> 0,
     registro: { lutas: 0, vitorias: 0, criadoEm: agora },
+    mochila: [],
+    proximoItem: 1,
   };
 }
 
@@ -266,4 +274,53 @@ export function rewardKill(
   novo.cacador = r.cacador;
   novo.ouro += ouro;
   return { estado: novo, recompensa: { xp, ouro, levelsGanhos: r.levelsGanhos, primeiraVitoria } };
+}
+
+/* ---------- Itens ---------- */
+
+/** Põe um item achado na mochila, com um id novo. */
+export function pickUp(
+  estado: GameState,
+  content: GameContent,
+  item: ItemInstance,
+): GameResult<{ item: ItemInstance }> {
+  if (!baseOf(content, item)) return { erro: 'Item desconhecido.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  const guardado: ItemInstance = { ...structuredClone(item), uid: `it${novo.proximoItem++}` };
+  novo.mochila.push(guardado);
+  return { estado: novo, item: guardado };
+}
+
+/** Veste um item da mochila. O que estava no espaço volta para a mochila. */
+export function equipItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const i = estado.mochila.findIndex((x) => x.uid === uid);
+  const item = estado.mochila[i];
+  const base = item && baseOf(content, item);
+  if (!item || !base) return { erro: 'Item não está na mochila.' };
+  const novo = structuredClone(estado);
+  const antigo = novo.cacador.equipamento[base.slot];
+  novo.mochila.splice(i, 1);
+  if (antigo) novo.mochila.splice(i, 0, antigo);
+  novo.cacador.equipamento[base.slot] = structuredClone(item);
+  return { estado: novo };
+}
+
+/** Tira um item vestido e guarda na mochila. */
+export function unequipItem(estado: GameState, content: GameContent, slot: SlotId): GameResult {
+  const item = estado.cacador.equipamento[slot];
+  if (!item) return { erro: 'Nada vestido nesse espaço.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  delete novo.cacador.equipamento[slot];
+  novo.mochila.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** Joga fora um item da mochila. */
+export function discardItem(estado: GameState, uid: string): GameResult {
+  if (!estado.mochila.some((x) => x.uid === uid)) return { erro: 'Item não está na mochila.' };
+  const novo = structuredClone(estado);
+  novo.mochila = novo.mochila.filter((x) => x.uid !== uid);
+  return { estado: novo };
 }

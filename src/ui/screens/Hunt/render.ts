@@ -42,6 +42,8 @@ const COR = {
   nevoa: 'rgba(5,6,10,0.6)',
 };
 
+const COR_RARIDADE_ITEM = { comum: '#c9cedd', incomum: '#4fa3c7', rara: '#b07cf6' } as const;
+
 const COR_MONSTRO: Record<string, string> = {
   carnical: '#9fae7e',
   ratoDeCinza: '#8a7f70',
@@ -296,6 +298,27 @@ export function render(
     ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
     ctx.fillStyle = '#d9d3ff';
     ctx.fillText(g.rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
+  }
+
+  // Itens no chão: losango com brilho na cor da raridade.
+  for (const g of s.w.chao) {
+    if (!s.w.revelado[g.y * m.largura + g.x]) continue;
+    const cx = (g.x + 0.5) * TILE;
+    const cy = (g.y + 0.62) * TILE + Math.sin(t / 300 + g.x) * 2;
+    const cor = COR_RARIDADE_ITEM[g.item.raridade];
+    const brilho = ctx.createRadialGradient(cx, cy, 1, cx, cy, TILE * 0.45);
+    brilho.addColorStop(0, cor + '88');
+    brilho.addColorStop(1, cor + '00');
+    ctx.fillStyle = brilho;
+    ctx.fillRect(cx - TILE / 2, cy - TILE / 2, TILE, TILE);
+    ctx.fillStyle = cor;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 7);
+    ctx.lineTo(cx + 5, cy);
+    ctx.lineTo(cx, cy + 7);
+    ctx.lineTo(cx - 5, cy);
+    ctx.closePath();
+    ctx.fill();
   }
 
   // Avisos de golpe forte: área vermelha que enche até o golpe.

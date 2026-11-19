@@ -187,6 +187,68 @@ export interface MapDef {
   };
 }
 
+/* ---------- Itens ---------- */
+
+export type SlotId = 'arma' | 'cabeca' | 'peito' | 'maos' | 'pes' | 'amuleto';
+export const SLOTS: readonly SlotId[] = ['arma', 'cabeca', 'peito', 'maos', 'pes', 'amuleto'];
+
+export type Raridade = 'comum' | 'incomum' | 'rara';
+export const RARIDADES: readonly Raridade[] = ['comum', 'incomum', 'rara'];
+
+/**
+ * O que um item pode somar. Frações (reducao, critico, danoCritico, poder,
+ * rouboVida) são escritas como 0,02 = 2%.
+ */
+export type ItemStatId =
+  | AtributoId
+  | 'vida'
+  | 'ataque'
+  | 'reducao'
+  | 'critico'
+  | 'danoCritico'
+  | 'velocidade'
+  | 'poder'
+  | 'rouboVida'
+  | 'venenoAoAcertar';
+
+export type ItemStats = Partial<Record<ItemStatId, number>>;
+
+export interface ItemBaseDef {
+  id: string;
+  nome: string;
+  slot: SlotId;
+  /** Faixa do item: decide em que portais ele cai e a força dos afixos. */
+  nivel: number;
+  stats: ItemStats;
+  /** Valor de venda na mercadora (Comum). */
+  valor: number;
+}
+
+export interface AffixDef {
+  id: string;
+  /** Sufixo mostrado no nome (ex.: "da Força"). */
+  nome: string;
+  stat: ItemStatId;
+  /** Faixa sorteada no nível 1. Cresce com o nível do item (`porNivel` por nível). */
+  min: number;
+  max: number;
+  porNivel: number;
+  /** Só aparece em itens destes espaços (ausente = todos). */
+  slots?: SlotId[];
+}
+
+export interface ItemsDef {
+  bases: Record<string, ItemBaseDef>;
+  afixos: Record<string, AffixDef>;
+  /** Peso de cada raridade no sorteio, multiplicador dos números base e quantos afixos ela tem. */
+  raridades: Record<Raridade, { peso: number; multBase: number; afixos: number; multValor: number }>;
+  /** Chance de um monstro comum deixar um item. O chefe sempre deixa um, no mínimo Incomum. */
+  chanceDeSaque: number;
+  /** Faixas de item (ItemBaseDef.nivel) que caem em cada portal. */
+  saquePorPortal: Record<string, number[]>;
+  capacidadeMochila: number;
+}
+
 export interface GameContent {
   progressao: ProgressionDef;
   habilidades: Record<string, AbilityDef>;
@@ -196,6 +258,7 @@ export interface GameContent {
   ordemPortais: string[];
   mundo: WorldDef;
   mapas: Record<string, MapDef>;
+  itens: ItemsDef;
   /** Mapa onde o caçador começa e para onde volta ao morrer. */
   mapaInicial: string;
 }

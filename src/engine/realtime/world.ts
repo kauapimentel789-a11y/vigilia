@@ -9,10 +9,11 @@
 import { createRng, restoreRng } from '../core/index.ts';
 import type { Rng } from '../core/index.ts';
 import type { EnemyActionDef, EnemyDef, GameContent, MapDef } from '../definitions.ts';
-import type { EffectHost, EffectSource, TargetSpec } from '../effects/effects.ts';
+import type { Effect, EffectHost, EffectSource, TargetSpec } from '../effects/effects.ts';
 import { runEffects } from '../effects/effects.ts';
 import type { HunterProfile } from '../hunter/stats.ts';
 import { addStatus, tickSecond } from '../statuses/statuses.ts';
+import { rollItem } from '../items/items.ts';
 import { computeHit } from '../autobattle/damage.ts';
 import type { WorldMap } from '../world/map.ts';
 import { chebyshev, gateAt, isWalkable, parseMap } from '../world/map.ts';
@@ -142,6 +143,7 @@ export function createWorld(
     recargas: Object.fromEntries(perfil.habilidades.map((h) => [h.def.id, 0])),
     heroiCaido: false,
     chefeDerrotado: false,
+    chao: [],
   };
   for (const sp of m.spawns) {
     const e = content.inimigos[sp.defId];
@@ -250,8 +252,25 @@ function onDeath(ctx: StepCtx, a: RtActor): void {
   a.bloqueio = 0;
   a.renascer = a.chefe ? -1 : ctx.content.mundo.renascerS * 1000;
   if (a.chefe) ctx.w.chefeDerrotado = true;
+  dropLoot(ctx, a);
   if (ctx.heroi.alvo === a.uid) ctx.heroi.alvo = null;
   emit(ctx, { tipo: 'abate', alvo: a.uid, defId: a.defId, xp: a.xp, ouro: a.ouro, chefe: a.chefe });
+}
+
+function dropLoot(ctx: StepCtx, a: RtActor): void {
+  const portal = ctx.content.mapas[ctx.w.mapa]?.portal;
+  if (!portal) return;
+  if (!a.chefe && ctx.rng.next() >= ctx.content.itens.chanceDeSaque) return;
+  const id = `c${ctx.w.proximoId++}`;
+  const item = rollItem(ctx.content, portal, ctx.rng, id, a.chefe ? 'incomum' : 'comum');
+  if (!item) return;
+  ctx.w.chao.push({ id, item, x: a.x, y: a.y });
+  emit(ctx, { tipo: 'saque', id, x: a.x, y: a.y });
+}
+
+/** Tira um item do chão (a interface chama depois de guardar na mochila). */
+export function takeGroundItem(w: WorldState, id: string): void {
+  w.chao = w.chao.filter((g) => g.id !== id);
 }
 
 /** Um monstro entra na luta e chama o grupo dele (origens próximas). */
@@ -308,6 +327,13 @@ function createHost(ctx: StepCtx): EffectHost<RtActor> {
         bloqueado,
         critico,
       });
+      // Roubo de vida dos itens.
+      const roubo = atk.uid === HEROI ? Math.round(perda * ctx.perfil.stats.rouboVida) : 0;
+      if (roubo > 0 && vivo(atk) && atk.vida < atk.vidaMax) {
+        const ganho = Math.min(roubo, atk.vidaMax - atk.vida);
+        atk.vida += ganho;
+        emit(ctx, { tipo: 'cura', alvo: atk.uid, valor: ganho });
+      }
       if (alvo.lado === 'inimigo' && !alvo.agressivo) provoke(ctx, alvo);
       // Quem apanha sem alvo revida contra quem bateu.
       if (alvo.uid === HEROI && !alvo.alvo && atk.lado === 'inimigo') alvo.alvo = atk.uid;
@@ -442,6 +468,8 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
       reveal(w, ctx.m, h, ctx.content.mundo.raioRevelado);
       const g = gateAt(ctx.m, h.x, h.y);
       if (g) emit(ctx, { tipo: 'portao', destino: g.destino, rotulo: g.rotulo });
+      const aqui = w.chao.filter((c) => c.x === h.x && c.y === h.y).map((c) => c.id);
+      if (aqui.length > 0) emit(ctx, { tipo: 'itemNoChao', ids: aqui });
     }
   }
 
@@ -455,11 +483,10 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
       distancia: chebyshev(h.x, h.y, alvo.x, alvo.y),
     });
     const basico = ctx.content.progressao.ataqueBasico;
-    runEffects(host, [{ tipo: 'dano', mult: basico.mult, alvo: 'alvo' }], {
-      unidade: h,
-      fonte: 'basico',
-      alvo,
-    });
+    const veneno = ctx.perfil.stats.venenoAoAcertar;
+    const efeitos: Effect[] = [{ tipo: 'dano', mult: basico.mult, alvo: 'alvo' }];
+    if (veneno > 0) efeitos.push({ tipo: 'status', status: 'veneno', valor: veneno, alvo: 'alvo' });
+    runEffects(host, efeitos, { unidade: h, fonte: 'basico', alvo });
   }
 }
 

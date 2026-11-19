@@ -6,7 +6,8 @@
  */
 import { create } from 'zustand';
 import { CONTEUDO } from '../../content/index.ts';
-import type { AtributoId } from '../../engine/definitions.ts';
+import type { AtributoId, SlotId } from '../../engine/definitions.ts';
+import type { ItemInstance } from '../../engine/items/items.ts';
 import type { ExpeditionGains } from '../../engine/expedition/expedition.ts';
 import { accruedGains } from '../../engine/expedition/expedition.ts';
 import type { GameState, KillReward, Reward } from '../../engine/game/game.ts';
@@ -19,6 +20,10 @@ import {
   newGame,
   respec,
   rewardKill,
+  pickUp,
+  equipItem,
+  unequipItem,
+  discardItem,
   spendPoint,
   startExpedition,
   upgrade,
@@ -57,6 +62,11 @@ interface Store {
   definirComportamento(c: Comportamento): void;
   entrarNoPortal(id: string): void;
   fecharCombate(): void;
+  /** Mapa: guarda um item achado. Devolve false se a mochila está cheia. */
+  pegarItem(item: ItemInstance): boolean;
+  equiparItem(uid: string): void;
+  desequipar(slot: SlotId): void;
+  descartar(uid: string): void;
   /** Mapa: paga um abate. Devolve a recompensa para a tela mostrar. */
   recompensarAbate(
     portal: string,
@@ -125,6 +135,15 @@ export const useGame = create<Store>()((set, get) => {
       }
     },
     fecharCombate: () => set({ combate: null }),
+    pegarItem(item) {
+      const r = pickUp(get().estado, CONTEUDO, item);
+      if (r.erro !== undefined) return false;
+      set({ estado: r.estado });
+      return true;
+    },
+    equiparItem: (uid) => apply(equipItem(get().estado, CONTEUDO, uid)),
+    desequipar: (slot) => apply(unequipItem(get().estado, CONTEUDO, slot)),
+    descartar: (uid) => apply(discardItem(get().estado, uid)),
     recompensarAbate(portal, abate) {
       const r = rewardKill(get().estado, CONTEUDO, portal, abate);
       return apply(r) && r.recompensa ? r.recompensa : null;

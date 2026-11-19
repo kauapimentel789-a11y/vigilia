@@ -45,3 +45,35 @@ describe('save', () => {
     expect(r.estado?.portaisFechados).toEqual(['treino']);
   });
 });
+
+describe('migração v1 → v2', () => {
+  it('um save da Etapa 2 abre com mochila vazia e nada vestido', () => {
+    const atual = newGame(C, 7, 0);
+    const estado: Record<string, unknown> = { ...atual, versao: 1 };
+    delete estado.mochila;
+    delete estado.proximoItem;
+    const cacador: Record<string, unknown> = { ...atual.cacador };
+    delete cacador.equipamento;
+    const v1 = { v: 1, salvoEm: 5, estado: { ...estado, cacador } };
+    const r = deserialize(JSON.stringify(v1), C);
+    expect(r.erro).toBeUndefined();
+    expect(r.estado?.versao).toBe(2);
+    expect(r.estado?.mochila).toEqual([]);
+    expect(r.estado?.cacador.equipamento).toEqual({});
+  });
+
+  it('itens de base desconhecida somem ao carregar', () => {
+    const e = newGame(C, 7, 0);
+    e.mochila.push({ uid: 'a', base: 'naoExiste', raridade: 'comum', afixos: [] });
+    e.mochila.push({
+      uid: 'b',
+      base: 'laminaDeCinza',
+      raridade: 'comum',
+      afixos: [{ id: 'sumiu', valor: 1 }],
+    });
+    const r = deserialize(serialize(e, 1), C);
+    expect(r.estado?.mochila).toEqual([
+      { uid: 'b', base: 'laminaDeCinza', raridade: 'comum', afixos: [] },
+    ]);
+  });
+});

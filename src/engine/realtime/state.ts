@@ -6,6 +6,14 @@
  */
 import type { BattleUnit } from '../autobattle/state.ts';
 import type { StatusId } from '../statuses/statuses.ts';
+import type { ItemInstance } from '../items/items.ts';
+
+export interface GroundItem {
+  id: string;
+  item: ItemInstance;
+  x: number;
+  y: number;
+}
 
 export interface RtActor extends BattleUnit {
   /** Tile lógico atual (o destino, se estiver andando). */
@@ -47,6 +55,8 @@ export interface WorldState {
   recargas: Record<string, number>;
   heroiCaido: boolean;
   chefeDerrotado: boolean;
+  /** Itens caídos no chão, esperando alguém pegar. */
+  chao: GroundItem[];
 }
 
 type Body =
@@ -71,6 +81,9 @@ type Body =
   | { tipo: 'esquiva'; origem: string; alvo: string }
   | { tipo: 'abate'; alvo: string; defId: string; xp: number; ouro: number; chefe: boolean }
   | { tipo: 'renasceu'; alvo: string }
+  | { tipo: 'saque'; id: string; x: number; y: number }
+  /** O caçador pisou num tile com itens. */
+  | { tipo: 'itemNoChao'; ids: string[] }
   | { tipo: 'heroiCaiu' }
   | { tipo: 'portao'; destino: string; rotulo: string };
 
