@@ -134,14 +134,12 @@ async function enviar(): Promise<void> {
   const agora = Date.now();
   useCloud.setState({ status: 'salvando' });
   enviando = (async () => {
-    const { error } = await supabase
-      .from('saves')
-      .upsert({
-        user_id: u.id,
-        dados: serialize(estado, agora),
-        versao: estado.versao,
-        salvo_em: new Date(agora).toISOString(),
-      });
+    const { error } = await supabase.from('saves').upsert({
+      user_id: u.id,
+      dados: serialize(estado, agora),
+      versao: estado.versao,
+      salvo_em: new Date(agora).toISOString(),
+    });
     if (error) useCloud.setState({ status: 'erro' });
     else {
       ultimoEnviado = estado;

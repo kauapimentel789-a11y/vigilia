@@ -18,7 +18,9 @@ import type { LinhaRanking, ResultadoOnline } from '../../cloud/arena.ts';
 import { buscarRanking, buscarRivais, registrarPartida } from '../../cloud/arena.ts';
 import { useCloud } from '../../cloud/cloud.ts';
 import { Sprite } from '../../art/Sprite.tsx';
-import { APARENCIA_ARENA } from '../../art/sprites.ts';
+import type { Aparencia } from '../../art/sprites.ts';
+import { APARENCIA, APARENCIA_ARENA } from '../../art/sprites.ts';
+import { Icone } from '../../art/Icone.tsx';
 import ui from '../../components/common.module.css';
 import { useGame } from '../../store/game.ts';
 import s from './Arena.module.css';
@@ -35,6 +37,18 @@ export const COR_MARCA: Record<MarcaId, string> = {
 };
 
 const COR_CUSTO = ['', '#7d8499', '#4fa3c7', '#b07cf6'];
+
+/** Cada Herói da Arena usa o retrato do chefe cujo Selo o libera. */
+const RETRATO_HEROI: Record<string, Aparencia | undefined> = {
+  vigia: APARENCIA.cacador,
+  juramento: APARENCIA.cavaleiro,
+  limiar: APARENCIA.guardiaLimiar,
+  matilha: APARENCIA.matilheiro,
+  forja: APARENCIA.forjadora,
+  caldeira: APARENCIA.caldeira,
+  colosso: APARENCIA.colosso,
+  arauto: APARENCIA.arauto,
+};
 
 export function Arena() {
   const partida = useGame((g) => g.estado.arena.partida);
@@ -75,45 +89,51 @@ function Saguao() {
     setBuscando(false);
     comecar(rivais, nome ?? 'Você');
   };
+  const heroi = A.herois[ar.heroi];
   return (
     <div className={s.saguao}>
-      <section className={ui.panel}>
-        <div className={ui.row}>
-          <h2 className={ui.title}>Arena</h2>
-          <span className={ui.spacer} />
-          <span className={ui.tag}>Glória {ar.gloria}</span>
+      <section className={`${ui.panel} ${s.banner}`}>
+        <div className={s.bannerHeroi}>
+          <Sprite ap={RETRATO_HEROI[ar.heroi]} tamanho={96} className={s.bannerSprite} />
+          <div>
+            <span className={s.sobretitulo}>Seu herói</span>
+            <h2 className={s.bannerNome}>{heroi?.nome}</h2>
+            <p className={ui.muted}>{heroi?.descricao}</p>
+          </div>
         </div>
-        <p className={ui.muted}>
-          Monte um time na loja, posicione no tabuleiro e veja a luta acontecer sozinha. Você
-          enfrenta {R.jogadores - 1} rivais; quem perde a luta perde vida. Três cópias iguais viram
-          uma de ★★. Unidades da mesma marca ativam bônus.
-        </p>
-        <p className={ui.muted}>
-          Partidas: {ar.partidas}
-          {ar.melhorLugar ? ` · melhor colocação: ${ar.melhorLugar}º` : ''}
-        </p>
-        <p className={ui.muted}>
-          {usuario
-            ? 'Conectado: seus rivais podem ser times montados por outros jogadores, e o resultado vai para o ranking.'
-            : 'Sem conta, os rivais são controlados pelo jogo. Entre na aba Caçador para enfrentar outros jogadores.'}
-        </p>
-        <button
-          className={`${ui.button} ${ui.primary}`}
-          disabled={buscando}
-          onClick={() => void iniciar()}
-        >
-          {buscando ? 'Procurando rivais…' : 'Começar partida'}
-        </button>
+        <div className={s.bannerLado}>
+          <div className={s.numeros}>
+            <span>
+              <Icone id="gloria" tamanho={18} />
+              <strong>{ar.gloria}</strong>
+              <em>Glória</em>
+            </span>
+            <span>
+              <strong>{ar.partidas}</strong>
+              <em>Partidas</em>
+            </span>
+            <span>
+              <strong>{ar.melhorLugar ? `${ar.melhorLugar}º` : '–'}</strong>
+              <em>Melhor lugar</em>
+            </span>
+          </div>
+          <button
+            className={`${ui.primary} ${s.comecar}`}
+            disabled={buscando}
+            onClick={() => void iniciar()}
+          >
+            {buscando ? 'Procurando rivais…' : 'Começar partida'}
+          </button>
+          <p className={s.dica}>
+            {R.jogadores - 1} rivais
+            {usuario ? ' (times de outros jogadores, com ranking)' : ' controlados pelo jogo'}. Três
+            cópias iguais viram ★★; marcas iguais dão bônus.
+          </p>
+        </div>
       </section>
 
-      <Ranking />
-
       <section className={ui.panel}>
-        <h2 className={ui.title}>Herói da Arena</h2>
-        <p className={ui.muted}>
-          Um poder passivo para a partida. Todos começam com o Vigia; os outros são liberados pelos
-          Selos dos chefes da Caçada.
-        </p>
+        <h2 className={ui.title}>Escolha o herói</h2>
         <ul className={s.herois}>
           {Object.values(A.herois).map((h) => {
             const livre = isHeroUnlocked(estado, CONTEUDO, h.id);
@@ -125,15 +145,18 @@ function Saguao() {
                   disabled={!livre}
                   onClick={() => escolher(h.id)}
                   aria-pressed={ativo}
+                  title={livre ? h.descricao : `Pede: ${CONTEUDO.selos[h.selo ?? '']?.nome}`}
                 >
-                  <strong>
-                    {livre ? '' : '🔒 '}
-                    {h.nome}
-                  </strong>
-                  <span>{h.descricao}</span>
-                  {!livre && h.selo && (
-                    <span className={ui.muted}>Pede: {CONTEUDO.selos[h.selo]?.nome}</span>
-                  )}
+                  <Sprite ap={RETRATO_HEROI[h.id]} tamanho={40} className={s.heroiSprite} />
+                  <span className={s.heroiTexto}>
+                    <strong>
+                      {livre ? '' : '🔒 '}
+                      {h.nome}
+                    </strong>
+                    <span>
+                      {livre ? h.descricao : `Pede: ${CONTEUDO.selos[h.selo ?? '']?.nome}`}
+                    </span>
+                  </span>
                 </button>
               </li>
             );
@@ -141,43 +164,54 @@ function Saguao() {
         </ul>
       </section>
 
-      <section className={ui.panel}>
-        <h2 className={ui.title}>Glória</h2>
-        <p className={ui.muted}>
-          Ganha pela colocação ({R.gloria.map((g, i) => `${i + 1}º: ${g}`).join(', ')}). Troque por
-          ajuda na Caçada.
-        </p>
-        <div className={ui.row}>
-          <button
-            className={ui.button}
-            disabled={ar.gloria < A.ofertas.pocao.custo}
-            onClick={() => gastar('pocao')}
-          >
-            1 poção ({A.ofertas.pocao.custo} Glória)
-          </button>
-          <button
-            className={ui.button}
-            disabled={ar.gloria < A.ofertas.ouro.custo}
-            onClick={() => gastar('ouro')}
-          >
-            {A.ofertas.ouro.porLevel * estado.cacador.level} ouro ({A.ofertas.ouro.custo} Glória)
-          </button>
-        </div>
-      </section>
+      <div className={s.coluna}>
+        <section className={ui.panel}>
+          <h2 className={ui.title}>Trocar Glória</h2>
+          <div className={s.ofertas}>
+            <button
+              className={s.oferta}
+              disabled={ar.gloria < A.ofertas.pocao.custo}
+              onClick={() => gastar('pocao')}
+            >
+              <Icone id="pocao" tamanho={28} />
+              <span>1 poção</span>
+              <em>
+                <Icone id="gloria" tamanho={12} /> {A.ofertas.pocao.custo}
+              </em>
+            </button>
+            <button
+              className={s.oferta}
+              disabled={ar.gloria < A.ofertas.ouro.custo}
+              onClick={() => gastar('ouro')}
+            >
+              <Icone id="moeda" tamanho={28} />
+              <span>{A.ofertas.ouro.porLevel * estado.cacador.level} ouro</span>
+              <em>
+                <Icone id="gloria" tamanho={12} /> {A.ofertas.ouro.custo}
+              </em>
+            </button>
+          </div>
+          <p className={s.dica}>
+            Colocação: {R.gloria.map((g, i) => `${i + 1}º ${g}`).join(' · ')}
+          </p>
+        </section>
 
-      <section className={ui.panel}>
-        <h2 className={ui.title}>Marcas</h2>
-        <ul className={s.marcasLista}>
-          {MARCAS.map((m) => (
-            <li key={m}>
-              <MarcaChip m={m} />
-              <span className={ui.muted}>
-                {A.marcas[m].niveis.map((n) => `(${n.qtd}) ${n.texto}`).join(' · ')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <Ranking />
+
+        <details className={`${ui.panel} ${s.dobra}`}>
+          <summary className={ui.title}>Marcas</summary>
+          <ul className={s.marcasLista}>
+            {MARCAS.map((m) => (
+              <li key={m}>
+                <MarcaChip m={m} />
+                <span className={ui.muted}>
+                  {A.marcas[m].niveis.map((n) => `(${n.qtd}) ${n.texto}`).join(' · ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </div>
     </div>
   );
 }
@@ -220,54 +254,83 @@ function Compras({
   return (
     <div className={s.compras}>
       <div className={s.barra}>
-        <strong>Rodada {partida.rodada}</strong>
-        <span className={s.vida}>♥ {eu.vida}</span>
-        <span className={s.ouro}>● {eu.ouro}</span>
-        <span>
-          Nível {eu.nivel}
-          {eu.nivel < R.nivelMax && (
-            <span className={ui.muted}>
-              {' '}
-              ({eu.xp}/{prox} XP)
+        <div className={s.stats}>
+          <span className={s.stat}>
+            <small>Rodada</small>
+            <strong>{partida.rodada}</strong>
+          </span>
+          <span className={`${s.stat} ${s.vida}`} title="Vida">
+            <Icone id="coracao" tamanho={18} />
+            <strong>{eu.vida}</strong>
+          </span>
+          <span className={`${s.stat} ${s.ouro}`} title="Ouro">
+            <Icone id="moeda" tamanho={18} />
+            <strong>{eu.ouro}</strong>
+          </span>
+          <span className={`${s.stat} ${s.statNivel}`}>
+            <small>
+              Nível {eu.nivel}
+              {eu.nivel < R.nivelMax ? ` · ${eu.xp}/${prox}` : ' · máx.'}
+            </small>
+            <span className={s.xpBarra}>
+              <span style={{ width: `${eu.nivel < R.nivelMax ? (eu.xp / prox) * 100 : 100}%` }} />
             </span>
-          )}
-        </span>
-        <span className={ui.muted}>
-          Tabuleiro {boardCount(eu)}/{eu.nivel}
-        </span>
-        <span className={ui.spacer} />
-        <button
-          className={ui.button}
-          onClick={xp}
-          disabled={eu.ouro < R.custoXp || eu.nivel >= R.nivelMax}
-        >
-          XP +{R.xpPorCompra} ({R.custoXp}●)
-        </button>
-        <button
-          className={ui.button}
-          onClick={rolar}
-          disabled={eu.rolagensGratis <= 0 && eu.ouro < R.custoRolar}
-        >
-          Rolar ({eu.rolagensGratis > 0 ? 'grátis' : `${R.custoRolar}●`})
-        </button>
-        <button
-          className={`${ui.button} ${ui.primary}`}
-          onClick={() => {
-            setSel(null);
-            const r = lutar();
-            if (r) onLuta(r);
-          }}
-        >
-          Lutar ▶
-        </button>
+          </span>
+          <span className={s.stat} title="Unidades no tabuleiro">
+            <small>Tabuleiro</small>
+            <strong>
+              {boardCount(eu)}/{eu.nivel}
+            </strong>
+          </span>
+        </div>
+        <div className={s.acoes}>
+          <button
+            className={`${ui.button} ${s.acao}`}
+            onClick={xp}
+            disabled={eu.ouro < R.custoXp || eu.nivel >= R.nivelMax}
+          >
+            <Icone id="xp" tamanho={16} /> XP +{R.xpPorCompra}
+            <span className={s.preco}>
+              <Icone id="moeda" tamanho={12} />
+              {R.custoXp}
+            </span>
+          </button>
+          <button
+            className={`${ui.button} ${s.acao}`}
+            onClick={rolar}
+            disabled={eu.rolagensGratis <= 0 && eu.ouro < R.custoRolar}
+          >
+            <Icone id="dado" tamanho={16} /> Rolar
+            <span className={s.preco}>
+              {eu.rolagensGratis > 0 ? (
+                'grátis'
+              ) : (
+                <>
+                  <Icone id="moeda" tamanho={12} />
+                  {R.custoRolar}
+                </>
+              )}
+            </span>
+          </button>
+          <button
+            className={`${ui.button} ${ui.primary} ${s.acao} ${s.lutar}`}
+            onClick={() => {
+              setSel(null);
+              const r = lutar();
+              if (r) onLuta(r);
+            }}
+          >
+            <Icone id="ataque" tamanho={16} /> Lutar
+          </button>
+        </div>
       </div>
 
       <div className={s.meio}>
         <section className={`${ui.panel} ${s.campo}`}>
-          <div className={ui.row}>
+          <div className={s.cabecalho}>
             <h2 className={ui.title}>Tabuleiro</h2>
             <span className={ui.muted}>
-              Frente em cima. Corpo a corpo atrás de um aliado espera a frente cair.
+              Frente em cima · corpo a corpo atrás espera a frente cair
             </span>
           </div>
           <div className={s.tabuleiro}>
@@ -287,7 +350,9 @@ function Compras({
               <Casa key={i} u={u} sel={sel} onClick={() => clicar({ onde: 'banco', i })} />
             ))}
           </div>
-          <h3 className={s.subtitulo}>Loja</h3>
+          <h3 className={s.subtitulo}>
+            Loja <span className={ui.muted}>· toque para comprar</span>
+          </h3>
           <div className={s.loja}>
             {eu.loja.map((id, i) => {
               const def = id ? A.unidades[id] : undefined;
@@ -301,14 +366,19 @@ function Compras({
                 >
                   {def ? (
                     <>
-                      <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={40} />
+                      <span className={s.custo} style={{ background: COR_CUSTO[def.custo] }}>
+                        <Icone id="moeda" tamanho={11} />
+                        {def.custo}
+                      </span>
+                      <span className={s.cartaArte}>
+                        <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={48} />
+                      </span>
                       <span className={s.cartaNome}>{def.nome}</span>
                       <span className={s.marcasMini}>
                         {def.marcas.map((m) => (
                           <MarcaChip key={m} m={m} mini />
                         ))}
                       </span>
-                      <span className={s.custo}>{def.custo}●</span>
                     </>
                   ) : (
                     <span className={ui.muted}>vendida</span>
@@ -401,7 +471,7 @@ function Casa({
       {def && u ? (
         <>
           <span className={s.estrelas}>{'★'.repeat(u.estrelas)}</span>
-          <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={32} />
+          <Sprite ap={APARENCIA_ARENA[def.id]} tamanho={40} />
           <span className={s.casaNome}>{def.nome}</span>
           <span className={s.marcasMini}>
             {def.marcas.map((m) => (
@@ -438,8 +508,12 @@ function Detalhe({ u, onVender }: { u: ArenaUnitInst; onVender: () => void }) {
       <p>
         <strong>{def.habilidade.nome}:</strong> {def.habilidade.descricao}
       </p>
-      <button className={ui.button} onClick={onVender}>
-        Vender (+{unitValue(A, u)}●)
+      <button className={`${ui.button} ${s.acao}`} onClick={onVender}>
+        Vender
+        <span className={s.preco}>
+          +<Icone id="moeda" tamanho={12} />
+          {unitValue(A, u)}
+        </span>
       </button>
     </section>
   );
@@ -472,7 +546,9 @@ function Jogadores({ partida }: { partida: ArenaMatch }) {
                 {p.sombra ? ' · jogador' : ''}
               </span>
             </span>
-            <span className={s.vida}>♥ {p.vida}</span>
+            <span className={s.vida}>
+              <Icone id="coracao" tamanho={12} /> {p.vida}
+            </span>
             <div className={s.vidaBarra}>
               <div
                 style={{
@@ -596,7 +672,7 @@ function Replay({
                   <span className={s.estrelas}>{'★'.repeat(un.estrelas)}</span>
                   <Sprite
                     ap={APARENCIA_ARENA[un.def]}
-                    tamanho={36}
+                    tamanho={48}
                     className={time === 1 ? s.espelhado : undefined}
                   />
                   <span className={s.casaNome}>{un.nome}</span>
@@ -652,12 +728,23 @@ function Replay({
   return (
     <div className={s.replay}>
       <div className={s.barra}>
-        <strong>Rodada {resultado.relatorio.rodada}</strong>
-        <span>
-          contra {rival?.nome ?? 'rival'}
-          {minha.luta.fantasma ? ' (cópia)' : ''}
-        </span>
-        <span className={ui.muted}>{(t / 1000).toFixed(1)} s</span>
+        <div className={s.stats}>
+          <span className={s.stat}>
+            <small>Rodada</small>
+            <strong>{resultado.relatorio.rodada}</strong>
+          </span>
+          <span className={s.stat}>
+            <small>Contra</small>
+            <strong>
+              {rival?.nome ?? 'rival'}
+              {minha.luta.fantasma ? ' (cópia)' : ''}
+            </strong>
+          </span>
+          <span className={s.stat}>
+            <small>Tempo</small>
+            <strong>{(t / 1000).toFixed(1)} s</strong>
+          </span>
+        </div>
         <span className={ui.spacer} />
         {[1, 2, 4].map((v) => (
           <button
@@ -682,7 +769,11 @@ function Replay({
           <strong className={venceu ? s.vitoria : s.derrota}>
             {venceu ? 'Vitória!' : empate ? 'Empate (tempo esgotado)' : 'Derrota'}
           </strong>
-          {dano > 0 && <span>−{dano} ♥</span>}
+          {dano > 0 && (
+            <span className={s.vida}>
+              −{dano} <Icone id="coracao" tamanho={14} />
+            </span>
+          )}
           <button className={`${ui.button} ${ui.primary}`} onClick={onFim}>
             Continuar
           </button>
@@ -715,10 +806,15 @@ function Final({
   }, [fim]);
   return (
     <div className={s.saguao}>
-      <section className={ui.panel}>
+      <section className={`${ui.panel} ${s.final}`}>
+        <Icone id={lugar === 1 ? 'gloria' : 'torre'} tamanho={56} />
         <h2 className={ui.title}>Fim da partida</h2>
         <p className={s.lugar}>{lugar}º lugar</p>
-        {fim && <p>+{fim.gloria} Glória</p>}
+        {fim && (
+          <p className={s.ganho}>
+            <Icone id="gloria" tamanho={16} /> +{fim.gloria} Glória
+          </p>
+        )}
         {online && <p className={ui.muted}>{online.mensagem}</p>}
         <button
           className={`${ui.button} ${ui.primary}`}

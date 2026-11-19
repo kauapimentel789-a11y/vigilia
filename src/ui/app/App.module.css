@@ -11,8 +11,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3) var(--space-6);
-  padding: var(--space-4) 0 var(--space-3);
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) 0;
 }
 
 .marca {
@@ -37,39 +37,137 @@
   color: transparent;
 }
 
-.level {
+/* Placa do caçador: retrato, level, rank e XP. Leva à aba Caçador. */
+.placa {
   flex: 1;
-  min-width: 220px;
+  min-width: 240px;
+  max-width: 460px;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.pontos {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-ember);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-ember);
-  font-size: 0.75rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgba(20, 24, 36, 0.8);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.ouro {
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
+.placa:hover {
+  border-color: var(--color-border-strong);
 }
 
-.ouro span {
+.retrato {
+  border-radius: var(--radius-md);
+  background: radial-gradient(circle at 50% 60%, rgba(139, 124, 246, 0.25), transparent 70%);
+}
+
+.placaInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.placaLinha {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.rank {
+  padding: 0 var(--space-2);
+  border: 1px solid rgba(242, 181, 107, 0.45);
+  border-radius: 999px;
   color: var(--color-ember);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.pontos {
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--color-ember);
+  color: #1a1206;
+  font-size: 0.7rem;
+  font-weight: 700;
+  animation: brilho 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes brilho {
+  to {
+    box-shadow: 0 0 10px rgba(242, 181, 107, 0.6);
+  }
+}
+
+.xp {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: #07080d;
+  border: 1px solid #22273a;
+  overflow: hidden;
+}
+
+.xp > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #6c5ce7, #a497ff);
+  box-shadow: 0 0 8px rgba(139, 124, 246, 0.6);
+  transition: width 300ms ease-out;
+}
+
+.xp em {
+  position: absolute;
+  inset: 0;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 12px;
+  text-align: center;
+  color: #f0eeff;
+  text-shadow: 0 1px 2px #000;
+}
+
+.recursos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.recurso {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(20, 24, 36, 0.8);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
 }
 
 .expedicao {
-  padding: var(--space-1) var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid var(--color-ember);
   border-radius: 999px;
-  background: transparent;
+  background: rgba(242, 181, 107, 0.08);
   color: var(--color-ember);
+  font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -77,20 +175,26 @@
 .abas {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgba(14, 17, 26, 0.85);
 }
 
 .aba {
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 0;
-  border-bottom: 2px solid transparent;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-muted);
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
   cursor: pointer;
   transition:
@@ -98,14 +202,26 @@
     background 0.15s;
 }
 
+.aba svg {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
 .aba:hover {
   color: var(--color-text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aba:hover svg,
+.ativa svg {
+  opacity: 1;
 }
 
 .ativa {
   color: #f4ead8;
-  border-bottom-color: var(--color-ember);
-  background: linear-gradient(0deg, rgba(242, 181, 107, 0.1), transparent 70%);
+  border-color: rgba(242, 181, 107, 0.35);
+  background: linear-gradient(180deg, rgba(242, 181, 107, 0.14), rgba(242, 181, 107, 0.04));
+  box-shadow: inset 0 -2px 0 var(--color-ember);
 }
 
 .conteudo {
@@ -130,10 +246,33 @@
   font-size: 0.875rem;
 }
 
-/* No celular, as abas vão para baixo da tela. */
+/* No celular: topo enxuto e abas fixas embaixo. */
 @media (max-width: 640px) {
   .app {
-    padding-bottom: 64px;
+    padding-bottom: 72px;
+  }
+
+  .topo {
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+
+  .nome {
+    display: none;
+  }
+
+  .placa {
+    min-width: 0;
+  }
+
+  .recursos {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .recurso {
+    min-height: 28px;
+    font-size: 0.82rem;
   }
 
   .abas {
@@ -142,27 +281,29 @@
     right: 0;
     bottom: 0;
     z-index: 35;
-    justify-content: space-around;
-    border-top: 1px solid var(--color-border);
-    border-bottom: 0;
-    background: var(--color-surface);
+    padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
+    border-radius: 0;
+    border-width: 1px 0 0;
+    background: rgba(14, 17, 26, 0.97);
+    backdrop-filter: blur(6px);
   }
 
   .aba {
-    flex: 1;
     flex-direction: column;
-    gap: 0;
-    padding: var(--space-2) 0;
-    font-size: 0.7rem;
-    border-bottom: 0;
-    border-top: 2px solid transparent;
+    gap: 2px;
+    min-height: 54px;
+    padding: var(--space-1) 0;
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 
   .ativa {
-    border-top-color: var(--color-arcane);
+    box-shadow: inset 0 2px 0 var(--color-ember);
   }
 
   .aviso {
-    bottom: 76px;
+    bottom: 80px;
   }
 }

@@ -10,6 +10,9 @@ import type { RtEvent } from '../../../engine/realtime/state.ts';
 import { heroOf } from '../../../engine/realtime/state.ts';
 import { loadMap } from '../../../engine/realtime/world.ts';
 import { chebyshev, isWalkable, objectAt } from '../../../engine/world/map.ts';
+import type { AbilityDef } from '../../../engine/definitions.ts';
+import { Icone } from '../../art/Icone.tsx';
+import type { IconeId } from '../../art/icons.ts';
 import { useGame } from '../../store/game.ts';
 import { COR_RARIDADE, nomeItem } from '../../items.ts';
 import { Inventory } from '../../windows/Inventory.tsx';
@@ -28,13 +31,24 @@ interface Hud {
   vidaMax: number;
   bloqueio: number;
   alvo: { nome: string; vida: number; vidaMax: number; chefe: boolean } | null;
-  habilidades: Array<{ nome: string; resta: number; total: number }>;
+  habilidades: Array<{
+    nome: string;
+    categoria: AbilityDef['categoria'];
+    resta: number;
+    total: number;
+  }>;
   caido: boolean;
   pocaoResta: number;
   auto: boolean;
 }
 
 type JanelaId = 'mochila' | 'mercadora' | 'bau' | 'altar' | 'expedicao';
+const ICONE_CATEGORIA: Record<AbilityDef['categoria'], IconeId> = {
+  ataque: 'ataque',
+  defesa: 'defesa',
+  cura: 'cura',
+};
+
 const JANELAS = new Set<string>(['mochila', 'mercadora', 'bau', 'altar', 'expedicao']);
 
 function hudOf(se: Sessao): Hud {
@@ -50,6 +64,7 @@ function hudOf(se: Sessao): Hud {
       : null,
     habilidades: se.perfil.habilidades.map((x) => ({
       nome: x.def.nome,
+      categoria: x.def.categoria,
       resta: se.w.recargas[x.def.id] ?? 0,
       total: x.recargaMs,
     })),
@@ -78,6 +93,7 @@ export function Hunt() {
   const camRef = useRef<Camera | null>(null);
   const [hud, setHud] = useState<Hud>(() => hudOf(getSessao(perfil)));
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [ajuda, setAjuda] = useState(false);
   const [janela, setJanela] = useState<JanelaId | null>(null);
   const [perdidos, setPerdidos] = useState(0);
   const pocoes = useGame((g) => g.estado.pocoes);
@@ -376,46 +392,100 @@ export function Hunt() {
     setHud(hudOf(se));
   };
 
+  const pctPocao = hud.pocaoResta / (CONTEUDO.itens.pocao.recargaS * 1000);
+
   return (
     <section className={s.tela} aria-label="Mapa de caça">
-      <canvas ref={canvasRef} className={s.canvas} data-testid="mapa" />
-      <Joystick
-        onDir={(d) => {
-          getSessao(perfilRef.current).dir = d;
-        }}
-      />
+      <div className={s.quadro}>
+        <canvas ref={canvasRef} className={s.canvas} data-testid="mapa" />
+        <Joystick
+          onDir={(d) => {
+            getSessao(perfilRef.current).dir = d;
+          }}
+        />
 
-      <div className={s.topoEsq}>
-        <strong>{hud.mapa}</strong>
-        <div className={s.barra} aria-label={`Vida ${hud.vida} de ${hud.vidaMax}`}>
-          <span className={s.vida} style={{ width: `${(hud.vida / hud.vidaMax) * 100}%` }} />
-          <em>
-            {hud.vida} / {hud.vidaMax}
-            {hud.bloqueio > 0 && <span className={s.bloq}> ⛨ {hud.bloqueio}</span>}
-          </em>
-        </div>
-      </div>
-
-      {hud.alvo && (
-        <div className={s.alvo}>
-          <span className={hud.alvo.chefe ? s.chefe : undefined}>{hud.alvo.nome}</span>
-          <div className={s.barra}>
-            <span
-              className={s.vidaAlvo}
-              style={{ width: `${(hud.alvo.vida / hud.alvo.vidaMax) * 100}%` }}
-            />
+        <div className={s.topoEsq}>
+          <strong className={s.mapaNome}>
+            <Icone id="portal" tamanho={16} />
+            {hud.mapa}
+          </strong>
+          <div className={s.barra} aria-label={`Vida ${hud.vida} de ${hud.vidaMax}`}>
+            <span className={s.vida} style={{ width: `${(hud.vida / hud.vidaMax) * 100}%` }} />
+            {hud.bloqueio > 0 && (
+              <span
+                className={s.bloqueioBarra}
+                style={{ width: `${Math.min(100, (hud.bloqueio / hud.vidaMax) * 100)}%` }}
+              />
+            )}
             <em>
-              {hud.alvo.vida} / {hud.alvo.vidaMax}
+              {hud.vida} / {hud.vidaMax}
+              {hud.bloqueio > 0 && <span className={s.bloq}> ⛨ {hud.bloqueio}</span>}
             </em>
           </div>
         </div>
-      )}
 
-      {mensagem && (
-        <div className={s.mensagem} role="status">
-          {mensagem}
-        </div>
-      )}
+        {hud.alvo && (
+          <div className={`${s.alvo} ${hud.alvo.chefe ? s.alvoChefe : ''}`}>
+            <span className={hud.alvo.chefe ? s.chefe : undefined}>
+              {hud.alvo.chefe ? '♛ ' : ''}
+              {hud.alvo.nome}
+            </span>
+            <div className={s.barra}>
+              <span
+                className={s.vidaAlvo}
+                style={{ width: `${(hud.alvo.vida / hud.alvo.vidaMax) * 100}%` }}
+              />
+              <em>
+                {hud.alvo.vida} / {hud.alvo.vidaMax}
+              </em>
+            </div>
+          </div>
+        )}
+
+        {mensagem && (
+          <div className={s.mensagem} role="status">
+            {mensagem}
+          </div>
+        )}
+
+        {ajuda && (
+          <div className={s.ajuda} role="dialog" aria-label="Controles">
+            <strong>Controles</strong>
+            <dl>
+              <dt>WASD / setas</dt>
+              <dd>andar (ou clique no chão)</dd>
+              <dt>Clique / Tab</dt>
+              <dd>escolher alvo</dd>
+              <dt>1 a 4</dt>
+              <dd>habilidades</dd>
+              <dt>Q</dt>
+              <dd>poção</dd>
+              <dt>E</dt>
+              <dd>falar, abrir baú</dd>
+              <dt>R</dt>
+              <dd>auto-caçar</dd>
+              <dt>I</dt>
+              <dd>mochila</dd>
+              <dt>Esc</dt>
+              <dd>soltar alvo, fechar</dd>
+            </dl>
+          </div>
+        )}
+
+        {hud.caido && (
+          <div className={s.caido}>
+            <h2>Você caiu</h2>
+            <p>
+              Nada de XP foi perdido.
+              {perdidos > 0 &&
+                ` Você perdeu ${perdidos} ${perdidos === 1 ? 'item' : 'itens'} da mochila.`}
+            </p>
+            <button className={s.botao} onClick={voltar} autoFocus>
+              Voltar ao Posto
+            </button>
+          </div>
+        )}
+      </div>
 
       {janela === 'mochila' && <Inventory onFechar={() => setJanela(null)} />}
       {janela === 'mercadora' && <Merchant onFechar={() => setJanela(null)} />}
@@ -423,83 +493,88 @@ export function Hunt() {
       {janela === 'altar' && <Altar onFechar={() => setJanela(null)} />}
       {janela === 'expedicao' && <ExpeditionTable onFechar={() => setJanela(null)} />}
 
-      <div className={s.habilidades}>
-        {hud.habilidades.map((h, i) => {
-          const pct = h.total > 0 ? h.resta / h.total : 0;
-          return (
-            <button
-              key={h.nome}
-              className={s.hab}
-              onClick={() => usar(i)}
-              disabled={hud.caido}
-              title={`${h.nome} (tecla ${i + 1})`}
-            >
-              <span className={s.tecla}>{i + 1}</span>
-              <span className={s.habNome}>{h.nome}</span>
-              {h.resta > 0 && (
-                <span className={s.recarga} style={{ height: `${pct * 100}%` }}>
-                  {Math.ceil(h.resta / 1000)}
-                </span>
-              )}
-            </button>
-          );
-        })}
-        <button
-          className={s.hab}
-          onClick={() => beberRef.current()}
-          disabled={hud.caido}
-          title="Poção de vida (tecla Q)"
-        >
-          <span className={s.tecla}>Q</span>
-          <span className={s.habNome}>Poção ×{pocoes}</span>
-          {hud.pocaoResta > 0 && (
-            <span
-              className={s.recarga}
-              style={{
-                height: `${(hud.pocaoResta / (CONTEUDO.itens.pocao.recargaS * 1000)) * 100}%`,
-              }}
-            >
-              {Math.ceil(hud.pocaoResta / 1000)}
-            </span>
-          )}
-        </button>
-        <button
-          className={`${s.hab} ${hud.auto ? s.ligado : ''}`}
-          onClick={() => alternarAutoRef.current()}
-          disabled={hud.caido}
-          title="Auto-caçar (tecla R): só em portais já fechados"
-        >
-          <span className={s.tecla}>R</span>
-          <span className={s.habNome}>Auto {hud.auto ? 'ligado' : 'desligado'}</span>
-        </button>
-        <button
-          className={s.hab}
-          onClick={() => setJanela((j) => (j ? null : 'mochila'))}
-          title="Mochila (tecla I)"
-        >
-          <span className={s.tecla}>I</span>
-          <span className={s.habNome}>Mochila</span>
-        </button>
-      </div>
-
-      <p className={s.ajuda}>
-        WASD ou setas: andar · Clique no chão: ir até lá · Clique no monstro ou Tab: atacar · 1 a 4:
-        habilidades · Q: poção · E: usar · R: auto-caçar · I: mochila · Esc: soltar alvo
-      </p>
-
-      {hud.caido && (
-        <div className={s.caido}>
-          <h2>Você caiu</h2>
-          <p>
-            Nada de XP foi perdido.
-            {perdidos > 0 &&
-              ` Você perdeu ${perdidos} ${perdidos === 1 ? 'item' : 'itens'} da mochila.`}
-          </p>
-          <button className={s.botao} onClick={voltar} autoFocus>
-            Voltar ao Posto
+      <div className={s.dock}>
+        <div className={s.grupo}>
+          {Array.from({ length: CONTEUDO.progressao.espacosDeHabilidade }, (_, i) => {
+            const h = hud.habilidades[i];
+            if (!h)
+              return (
+                <div key={i} className={`${s.slot} ${s.slotVazio}`} aria-hidden>
+                  <span className={s.tecla}>{i + 1}</span>
+                </div>
+              );
+            const pct = h.total > 0 ? h.resta / h.total : 0;
+            return (
+              <button
+                key={h.nome}
+                className={s.slot}
+                onClick={() => usar(i)}
+                disabled={hud.caido}
+                title={`${h.nome} (tecla ${i + 1})`}
+                aria-label={h.nome}
+              >
+                <span className={s.tecla}>{i + 1}</span>
+                <Icone id={ICONE_CATEGORIA[h.categoria]} tamanho={28} />
+                <span className={s.slotNome}>{h.nome}</span>
+                {h.resta > 0 && (
+                  <span className={s.recarga} style={{ '--p': pct } as React.CSSProperties}>
+                    {Math.ceil(h.resta / 1000)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <span className={s.divisor} aria-hidden />
+        <div className={s.grupo}>
+          <button
+            className={s.slot}
+            onClick={() => beberRef.current()}
+            disabled={hud.caido || pocoes <= 0}
+            title="Poção de vida (tecla Q)"
+            aria-label={`Poção de vida, ${pocoes} restantes`}
+          >
+            <span className={s.tecla}>Q</span>
+            <Icone id="pocao" tamanho={28} />
+            <span className={s.contagem}>{pocoes}</span>
+            <span className={s.slotNome}>Poção</span>
+            {hud.pocaoResta > 0 && (
+              <span className={s.recarga} style={{ '--p': pctPocao } as React.CSSProperties}>
+                {Math.ceil(hud.pocaoResta / 1000)}
+              </span>
+            )}
+          </button>
+          <button
+            className={`${s.slot} ${hud.auto ? s.ligado : ''}`}
+            onClick={() => alternarAutoRef.current()}
+            disabled={hud.caido}
+            title="Auto-caçar (tecla R): só em portais já fechados"
+            aria-pressed={hud.auto}
+          >
+            <span className={s.tecla}>R</span>
+            <Icone id="auto" tamanho={28} className={hud.auto ? s.girando : undefined} />
+            <span className={s.slotNome}>{hud.auto ? 'Auto ligado' : 'Auto'}</span>
+          </button>
+          <button
+            className={s.slot}
+            onClick={() => setJanela((j) => (j ? null : 'mochila'))}
+            title="Mochila (tecla I)"
+          >
+            <span className={s.tecla}>I</span>
+            <Icone id="mochila" tamanho={28} />
+            <span className={s.slotNome}>Mochila</span>
+          </button>
+          <button
+            className={`${s.slot} ${s.slotAjuda} ${ajuda ? s.ligado : ''}`}
+            onClick={() => setAjuda((v) => !v)}
+            title="Controles"
+            aria-pressed={ajuda}
+          >
+            <span className={s.interrogacao}>?</span>
+            <span className={s.slotNome}>Ajuda</span>
           </button>
         </div>
-      )}
+      </div>
     </section>
   );
 }
