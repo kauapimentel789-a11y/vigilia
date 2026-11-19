@@ -1,8 +1,8 @@
 # Vigília
 
-Jogo idle de fantasia dark para navegador, com combate estratégico em turnos, deck-building e invocações.
+Jogo idle de fantasia dark para navegador. Você é um Portador da Vigília recém-desperto, o mais fraco de todos, e fica mais forte a cada portal fechado. A Caçada (PvE idle) vem primeiro; a Arena (PvP auto-battler com cartas) vem em etapas futuras.
 
-> **Status:** Etapa 1 (Protótipo de Combate). Três encontros de teste, 13 cartas, 1 aliado.
+> **Status:** Etapa 2 (Caçada: núcleo idle). Caçador com level e atributos, combate automático com 4 habilidades, 5 portais Cinza com mini-chefe, Expedição com progresso offline e save local.
 
 ## Requisitos
 
@@ -14,37 +14,36 @@ Jogo idle de fantasia dark para navegador, com combate estratégico em turnos, d
 npm install      # só na primeira vez
 npm run dev      # abre em http://localhost:5173
 npm test         # testes das regras
-npm run sim      # relatório de balanceamento
+npm run sim      # relatório de ritmo e equilíbrio
 ```
 
-## Como jogar o protótipo
+## Como jogar
 
-1. Escolha um encontro (Caçada, Ninho ou Guardião). A semente é opcional; com a mesma semente, a partida se repete.
-2. **Cartas com alvo:** clique na carta e depois no inimigo.
-3. **Cartas sem alvo:** clique na carta e clique nela de novo.
-4. **Avivar:** ao selecionar uma carta com Avivar, aparece o botão de Brasa. Ligue-o antes de jogar para pagar a Brasa e ganhar o efeito extra.
-5. Clique em **Encerrar turno** quando terminar.
+1. **Portais:** entre no Cinza I. A luta é automática: assista em 1×, 2× ou 4×, ou pule para o resultado.
+2. **Caçador:** cada level dá 3 pontos de atributo. Redistribuir é grátis neste protótipo.
+3. **Habilidades:** equipe até 4, na ordem de prioridade (a de cima é usada primeiro), melhore com ouro e ajuste o comportamento (alvo, quando curar, quando defender).
+4. **Expedição:** envie o caçador a um portal já fechado. Ele farma sozinho, mesmo com o jogo fechado, até 8 h acumuladas. Ao voltar, um relatório mostra o que ele ganhou.
+5. Feche o **Cinza V**, onde o Cavaleiro Oco anuncia a Execução antes de usá-la.
 
-Passe o mouse sobre intenções, status, cartas, energia e Brasa para ver o que fazem. O registro de combate fica no rodapé.
+O jogo salva sozinho no navegador (a cada mudança, a cada 30 s e ao fechar a aba). Fora do site de produção aparece um **painel de teste** (🛠) para avançar o tempo da expedição e apagar o progresso.
 
-## Regras do combate (resumo)
+## Regras principais
 
-**Turno do jogador:** o bloqueio zera → Veneno → rituais disparam → energia volta a 3 → compra 5 cartas → você joga cartas → ao encerrar, a energia que sobrou vira Brasa (até 3) → o aliado age → a mão vai para o descarte → Vulnerável, Fraco e Marca reduzem 1.
+**Combate automático.** O tempo avança em tiques de 100 ms. Cada unidade soma a velocidade a uma barra de ação e age quando ela enche. A cada segundo, os status contam (Veneno tira vida; Fraco, Vulnerável e Marca diminuem) e o bloqueio perde 20%. A vida do caçador não volta entre ondas, e o portal tem limite de 90 s.
 
-**Turno dos inimigos** (da esquerda para a direita): o bloqueio zera → Veneno → executa a intenção visível → status reduzem → mostra a próxima intenção.
+**O caçador** percorre as habilidades equipadas na ordem de prioridade e usa a primeira que está pronta e que o comportamento permite (cura só abaixo do percentual escolhido; defesa assim que pronta ou só contra golpe forte anunciado). Sem nenhuma, usa o ataque básico.
 
-- A intenção mostrada é sempre a ação que será executada. O número já inclui todos os modificadores.
-- Efeitos especiais (como a fúria do Cavaleiro Oco) são anunciados na tela e no registro.
-- Quando a pilha de compra acaba, o descarte é embaralhado e vira a nova pilha.
-- O combate termina no instante em que o último inimigo, ou o jogador, chega a 0 de vida.
+**Inimigos** mostram a intenção da próxima ação, que é sempre a ação executada. Golpes fortes aparecem com ⚠.
 
-Detalhes completos no plano da Etapa 1 (seção 16).
+**Expedição.** Ao enviar e a cada coleta, o motor simula 20 lutas reais e calcula uma taxa por hora (vitórias, lutas, XP e ouro). O ganho é taxa × tempo, com teto de 8 h. Se o relógio do aparelho voltar no tempo, nada é acumulado. Portais fáceis demais para o seu level rendem menos (ver `xpAcimaDoRecomendado` em `src/content/progression.ts`).
 
-## Simulador de balanceamento
+**Determinismo.** Mesma semente e mesmo caçador geram exatamente a mesma luta. A interface só reproduz os eventos e quadros que o motor devolve.
 
-`npm run sim` faz um robô "guloso" jogar 500 combates por encontro (`npm run sim -- 2000` para mais) e mostra vitórias, turnos médios, vida restante e dano por fonte.
+## Simulador
 
-As faixas mostradas são **indicadores**, não regras. Um "⚠" pede atenção, nunca um ajuste automático. O robô não planeja turnos à frente, mas enxerga as intenções, então costuma vencer mais que um iniciante.
+`npm run sim` mostra a chance de vitória por level em cada portal, a progressão de um jogador-robô até fechar o Cinza V, um build ruim contra o mini-chefe e o rendimento de 8 h offline.
+
+As faixas são **indicadores**, não regras. Nunca distorcemos mecânicas para encaixar números: o teste de quem joga vale mais.
 
 ## Scripts
 
@@ -53,7 +52,7 @@ As faixas mostradas são **indicadores**, não regras. Um "⚠" pede atenção, 
 | `npm run dev`        | Modo desenvolvimento (recarrega ao salvar)     |
 | `npm test`           | Roda os testes uma vez                         |
 | `npm run test:watch` | Roda os testes sempre que algo muda            |
-| `npm run sim`        | Relatório de balanceamento                     |
+| `npm run sim`        | Relatório de ritmo e equilíbrio                |
 | `npm run lint`       | Qualidade do código e fronteiras entre camadas |
 | `npm run typecheck`  | Verifica os tipos do TypeScript                |
 | `npm run format`     | Formata o código com Prettier                  |
@@ -66,24 +65,30 @@ As faixas mostradas são **indicadores**, não regras. Um "⚠" pede atenção, 
 src/
 ├─ engine/              MOTOR: TypeScript puro. Não importa React, src/ui nem src/content.
 │  ├─ core/             RNG com semente, barramento de eventos, tipos base
-│  ├─ combat/           definições, estado, turnos, comandos, dano, IA, fim de combate
-│  ├─ effects/          sistema de efeitos (toda carta e ação é uma lista de efeitos)
-│  └─ statuses/         os 5 status, definidos por ganchos
-├─ content/             CONTEÚDO: só dados (cartas, inimigos, aliado, encontros)
+│  ├─ definitions.ts    formato do conteúdo que o motor recebe
+│  ├─ effects/          sistema de efeitos, independente do modo de jogo
+│  ├─ statuses/         os 5 status, definidos por ganchos por segundo
+│  ├─ hunter/           level, XP, atributos, números derivados, habilidades
+│  ├─ autobattle/       simulação por tiques, dano, IA dos inimigos, comportamento
+│  ├─ expedition/       taxa da expedição, ganho por tempo, queda por level
+│  ├─ game/             estado completo do jogo e os comandos que o alteram
+│  └─ save/             serializar, validar e migrar o save
+├─ content/             CONTEÚDO: só dados (progressão, habilidades, inimigos, portais)
 └─ ui/                  INTERFACE: React
-   ├─ app/              navegação entre telas
-   ├─ screens/          seleção de encontro e batalha
-   ├─ components/       Card, Unit, Hud, ResultModal
+   ├─ app/              topo, abas e navegação
+   ├─ store/            Zustand: guarda o estado e chama o motor; save no localStorage
+   ├─ screens/          Caçador, Habilidades, Portais, Expedição, Combate (reprodução)
+   ├─ components/       barra de progresso, relatório de retorno, painel de teste
    └─ theme/            tokens de cor e espaçamento (provisórios)
 tests/                  testes do motor e integridade do conteúdo
-tools/sim/              simulador de balanceamento
+tools/sim/              simulador de ritmo
 ```
 
 ## Regras do projeto
 
 - **O motor não conhece a interface nem o conteúdo.** Ele recebe as definições como parâmetro. O lint falha se isso for violado.
-- **Comandos são puros:** recebem o estado e devolvem um estado novo e a lista de eventos. O estado antigo nunca é alterado.
+- **Comandos são puros:** recebem o estado e devolvem um estado novo (ou um erro). O estado antigo nunca é alterado.
 - **Nada de `Math.random()` no motor.** Use sempre o `Rng` com semente de `src/engine/core`.
-- **Conteúdo novo = dados novos.** Uma carta nova combina efeitos existentes em `src/content/cards.ts`.
-- **Estado do jogo em objetos simples**, sem classes, para facilitar o save no futuro.
+- **Conteúdo novo = dados novos.** Uma habilidade nova combina efeitos existentes em `src/content/abilities.ts`; um inimigo novo entra em `enemies.ts`; um portal novo em `portals.ts`.
+- **Estado do jogo em objetos simples**, sem classes, e o save tem versão e migrações.
 - Imports do motor e do conteúdo usam a extensão `.ts`, para que o simulador rode direto no Node.

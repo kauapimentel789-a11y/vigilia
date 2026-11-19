@@ -1,182 +1,189 @@
 /**
- * Simulador de balanceamento da Etapa 1.
+ * Simulador de ritmo da Caçada (`npm run sim`).
  *
- * Um robô "guloso" joga milhares de combates em cada encontro. Ele escolhe a
- * jogada de maior valor imediato e nunca planeja turnos à frente, então é
- * propositalmente mais fraco que um humano.
+ * 1. Matriz de vitória: level × portal, com um build equilibrado.
+ * 2. Progressão de um jogador-robô do level 1 até fechar o Cinza V, usando
+ *    expedições online entre as tentativas.
+ * 3. Build ruim contra o mini-chefe.
+ * 4. Rendimento de 8 h offline num portal intermediário.
  *
- * As faixas são INDICADORES de balanceamento, não regras: servem para chamar
- * atenção para algo estranho, nunca para distorcer uma mecânica.
- *
- * Uso: npm run sim            (500 combates por encontro)
- *      npm run sim -- 2000    (quantidade personalizada)
+ * Os números são INDICADORES de equilíbrio, não regras: o seu teste vale mais.
  */
-import { CONTENT, ENCOUNTERS, TEST_DECK } from '../../src/content/encounters.ts';
-import type { CombatState, PlayCardInput } from '../../src/engine/combat/index.ts';
+import { CONTEUDO } from '../../src/content/index.ts';
+import type { AtributoId, GameContent } from '../../src/engine/definitions.ts';
+import type { GameState } from '../../src/engine/game/game.ts';
 import {
-  MAX_TURNOS,
-  anyEnemyAttacking,
-  cannotPlay,
-  endTurn,
-  playCard,
-  previewIntent,
-  startCombat,
-} from '../../src/engine/combat/index.ts';
+  advanceTime,
+  collectExpedition,
+  equip,
+  fightPortal,
+  newGame,
+  spendPoint,
+  startExpedition,
+  upgrade,
+} from '../../src/engine/game/game.ts';
+import { calculateRate } from '../../src/engine/expedition/expedition.ts';
+import { abilityLevel, isUnlocked, upgradeCost } from '../../src/engine/hunter/abilities.ts';
+import { gainXp } from '../../src/engine/hunter/hunter.ts';
+import { buildProfile } from '../../src/engine/hunter/stats.ts';
 
-const C = CONTENT;
+const C: GameContent = CONTEUDO;
+const ORDEM_EQUILIBRADA: AtributoId[] = [
+  'forca',
+  'vigor',
+  'agilidade',
+  'forca',
+  'vigor',
+  'vontade',
+  'percepcao',
+  'agilidade',
+  'forca',
+];
 
-/** Valor de um estado do ponto de vista do jogador (maior é melhor). */
-function evaluate(s: CombatState): number {
-  if (s.resultado === 'vitoria') return 10_000 + s.jogador.vida;
-  if (s.resultado === 'derrota') return -10_000;
-
-  const vivos = s.inimigos.filter((i) => i.vida > 0);
-  const vidaInimigos = vivos.reduce((t, i) => t + i.vida + i.bloqueio * 0.5, 0);
-  const mortos = s.inimigos.length - vivos.length;
-
-  const recebido = vivos.reduce((t, i) => t + (previewIntent(s, C, i)?.danoJogador ?? 0), 0);
-  const protecao = s.aliado && anyEnemyAttacking(s, C) ? 5 : 0;
-  const danoPrevisto = Math.max(0, recebido - s.jogador.bloqueio - protecao);
-
-  let status = 0;
-  for (const i of vivos) {
-    const v = i.status.veneno ?? 0;
-    status +=
-      ((v * (v + 1)) / 2) * 0.8 + (i.status.vulneravel ?? 0) * 3 + (i.status.marca ?? 0) * 1.5;
-  }
-  status -= (s.jogador.status.fraco ?? 0) * 2;
-
-  const aliado = s.aliado ? 6 + s.aliado.vida * 0.5 : 0;
-  return (
-    s.jogador.vida -
-    danoPrevisto -
-    vidaInimigos +
-    mortos * 12 +
-    status +
-    aliado +
-    s.brasa * 2 +
-    s.rituais.length * 8 +
-    s.mao.length * 1.5
-  );
+function must<T extends { erro?: string | undefined }>(r: T): Exclude<T, { erro: string }> {
+  if (r.erro) throw new Error(r.erro);
+  return r as Exclude<T, { erro: string }>;
 }
 
-function options(s: CombatState): PlayCardInput[] {
-  const alvos = s.inimigos.filter((i) => i.vida > 0).map((i) => i.uid);
-  const out: PlayCardInput[] = [];
-  for (const carta of s.mao) {
-    const def = C.cartas[carta.defId];
-    if (!def) continue;
-    for (const alvo of def.alvo === 'inimigo' ? alvos : [undefined]) {
-      for (const avivar of def.avivar ? [false, true] : [false]) {
-        const input = { carta: carta.uid, alvo, avivar };
-        if (!cannotPlay(s, C, input)) out.push(input);
-      }
+function spendAll(e: GameState, ordem: AtributoId[]): GameState {
+  let i = 0;
+  while (e.cacador.pontosLivres > 0) {
+    e = must(spendPoint(e, C, ordem[i % ordem.length] as AtributoId, 1)).estado;
+    i++;
+  }
+  return e;
+}
+
+function bestLoadout(e: GameState): string[] {
+  const pref = [
+    'folegoDaVigilia',
+    'guardaCinzenta',
+    'marcaDoCacador',
+    'golpeRasgante',
+    'corteRapido',
+    'laminaVenenosa',
+  ];
+  return pref.filter((id) => isUnlocked(e.cacador, C.habilidades[id]!)).slice(0, 4);
+}
+
+function upgradeAll(e: GameState): GameState {
+  for (;;) {
+    const opcoes = e.cacador.equipadas
+      .map((id) => ({ id, nivel: abilityLevel(e.cacador, id) }))
+      .filter((o) => o.nivel < C.progressao.habilidadeNivelMax)
+      .sort((a, b) => a.nivel - b.nivel);
+    const o = opcoes[0];
+    if (!o || upgradeCost(C, o.nivel) > e.ouro) return e;
+    e = must(upgrade(e, C, o.id)).estado;
+  }
+}
+
+function prepare(e: GameState): GameState {
+  e = spendAll(e, ORDEM_EQUILIBRADA);
+  e = must(equip(e, C, bestLoadout(e))).estado;
+  return upgradeAll(e);
+}
+
+function levelUpTo(level: number): GameState {
+  const e = newGame(C, 1, 0);
+  while (e.cacador.level < level) {
+    const falta =
+      Math.round(C.progressao.xpBase * Math.pow(e.cacador.level, C.progressao.xpExpoente)) -
+      e.cacador.xp;
+    e.cacador = gainXp(e.cacador, C, falta).cacador;
+  }
+  return prepare(e);
+}
+
+const pct = (x: number) => `${Math.round(x * 100)}%`.padStart(5);
+const min = (s: number) => `${(s / 60).toFixed(0)} min`;
+
+// 1. Matriz
+console.log('\n1) Vitória por level (build equilibrado, habilidades nível 1)\n');
+console.log('level |' + C.ordemPortais.map((p) => C.portais[p]!.nome.padStart(9)).join(''));
+for (const lv of [1, 3, 5, 8, 10, 12, 15, 18, 20, 25]) {
+  const e = levelUpTo(lv);
+  const perfil = buildProfile(e.cacador, C);
+  const linha = C.ordemPortais.map((p) =>
+    pct(calculateRate(perfil, C.portais[p]!, C, 99).vitoria).padStart(9),
+  );
+  console.log(String(lv).padStart(5) + ' |' + linha.join(''));
+}
+
+// 2. Progressão
+console.log(
+  '\n2) Jogador-robô: entra num portal novo quando a chance passa de 60%; senão farma 5 min online\n',
+);
+let e = newGame(C, 12345, 0);
+let t = 0;
+const FARM_S = 300;
+let ultimoFechado = 0;
+for (let guarda = 0; guarda < 400 && !e.portaisFechados.includes('cinza5'); guarda++) {
+  e = prepare(e);
+  const proximo = C.ordemPortais[e.portaisFechados.length]!;
+  const chance = calculateRate(
+    buildProfile(e.cacador, C),
+    C.portais[proximo]!,
+    C,
+    guarda * 31,
+  ).vitoria;
+  if (chance >= 0.6 || e.portaisFechados.length === 0) {
+    const r = must(fightPortal(e, C, proximo));
+    e = r.estado;
+    t += r.batalha.duracaoMs / 1000 / 4 + 10; // assistido em 4×, mais navegação
+    if (r.batalha.resultado === 'vitoria') {
+      console.log(
+        `  ${min(t).padStart(7)}  fechou ${C.portais[proximo]!.nome.padEnd(9)} level ${e.cacador.level}  (chance estimada ${pct(chance)})`,
+      );
+      ultimoFechado = t;
+      continue;
     }
   }
-  return out;
+  const melhor = e.portaisFechados
+    .map((p) => ({
+      p,
+      taxa: calculateRate(buildProfile(e.cacador, C), C.portais[p]!, C, 7).xpPorHora,
+    }))
+    .sort((a, b) => b.taxa - a.taxa)[0]!.p;
+  e = must(startExpedition(e, C, melhor, 0)).estado;
+  e = advanceTime(e, FARM_S * 1000);
+  e = must(collectExpedition(e, C, 0, true)).estado;
+  t += FARM_S;
+}
+console.log(`\n  Tempo ativo até fechar o Cinza V: ${min(ultimoFechado)} (indicador: 45 a 90 min)`);
+
+// 3. Build ruim
+console.log('\n3) Build ruim no Cinza V: tudo em Força, habilidades em ordem qualquer, sem cura');
+for (const lv of [15, 18, 20]) {
+  let r = levelUpTo(lv);
+  r.cacador.atributos = { forca: 5, agilidade: 5, vigor: 5, percepcao: 5, vontade: 5 };
+  r.cacador.pontosLivres = (lv - 1) * C.progressao.pontosPorLevel;
+  r = spendAll(r, ['forca']);
+  r = must(
+    equip(r, C, ['corteRapido', 'laminaVenenosa', 'golpeRasgante', 'guardaCinzenta']),
+  ).estado;
+  r.cacador.comportamento = { alvo: 'primeiro', curaAbaixoPct: 0, defesa: 'pronta' };
+  const boa = levelUpTo(lv);
+  const v1 = calculateRate(buildProfile(r.cacador, C), C.portais.cinza5!, C, 5).vitoria;
+  const v2 = calculateRate(buildProfile(boa.cacador, C), C.portais.cinza5!, C, 5).vitoria;
+  console.log(`  level ${lv}: build ruim ${pct(v1)}  ·  build equilibrado ${pct(v2)}`);
 }
 
-function playTurn(s: CombatState): CombatState {
-  for (let passo = 0; passo < 20 && !s.resultado; passo++) {
-    // Jogar uma carta tira 1 da mão; compara com "passar" sem esse custo.
-    const valorAtual = evaluate(s) - 1.5;
-    let melhor: CombatState | null = null;
-    let melhorValor = valorAtual;
-    for (const input of options(s)) {
-      const r = playCard(s, C, input);
-      const valor = evaluate(r.estado);
-      if (valor > melhorValor) {
-        melhorValor = valor;
-        melhor = r.estado;
-      }
-    }
-    if (!melhor) break;
-    s = melhor;
-  }
-  return s.resultado ? s : endTurn(s, C).estado;
-}
-
-interface Summary {
-  vitorias: number;
-  derrotas: number;
-  empates: number;
-  turnos: number[];
-  vidaRestante: number[];
-  danoPorFonte: Record<string, number>;
-  danoTotal: number;
-}
-
-function runEncounter(id: string, n: number): Summary {
-  const encontro = ENCOUNTERS.find((e) => e.id === id)!;
-  const r: Summary = {
-    vitorias: 0,
-    derrotas: 0,
-    empates: 0,
-    turnos: [],
-    vidaRestante: [],
-    danoPorFonte: {},
-    danoTotal: 0,
-  };
-  for (let semente = 1; semente <= n; semente++) {
-    let s = startCombat(C, encontro, TEST_DECK, semente).estado;
-    while (!s.resultado) s = playTurn(s);
-    if (s.resultado === 'vitoria') {
-      r.vitorias++;
-      r.turnos.push(s.turno);
-      r.vidaRestante.push(s.jogador.vida / s.jogador.vidaMax);
-    } else if (s.resultado === 'derrota') r.derrotas++;
-    else r.empates++;
-    for (const [fonte, dano] of Object.entries(s.stats.danoPorFonte)) {
-      r.danoPorFonte[fonte] = (r.danoPorFonte[fonte] ?? 0) + dano;
-      r.danoTotal += dano;
-    }
-  }
-  return r;
-}
-
-const INDICADORES: Record<
-  string,
-  { vitoria: [number, number]; turnos: [number, number]; vida: [number, number] }
-> = {
-  cacada: { vitoria: [0.9, 1], turnos: [3, 5], vida: [0.5, 1] },
-  ninho: { vitoria: [0.65, 0.85], turnos: [4, 7], vida: [0.3, 0.6] },
-  guardiao: { vitoria: [0.35, 0.6], turnos: [6, 10], vida: [0.2, 0.5] },
-};
-
-const media = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-const pct = (x: number) => `${Math.round(x * 100)}%`;
-const marca = (v: number, [min, max]: [number, number]) =>
-  v >= min && v <= max ? '  ok' : '  ⚠ fora da faixa';
-
-const n = Number(process.argv[2] ?? 500);
-console.log(`\nSimulador da Etapa 1 · ${n} combates por encontro · robô guloso\n`);
-console.log('As faixas são indicadores, não regras. "⚠" pede atenção, não ajuste automático.\n');
-
-for (const encontro of ENCOUNTERS) {
-  const r = runEncounter(encontro.id, n);
-  const ind = INDICADORES[encontro.id]!;
-  const taxa = r.vitorias / n;
-  const turnos = media(r.turnos);
-  const vida = media(r.vidaRestante);
-  console.log(`■ ${encontro.nome}`);
+// 4. Offline
+console.log('\n4) 8 h offline (indicador: 2 a 5 levels num portal intermediário)');
+for (const [lv, portal] of [
+  [10, 'cinza3'],
+  [13, 'cinza4'],
+  [18, 'cinza5'],
+] as const) {
+  let o = levelUpTo(lv);
+  o.portaisFechados = C.ordemPortais.slice(0, C.ordemPortais.indexOf(portal) + 1);
+  o = must(startExpedition(o, C, portal, 0)).estado;
+  const taxa = o.expedicao!.taxa;
+  o = advanceTime(o, 10 * 3600 * 1000);
+  const r = must(collectExpedition(o, C, 0, true));
   console.log(
-    `  Vitórias       ${pct(taxa).padStart(5)}   (indicador ${pct(ind.vitoria[0])}–${pct(ind.vitoria[1])})${marca(taxa, ind.vitoria)}`,
+    `  level ${lv} em ${C.portais[portal]!.nome}: vitória ${pct(taxa.vitoria)}, ${Math.round(taxa.lutasPorHora)} lutas/h → +${r.ganhos.xp} XP, +${r.ganhos.ouro} ouro, +${r.levelsGanhos} levels`,
   );
-  console.log(
-    `  Turnos médios  ${turnos.toFixed(1).padStart(5)}   (indicador ${ind.turnos[0]}–${ind.turnos[1]})${marca(turnos, ind.turnos)}`,
-  );
-  console.log(
-    `  Vida restante  ${pct(vida).padStart(5)}   (indicador ${pct(ind.vida[0])}–${pct(ind.vida[1])})${marca(vida, ind.vida)}`,
-  );
-  if (r.empates > 0)
-    console.log(`  ⚠ ${r.empates} combate(s) chegaram à trava de ${MAX_TURNOS} turnos`);
-  const fontes = Object.entries(r.danoPorFonte).sort((a, b) => b[1] - a[1]);
-  console.log('  Dano por fonte:');
-  for (const [fonte, dano] of fontes) {
-    const parte = dano / r.danoTotal;
-    console.log(
-      `    ${fonte.padEnd(24)} ${pct(parte).padStart(4)}${parte > 0.4 ? '  ⚠ acima de 40%' : ''}`,
-    );
-  }
-  console.log('');
 }
+console.log('');

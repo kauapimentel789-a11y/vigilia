@@ -1,9 +1,9 @@
 /**
- * Status de combate.
+ * Status de combate, agora medidos em tempo.
  *
- * Cada status é uma definição com "ganchos". O fluxo do combate não conhece
- * nenhum status pelo nome: ele só chama os ganchos. Para criar um status novo,
- * basta adicionar uma entrada em STATUS_DEFS.
+ * Cada status é uma definição com "ganchos". A simulação não conhece nenhum
+ * status pelo nome: ela só chama os ganchos a cada segundo de combate. Para criar
+ * um status novo, basta adicionar uma entrada em STATUS_DEFS.
  */
 
 export type StatusId = 'vulneravel' | 'fraco' | 'veneno' | 'forca' | 'marca';
@@ -24,12 +24,10 @@ export interface StatusDef {
   multDanoCausado?: number;
   /** Multiplica o dano de cada golpe recebido por quem tem o status. */
   multDanoRecebido?: number;
-  /** Perda de vida no início do turno de quem tem o status (ignora bloqueio). */
-  perdaNoInicioDoTurno?: (quantidade: number) => number;
-  /** Quanto a quantidade diminui no início do turno (depois da perda de vida). */
-  reduzNoInicioDoTurno?: number;
-  /** Quanto a quantidade diminui no fim do turno de quem tem o status. */
-  reduzNoFimDoTurno?: number;
+  /** Perda de vida a cada segundo (ignora bloqueio). */
+  perdaPorSegundo?: (quantidade: number) => number;
+  /** Quanto a quantidade diminui a cada segundo (depois da perda de vida). */
+  reduzPorSegundo?: number;
 }
 
 export const STATUS_DEFS: Record<StatusId, StatusDef> = {
@@ -37,25 +35,25 @@ export const STATUS_DEFS: Record<StatusId, StatusDef> = {
     id: 'vulneravel',
     nome: 'Vulnerável',
     tipo: 'debuff',
-    descricao: (q) => `Recebe 50% a mais de dano. Dura ${q} turno(s).`,
+    descricao: (q) => `Recebe 50% a mais de dano. Dura ${q} s.`,
     multDanoRecebido: 1.5,
-    reduzNoFimDoTurno: 1,
+    reduzPorSegundo: 1,
   },
   fraco: {
     id: 'fraco',
     nome: 'Fraco',
     tipo: 'debuff',
-    descricao: (q) => `Causa 25% a menos de dano. Dura ${q} turno(s).`,
+    descricao: (q) => `Causa 25% a menos de dano. Dura ${q} s.`,
     multDanoCausado: 0.75,
-    reduzNoFimDoTurno: 1,
+    reduzPorSegundo: 1,
   },
   veneno: {
     id: 'veneno',
     nome: 'Veneno',
     tipo: 'debuff',
-    descricao: (q) => `Perde ${q} de vida no início do turno (ignora bloqueio). Depois, reduz 1.`,
-    perdaNoInicioDoTurno: (q) => q,
-    reduzNoInicioDoTurno: 1,
+    descricao: (q) => `Perde ${q} de vida por segundo (ignora bloqueio). Depois, reduz 1.`,
+    perdaPorSegundo: (q) => q,
+    reduzPorSegundo: 1,
   },
   forca: {
     id: 'forca',
@@ -68,9 +66,9 @@ export const STATUS_DEFS: Record<StatusId, StatusDef> = {
     id: 'marca',
     nome: 'Marca',
     tipo: 'debuff',
-    descricao: (q) => `Cada golpe recebido causa +${q} de dano. Reduz 1 no fim do turno.`,
+    descricao: (q) => `Cada golpe recebido causa +${q} de dano. Reduz 1 por segundo.`,
     somaDanoRecebido: (q) => q,
-    reduzNoFimDoTurno: 1,
+    reduzPorSegundo: 1,
   },
 };
 
@@ -87,23 +85,16 @@ export function addStatus(map: StatusMap, id: StatusId, amount: number): void {
   else delete map[id];
 }
 
-/** Aplica as reduções de fim de turno de todos os status. */
-export function tickEndOfTurn(map: StatusMap): void {
-  for (const [id, q] of activeStatuses(map)) {
-    const reduz = STATUS_DEFS[id].reduzNoFimDoTurno;
-    if (reduz) addStatus(map, id, -Math.min(reduz, q));
-  }
-}
-
-/** Calcula a perda de vida de início de turno e aplica as reduções. Retorna a perda total. */
-export function tickStartOfTurn(map: StatusMap): Array<{ status: StatusId; perda: number }> {
+/**
+ * Avança um segundo: calcula a perda de vida dos status e aplica as reduções.
+ * Retorna as perdas, para a simulação aplicar e registrar.
+ */
+export function tickSecond(map: StatusMap): Array<{ status: StatusId; perda: number }> {
   const perdas: Array<{ status: StatusId; perda: number }> = [];
   for (const [id, q] of activeStatuses(map)) {
     const def = STATUS_DEFS[id];
-    if (def.perdaNoInicioDoTurno) {
-      perdas.push({ status: id, perda: def.perdaNoInicioDoTurno(q) });
-    }
-    if (def.reduzNoInicioDoTurno) addStatus(map, id, -Math.min(def.reduzNoInicioDoTurno, q));
+    if (def.perdaPorSegundo) perdas.push({ status: id, perda: def.perdaPorSegundo(q) });
+    if (def.reduzPorSegundo) addStatus(map, id, -Math.min(def.reduzPorSegundo, q));
   }
   return perdas;
 }

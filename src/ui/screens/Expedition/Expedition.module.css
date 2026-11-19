@@ -1,0 +1,61 @@
+.opcoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.taxa {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.taxa div {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.taxa dt {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.taxa dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.acumulado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ganhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: baseline;
+}
+
+.ganhos strong {
+  font-size: 1.3rem;
+  color: var(--color-ember);
+  font-family: var(--font-mono);
+}
+
+.alerta {
+  margin: 0;
+  color: var(--color-ember);
+  font-size: 0.875rem;
+}

@@ -1,0 +1,129 @@
+/**
+ * O caçador: level, XP e atributos.
+ *
+ * Todas as funções são puras: recebem o estado e devolvem um estado novo.
+ */
+import type { AtributoId, GameContent, ProgressionDef } from '../definitions.ts';
+import { ATRIBUTOS } from '../definitions.ts';
+
+export type AlvoPreferido = 'menorVida' | 'maiorAtaque' | 'primeiro';
+export type RegraDefesa = 'pronta' | 'contraGolpeForte';
+
+export interface Comportamento {
+  alvo: AlvoPreferido;
+  /** Habilidades de cura só são usadas com a vida abaixo deste percentual. */
+  curaAbaixoPct: number;
+  defesa: RegraDefesa;
+}
+
+export interface HunterState {
+  level: number;
+  /** XP acumulado dentro do level atual. */
+  xp: number;
+  pontosLivres: number;
+  atributos: Record<AtributoId, number>;
+  /** Nível de cada habilidade melhorada. Ausente significa nível 1. */
+  niveisHabilidade: Record<string, number>;
+  /** Habilidades equipadas, na ordem de prioridade. */
+  equipadas: string[];
+  comportamento: Comportamento;
+}
+
+export const COMPORTAMENTO_PADRAO: Comportamento = {
+  alvo: 'menorVida',
+  curaAbaixoPct: 50,
+  defesa: 'contraGolpeForte',
+};
+
+/** XP necessário para ir do level `level` ao seguinte. */
+export function xpParaProximo(prog: ProgressionDef, level: number): number {
+  return Math.round(prog.xpBase * Math.pow(level, prog.xpExpoente));
+}
+
+export function createHunter(content: GameContent): HunterState {
+  const prog = content.progressao;
+  const atributos = Object.fromEntries(ATRIBUTOS.map((a) => [a, prog.atributoInicial])) as Record<
+    AtributoId,
+    number
+  >;
+  const iniciais = Object.values(content.habilidades)
+    .filter((h) => h.desbloqueio <= 1)
+    .slice(0, prog.espacosDeHabilidade)
+    .map((h) => h.id);
+  return {
+    level: 1,
+    xp: 0,
+    pontosLivres: 0,
+    atributos,
+    niveisHabilidade: {},
+    equipadas: iniciais,
+    comportamento: { ...COMPORTAMENTO_PADRAO },
+  };
+}
+
+export interface XpResult {
+  cacador: HunterState;
+  levelsGanhos: number;
+}
+
+/**
+ * Soma XP e sobe quantos levels couberem. No level máximo o XP para de acumular.
+ * Habilidades desbloqueadas entram sozinhas num espaço vazio.
+ */
+export function gainXp(cacador: HunterState, content: GameContent, xp: number): XpResult {
+  const prog = content.progressao;
+  const c: HunterState = structuredClone(cacador);
+  let levelsGanhos = 0;
+  if (xp > 0 && c.level < prog.levelMax) c.xp += Math.floor(xp);
+  while (c.level < prog.levelMax && c.xp >= xpParaProximo(prog, c.level)) {
+    c.xp -= xpParaProximo(prog, c.level);
+    c.level++;
+    c.pontosLivres += prog.pontosPorLevel;
+    levelsGanhos++;
+  }
+  if (c.level >= prog.levelMax) c.xp = 0;
+  if (levelsGanhos > 0) autoEquipNew(c, content, cacador.level);
+  return { cacador: c, levelsGanhos };
+}
+
+function autoEquipNew(c: HunterState, content: GameContent, levelAnterior: number): void {
+  for (const h of Object.values(content.habilidades)) {
+    const nova = h.desbloqueio > levelAnterior && h.desbloqueio <= c.level;
+    if (nova && c.equipadas.length < content.progressao.espacosDeHabilidade) {
+      c.equipadas.push(h.id);
+    }
+  }
+}
+
+export type HunterResult =
+  { cacador: HunterState; erro?: undefined } | { cacador?: undefined; erro: string };
+
+/** Gasta (delta > 0) ou devolve (delta < 0) pontos de um atributo. */
+export function changeAttribute(
+  cacador: HunterState,
+  content: GameContent,
+  atributo: AtributoId,
+  delta: number,
+): HunterResult {
+  if (!Number.isInteger(delta) || delta === 0) return { erro: 'Quantidade inválida.' };
+  if (delta > 0 && cacador.pontosLivres < delta) return { erro: 'Pontos insuficientes.' };
+  const novo = cacador.atributos[atributo] + delta;
+  if (novo < content.progressao.atributoInicial) {
+    return { erro: 'O atributo não pode ficar abaixo do valor inicial.' };
+  }
+  const c = structuredClone(cacador);
+  c.atributos[atributo] = novo;
+  c.pontosLivres -= delta;
+  return { cacador: c };
+}
+
+/** Devolve todos os pontos gastos (grátis neste protótipo). */
+export function resetAttributes(cacador: HunterState, content: GameContent): HunterState {
+  const c = structuredClone(cacador);
+  const inicial = content.progressao.atributoInicial;
+  for (const a of ATRIBUTOS) {
+    c.pontosLivres += c.atributos[a] - inicial;
+    c.atributos[a] = inicial;
+  }
+  return c;
+}
