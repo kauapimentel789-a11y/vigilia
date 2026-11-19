@@ -120,6 +120,13 @@ export interface EnemyDef {
   acoes: EnemyActionDef[];
   /** Efeito único quando a vida cai abaixo da fração indicada (ex.: fúria). */
   especial?: { abaixoDe: number; anuncio: string; efeitos: Effect[] };
+  /** Mapa: XP e ouro por abate (antes da escala do portal). */
+  xp: number;
+  ouro: number;
+  /** Mapa: alcance de ataque em tiles (1 = corpo a corpo). */
+  alcance?: number;
+  /** Mapa: tempo para andar um tile, em ms. */
+  passoMs?: number;
 }
 
 export type RankId = 'cinza';
@@ -143,6 +150,37 @@ export interface PortalDef {
   chefe?: boolean;
 }
 
+/** Configuração do mundo jogável (mapas em tempo real). */
+export interface WorldDef {
+  /** Passo fixo da simulação em tempo real, em ms. */
+  tickMs: number;
+  /** Tempo do caçador para andar um tile, em ms (com velocidade 100). */
+  passoMsCacador: number;
+  passoMsMinimo: number;
+  /** Raio (em tiles) em que um monstro nota o caçador. */
+  visaoMonstro: number;
+  /** Distância do ponto de origem em que o monstro desiste de perseguir. */
+  coleira: number;
+  /** Tempo para um monstro comum renascer, em segundos. */
+  renascerS: number;
+  /** Raio revelado da névoa em volta do caçador. */
+  raioRevelado: number;
+}
+
+export interface MapDef {
+  id: string;
+  nome: string;
+  tipo: 'posto' | 'portal';
+  /** Portal (da Caçada) que este mapa representa: define escala e recompensas. */
+  portal?: string;
+  linhas: string[];
+  legenda: {
+    monstros?: Record<string, string>;
+    chefes?: Record<string, string>;
+    portoes?: Record<string, { destino: string; rotulo: string }>;
+  };
+}
+
 export interface GameContent {
   progressao: ProgressionDef;
   habilidades: Record<string, AbilityDef>;
@@ -150,4 +188,8 @@ export interface GameContent {
   portais: Record<string, PortalDef>;
   /** Ordem de exibição dos portais. */
   ordemPortais: string[];
+  mundo: WorldDef;
+  mapas: Record<string, MapDef>;
+  /** Mapa onde o caçador começa e para onde volta ao morrer. */
+  mapaInicial: string;
 }
