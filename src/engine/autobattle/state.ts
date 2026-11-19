@@ -60,9 +60,21 @@ export interface BattleState {
 }
 
 type EventBody =
-  | { tipo: 'onda'; onda: number; total: number; inimigos: Array<{ uid: string; defId: string; nome: string }> }
+  | {
+      tipo: 'onda';
+      onda: number;
+      total: number;
+      inimigos: Array<{ uid: string; defId: string; nome: string }>;
+    }
   | { tipo: 'acao'; ator: string; acao: string; nome: string; alvo?: string }
-  | { tipo: 'dano'; origem: string; alvo: string; valor: number; bloqueado: number; critico: boolean }
+  | {
+      tipo: 'dano';
+      origem: string;
+      alvo: string;
+      valor: number;
+      bloqueado: number;
+      critico: boolean;
+    }
   | { tipo: 'perdaDeVida'; alvo: string; valor: number; motivo: StatusId }
   | { tipo: 'bloqueio'; alvo: string; valor: number }
   | { tipo: 'cura'; alvo: string; valor: number }
@@ -115,7 +127,11 @@ export function alive(units: readonly BattleUnit[]): BattleUnit[] {
 }
 
 export function opponentsOf(state: BattleState, u: BattleUnit): BattleUnit[] {
-  return u.lado === 'cacador' ? alive(state.inimigos) : state.cacador.vida > 0 ? [state.cacador] : [];
+  return u.lado === 'cacador'
+    ? alive(state.inimigos)
+    : state.cacador.vida > 0
+      ? [state.cacador]
+      : [];
 }
 
 export function alliesOf(state: BattleState, u: BattleUnit): BattleUnit[] {

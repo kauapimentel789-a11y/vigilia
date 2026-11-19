@@ -1,0 +1,45 @@
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.portal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.portal p {
+  margin: 0;
+}
+
+.nome {
+  font-size: 1.05rem;
+}
+
+.desc {
+  font-size: 0.9rem;
+}
+
+.bloqueado {
+  opacity: 0.5;
+}
+
+.chefe {
+  border-color: #5a3a48;
+}
+
+.fechado {
+  color: var(--color-ok);
+  font-size: 0.875rem;
+}
+
+.aviso {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ember);
+  font-size: 0.875rem;
+}

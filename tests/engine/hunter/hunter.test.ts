@@ -58,7 +58,10 @@ describe('atributos', () => {
   });
 
   it('redistribuir devolve todos os pontos', () => {
-    const h = hunter({ pontosLivres: 0, atributos: { forca: 9, agilidade: 5, vigor: 7, percepcao: 5, vontade: 5 } });
+    const h = hunter({
+      pontosLivres: 0,
+      atributos: { forca: 9, agilidade: 5, vigor: 7, percepcao: 5, vontade: 5 },
+    });
     const r = resetAttributes(h, C);
     expect(r.pontosLivres).toBe(6);
     expect(Object.values(r.atributos).every((v) => v === P.atributoInicial)).toBe(true);
@@ -68,14 +71,20 @@ describe('atributos', () => {
 describe('números derivados', () => {
   it('Vigor aumenta vida e redução; Agilidade aumenta velocidade', () => {
     const base = deriveStats(hunter(), C);
-    const forte = deriveStats(hunter({ atributos: { forca: 5, agilidade: 15, vigor: 15, percepcao: 5, vontade: 5 } }), C);
+    const forte = deriveStats(
+      hunter({ atributos: { forca: 5, agilidade: 15, vigor: 15, percepcao: 5, vontade: 5 } }),
+      C,
+    );
     expect(forte.vidaMax - base.vidaMax).toBe(10 * P.stats.vidaPorVigor);
     expect(forte.velocidade).toBeGreaterThan(base.velocidade);
     expect(forte.reducao).toBeGreaterThan(base.reducao);
   });
 
   it('respeita os tetos de velocidade, crítico, redução e recarga', () => {
-    const s = deriveStats(hunter({ atributos: { forca: 5, agilidade: 999, vigor: 999, percepcao: 999, vontade: 999 } }), C);
+    const s = deriveStats(
+      hunter({ atributos: { forca: 5, agilidade: 999, vigor: 999, percepcao: 999, vontade: 999 } }),
+      C,
+    );
     expect(s.velocidade).toBeCloseTo(P.stats.velocidadeBase * (1 + P.stats.velocidadeBonusMax));
     expect(s.critico).toBe(P.stats.criticoMax);
     expect(s.reducao).toBe(P.stats.reducaoMax);

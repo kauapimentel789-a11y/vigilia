@@ -1,0 +1,232 @@
+.tela {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.banner {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  text-align: center;
+  font-weight: 600;
+}
+
+.arena {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(0, 2.5fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 260px;
+  padding: var(--space-4);
+  background: radial-gradient(ellipse at center, #1a1f30 0%, var(--color-bg) 75%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.lado {
+  display: flex;
+  justify-content: center;
+}
+
+.inimigos {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.versus {
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+}
+
+.unit {
+  position: relative;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  padding-top: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: opacity 300ms;
+}
+
+.cacador {
+  border-color: var(--color-arcane);
+}
+
+.morto {
+  opacity: 0.3;
+}
+
+.intencao {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.forte {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.retrato {
+  position: relative;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  color: var(--color-text-muted);
+}
+
+.cacador .retrato {
+  color: var(--color-arcane);
+}
+
+.nome {
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.vida {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.numeros {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.bloqueio {
+  color: var(--color-block);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: 20px;
+}
+
+.flutuantes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flutuante {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  animation: subir 900ms ease-out forwards;
+  text-shadow: 0 1px 2px #000;
+}
+
+.dano {
+  color: #ff8a8a;
+}
+
+.critico {
+  color: var(--color-ember);
+  font-size: 1.2rem;
+}
+
+.cura {
+  color: var(--color-ok);
+}
+
+.veneno {
+  color: var(--color-poison);
+}
+
+@keyframes subir {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -28px);
+  }
+}
+
+.habilidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.hab {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.hab small {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.pronta {
+  opacity: 1;
+  border-color: var(--color-arcane);
+}
+
+.registro {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3);
+  min-height: 170px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 0.85rem;
+}
+
+.vitoria {
+  color: var(--color-ok);
+}
+
+.derrota {
+  color: var(--color-danger);
+}
+
+.level {
+  color: var(--color-ember);
+}
+
+@media (max-width: 640px) {
+  .arena {
+    grid-template-columns: 1fr;
+    padding: var(--space-3);
+  }
+
+  .versus {
+    display: none;
+  }
+
+  .unit {
+    width: 140px;
+  }
+}

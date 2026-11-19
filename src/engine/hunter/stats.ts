@@ -32,7 +32,8 @@ export function deriveStats(cacador: HunterState, content: GameContent): HunterS
     vidaMax: Math.round(s.vidaBase + s.vidaPorLevel * lv + s.vidaPorVigor * a.vigor),
     ataque: ataqueBase * (1 + s.danoPctPorForca * a.forca),
     velocidade:
-      s.velocidadeBase * (1 + Math.min(s.velocidadePctPorAgilidade * a.agilidade, s.velocidadeBonusMax)),
+      s.velocidadeBase *
+      (1 + Math.min(s.velocidadePctPorAgilidade * a.agilidade, s.velocidadeBonusMax)),
     reducao: Math.min(s.reducaoPorVigor * a.vigor, s.reducaoMax),
     critico: Math.min(s.criticoBase + s.criticoPorPercepcao * a.percepcao, s.criticoMax),
     danoCritico: s.danoCriticoBase + s.danoCriticoPorPercepcao * a.percepcao,

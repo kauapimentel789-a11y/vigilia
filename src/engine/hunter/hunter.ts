@@ -42,9 +42,10 @@ export function xpParaProximo(prog: ProgressionDef, level: number): number {
 
 export function createHunter(content: GameContent): HunterState {
   const prog = content.progressao;
-  const atributos = Object.fromEntries(
-    ATRIBUTOS.map((a) => [a, prog.atributoInicial]),
-  ) as Record<AtributoId, number>;
+  const atributos = Object.fromEntries(ATRIBUTOS.map((a) => [a, prog.atributoInicial])) as Record<
+    AtributoId,
+    number
+  >;
   const iniciais = Object.values(content.habilidades)
     .filter((h) => h.desbloqueio <= 1)
     .slice(0, prog.espacosDeHabilidade)
@@ -94,7 +95,8 @@ function autoEquipNew(c: HunterState, content: GameContent, levelAnterior: numbe
   }
 }
 
-export type HunterResult = { cacador: HunterState; erro?: undefined } | { cacador?: undefined; erro: string };
+export type HunterResult =
+  { cacador: HunterState; erro?: undefined } | { cacador?: undefined; erro: string };
 
 /** Gasta (delta > 0) ou devolve (delta < 0) pontos de um atributo. */
 export function changeAttribute(

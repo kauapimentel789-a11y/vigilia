@@ -24,13 +24,16 @@ export function serialize(estado: GameState, agora: number): string {
   return JSON.stringify(arquivo);
 }
 
-export type LoadResult = { estado: GameState; salvoEm: number; erro?: undefined } | { estado?: undefined; salvoEm?: undefined; erro: string };
+export type LoadResult =
+  | { estado: GameState; salvoEm: number; erro?: undefined }
+  | { estado?: undefined; salvoEm?: undefined; erro: string };
 
 const isObj = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' && x !== null && !Array.isArray(x);
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const isInt = (x: unknown, min = 0): x is number => Number.isInteger(x) && (x as number) >= min;
-const isStrArr = (x: unknown): x is string[] => Array.isArray(x) && x.every((i) => typeof i === 'string');
+const isStrArr = (x: unknown): x is string[] =>
+  Array.isArray(x) && x.every((i) => typeof i === 'string');
 
 function validate(e: unknown, content: GameContent): string | null {
   if (!isObj(e)) return 'estado ausente';
@@ -46,18 +49,26 @@ function validate(e: unknown, content: GameContent): string | null {
   if (!isInt(c.xp) || !isInt(c.pontosLivres)) return 'xp/pontos';
   if (!isObj(c.atributos)) return 'atributos';
   const atr = c.atributos as Record<AtributoId, unknown>;
-  for (const a of ATRIBUTOS) if (!isInt(atr[a], content.progressao.atributoInicial)) return `atributo ${a}`;
+  for (const a of ATRIBUTOS)
+    if (!isInt(atr[a], content.progressao.atributoInicial)) return `atributo ${a}`;
   if (!isObj(c.niveisHabilidade)) return 'níveis de habilidade';
   if (!Object.values(c.niveisHabilidade).every((n) => isInt(n, 1))) return 'níveis de habilidade';
   if (!isStrArr(c.equipadas)) return 'habilidades equipadas';
   const b = c.comportamento;
-  if (!isObj(b) || typeof b.alvo !== 'string' || !isNum(b.curaAbaixoPct) || typeof b.defesa !== 'string') {
+  if (
+    !isObj(b) ||
+    typeof b.alvo !== 'string' ||
+    !isNum(b.curaAbaixoPct) ||
+    typeof b.defesa !== 'string'
+  ) {
     return 'comportamento';
   }
   if (e.expedicao !== null) {
     const x = e.expedicao;
-    if (!isObj(x) || typeof x.portal !== 'string' || !isNum(x.inicio) || !isNum(x.ultimaColeta)) return 'expedição';
-    if (!isObj(x.taxa) || !isNum(x.taxa.xpPorHora) || !isNum(x.taxa.ouroPorHora)) return 'taxa da expedição';
+    if (!isObj(x) || typeof x.portal !== 'string' || !isNum(x.inicio) || !isNum(x.ultimaColeta))
+      return 'expedição';
+    if (!isObj(x.taxa) || !isNum(x.taxa.xpPorHora) || !isNum(x.taxa.ouroPorHora))
+      return 'taxa da expedição';
   }
   return null;
 }

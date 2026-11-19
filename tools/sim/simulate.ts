@@ -28,7 +28,17 @@ import { gainXp } from '../../src/engine/hunter/hunter.ts';
 import { buildProfile } from '../../src/engine/hunter/stats.ts';
 
 const C: GameContent = CONTEUDO;
-const ORDEM_EQUILIBRADA: AtributoId[] = ['forca', 'vigor', 'agilidade', 'forca', 'vigor', 'vontade', 'percepcao', 'agilidade', 'forca'];
+const ORDEM_EQUILIBRADA: AtributoId[] = [
+  'forca',
+  'vigor',
+  'agilidade',
+  'forca',
+  'vigor',
+  'vontade',
+  'percepcao',
+  'agilidade',
+  'forca',
+];
 
 function must<T extends { erro?: string | undefined }>(r: T): Exclude<T, { erro: string }> {
   if (r.erro) throw new Error(r.erro);
@@ -45,7 +55,14 @@ function spendAll(e: GameState, ordem: AtributoId[]): GameState {
 }
 
 function bestLoadout(e: GameState): string[] {
-  const pref = ['folegoDaVigilia', 'guardaCinzenta', 'marcaDoCacador', 'golpeRasgante', 'corteRapido', 'laminaVenenosa'];
+  const pref = [
+    'folegoDaVigilia',
+    'guardaCinzenta',
+    'marcaDoCacador',
+    'golpeRasgante',
+    'corteRapido',
+    'laminaVenenosa',
+  ];
   return pref.filter((id) => isUnlocked(e.cacador, C.habilidades[id]!)).slice(0, 4);
 }
 
@@ -70,7 +87,9 @@ function prepare(e: GameState): GameState {
 function levelUpTo(level: number): GameState {
   const e = newGame(C, 1, 0);
   while (e.cacador.level < level) {
-    const falta = Math.round(C.progressao.xpBase * Math.pow(e.cacador.level, C.progressao.xpExpoente)) - e.cacador.xp;
+    const falta =
+      Math.round(C.progressao.xpBase * Math.pow(e.cacador.level, C.progressao.xpExpoente)) -
+      e.cacador.xp;
     e.cacador = gainXp(e.cacador, C, falta).cacador;
   }
   return prepare(e);
@@ -85,12 +104,16 @@ console.log('level |' + C.ordemPortais.map((p) => C.portais[p]!.nome.padStart(9)
 for (const lv of [1, 3, 5, 8, 10, 12, 15, 18, 20, 25]) {
   const e = levelUpTo(lv);
   const perfil = buildProfile(e.cacador, C);
-  const linha = C.ordemPortais.map((p) => pct(calculateRate(perfil, C.portais[p]!, C, 99).vitoria).padStart(9));
+  const linha = C.ordemPortais.map((p) =>
+    pct(calculateRate(perfil, C.portais[p]!, C, 99).vitoria).padStart(9),
+  );
   console.log(String(lv).padStart(5) + ' |' + linha.join(''));
 }
 
 // 2. Progressão
-console.log('\n2) Jogador-robô: entra num portal novo quando a chance passa de 60%; senão farma 5 min online\n');
+console.log(
+  '\n2) Jogador-robô: entra num portal novo quando a chance passa de 60%; senão farma 5 min online\n',
+);
 let e = newGame(C, 12345, 0);
 let t = 0;
 const FARM_S = 300;
@@ -98,19 +121,29 @@ let ultimoFechado = 0;
 for (let guarda = 0; guarda < 400 && !e.portaisFechados.includes('cinza5'); guarda++) {
   e = prepare(e);
   const proximo = C.ordemPortais[e.portaisFechados.length]!;
-  const chance = calculateRate(buildProfile(e.cacador, C), C.portais[proximo]!, C, guarda * 31).vitoria;
+  const chance = calculateRate(
+    buildProfile(e.cacador, C),
+    C.portais[proximo]!,
+    C,
+    guarda * 31,
+  ).vitoria;
   if (chance >= 0.6 || e.portaisFechados.length === 0) {
     const r = must(fightPortal(e, C, proximo));
     e = r.estado;
     t += r.batalha.duracaoMs / 1000 / 4 + 10; // assistido em 4×, mais navegação
     if (r.batalha.resultado === 'vitoria') {
-      console.log(`  ${min(t).padStart(7)}  fechou ${C.portais[proximo]!.nome.padEnd(9)} level ${e.cacador.level}  (chance estimada ${pct(chance)})`);
+      console.log(
+        `  ${min(t).padStart(7)}  fechou ${C.portais[proximo]!.nome.padEnd(9)} level ${e.cacador.level}  (chance estimada ${pct(chance)})`,
+      );
       ultimoFechado = t;
       continue;
     }
   }
   const melhor = e.portaisFechados
-    .map((p) => ({ p, taxa: calculateRate(buildProfile(e.cacador, C), C.portais[p]!, C, 7).xpPorHora }))
+    .map((p) => ({
+      p,
+      taxa: calculateRate(buildProfile(e.cacador, C), C.portais[p]!, C, 7).xpPorHora,
+    }))
     .sort((a, b) => b.taxa - a.taxa)[0]!.p;
   e = must(startExpedition(e, C, melhor, 0)).estado;
   e = advanceTime(e, FARM_S * 1000);
@@ -126,7 +159,9 @@ for (const lv of [15, 18, 20]) {
   r.cacador.atributos = { forca: 5, agilidade: 5, vigor: 5, percepcao: 5, vontade: 5 };
   r.cacador.pontosLivres = (lv - 1) * C.progressao.pontosPorLevel;
   r = spendAll(r, ['forca']);
-  r = must(equip(r, C, ['corteRapido', 'laminaVenenosa', 'golpeRasgante', 'guardaCinzenta'])).estado;
+  r = must(
+    equip(r, C, ['corteRapido', 'laminaVenenosa', 'golpeRasgante', 'guardaCinzenta']),
+  ).estado;
   r.cacador.comportamento = { alvo: 'primeiro', curaAbaixoPct: 0, defesa: 'pronta' };
   const boa = levelUpTo(lv);
   const v1 = calculateRate(buildProfile(r.cacador, C), C.portais.cinza5!, C, 5).vitoria;
@@ -136,7 +171,11 @@ for (const lv of [15, 18, 20]) {
 
 // 4. Offline
 console.log('\n4) 8 h offline (indicador: 2 a 5 levels num portal intermediário)');
-for (const [lv, portal] of [[10, 'cinza3'], [13, 'cinza4'], [18, 'cinza5']] as const) {
+for (const [lv, portal] of [
+  [10, 'cinza3'],
+  [13, 'cinza4'],
+  [18, 'cinza5'],
+] as const) {
   let o = levelUpTo(lv);
   o.portaisFechados = C.ordemPortais.slice(0, C.ordemPortais.indexOf(portal) + 1);
   o = must(startExpedition(o, C, portal, 0)).estado;

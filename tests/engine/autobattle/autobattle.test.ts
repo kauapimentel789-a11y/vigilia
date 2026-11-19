@@ -6,7 +6,13 @@ import type { BattleUnit } from '../../../src/engine/autobattle/state.ts';
 import { TEST_CONTENT as C, profile } from '../../helpers.ts';
 
 const run = (portal: string, mods = {}, semente = 1) =>
-  simulatePortal({ perfil: profile(mods), portal: C.portais[portal]!, content: C, semente, registrar: true });
+  simulatePortal({
+    perfil: profile(mods),
+    portal: C.portais[portal]!,
+    content: C,
+    semente,
+    registrar: true,
+  });
 
 const of = <T extends BattleEvent['tipo']>(ev: BattleEvent[], tipo: T) =>
   ev.filter((e): e is Extract<BattleEvent, { tipo: T }> => e.tipo === tipo);
@@ -25,7 +31,9 @@ describe('combate automático', () => {
   it('passa pelas ondas sem recuperar a vida', () => {
     const r = run('caos', {}, 3);
     const ondas = of(r.eventos, 'onda');
-    expect(ondas.map((o) => o.onda)).toEqual(r.resultado === 'vitoria' ? [1, 2] : ondas.map((o) => o.onda));
+    expect(ondas.map((o) => o.onda)).toEqual(
+      r.resultado === 'vitoria' ? [1, 2] : ondas.map((o) => o.onda),
+    );
     expect(ondas[0]!.total).toBe(2);
     // A vida do caçador no início da onda 2 é a mesma do fim da onda 1.
     if (ondas[1]) {
@@ -49,7 +57,8 @@ describe('combate automático', () => {
     // Entre dois usos do Corte Rápido passa pelo menos a recarga.
     const usos = acoes.filter((a) => a.acao === 'corteRapido').map((a) => a.t);
     const recarga = profile({ equipadas: ['corteRapido'] }).habilidades[0]!.recargaMs;
-    for (let i = 1; i < usos.length; i++) expect(usos[i]! - usos[i - 1]!).toBeGreaterThanOrEqual(recarga);
+    for (let i = 1; i < usos.length; i++)
+      expect(usos[i]! - usos[i - 1]!).toBeGreaterThanOrEqual(recarga);
   });
 
   it('Guarda "contra golpe forte" só é usada quando um golpe forte está anunciado', () => {
@@ -61,7 +70,9 @@ describe('combate automático', () => {
     const guardas = of(r.eventos, 'acao').filter((a) => a.acao === 'guardaCinzenta');
     expect(guardas.length).toBeGreaterThan(0);
     for (const g of guardas) {
-      const ultimaIntencao = of(r.eventos, 'intencao').filter((i) => i.t <= g.t).at(-1);
+      const ultimaIntencao = of(r.eventos, 'intencao')
+        .filter((i) => i.t <= g.t)
+        .at(-1);
       expect(ultimaIntencao?.forte).toBe(true);
     }
   });
@@ -112,9 +123,24 @@ describe('combate automático', () => {
 
 describe('fórmula de dano', () => {
   const unidade = (mods: Partial<BattleUnit> = {}): BattleUnit => ({
-    uid: 'u', defId: 'u', nome: 'u', lado: 'inimigo', vida: 100, vidaMax: 100, bloqueio: 0, status: {},
-    ataque: 10, velocidade: 100, reducao: 0, critico: 0, danoCritico: 2, carga: 0, intencao: null,
-    cicloIndice: 0, especialUsado: false, ...mods,
+    uid: 'u',
+    defId: 'u',
+    nome: 'u',
+    lado: 'inimigo',
+    vida: 100,
+    vidaMax: 100,
+    bloqueio: 0,
+    status: {},
+    ataque: 10,
+    velocidade: 100,
+    reducao: 0,
+    critico: 0,
+    danoCritico: 2,
+    carga: 0,
+    intencao: null,
+    cicloIndice: 0,
+    especialUsado: false,
+    ...mods,
   });
 
   it('aplica Força, Fraco, Marca, Vulnerável, crítico e redução', () => {

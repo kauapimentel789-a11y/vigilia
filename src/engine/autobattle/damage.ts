@@ -94,7 +94,14 @@ export function createHost(ctx: BattleCtx): EffectHost<BattleUnit> {
       alvo.bloqueio -= bloqueado;
       const perda = Math.min(alvo.vida, valor - bloqueado);
       alvo.vida -= perda;
-      emit(ctx, { tipo: 'dano', origem: atacante.uid, alvo: alvo.uid, valor: perda, bloqueado, critico });
+      emit(ctx, {
+        tipo: 'dano',
+        origem: atacante.uid,
+        alvo: alvo.uid,
+        valor: perda,
+        bloqueado,
+        critico,
+      });
       if (atacante.lado === 'cacador') {
         s.stats.danoCausado += perda;
         s.stats.danoPorFonte[origem.fonte] = (s.stats.danoPorFonte[origem.fonte] ?? 0) + perda;

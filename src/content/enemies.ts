@@ -27,7 +27,9 @@ const lista: EnemyDef[] = [
     ataque: 3,
     velocidade: 160,
     padrao: 'ciclo',
-    acoes: [{ id: 'mordiscar', nome: 'Mordiscar', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] }],
+    acoes: [
+      { id: 'mordiscar', nome: 'Mordiscar', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
+    ],
   },
   {
     id: 'tecela',
@@ -46,7 +48,11 @@ const lista: EnemyDef[] = [
           { tipo: 'status', status: 'veneno', valor: 3, alvo: 'alvo' },
         ],
       },
-      { id: 'teia', nome: 'Teia', efeitos: [{ tipo: 'status', status: 'fraco', valor: 4, alvo: 'alvo' }] },
+      {
+        id: 'teia',
+        nome: 'Teia',
+        efeitos: [{ tipo: 'status', status: 'fraco', valor: 4, alvo: 'alvo' }],
+      },
     ],
   },
   {
@@ -64,7 +70,11 @@ const lista: EnemyDef[] = [
         requerAliados: true,
         efeitos: [{ tipo: 'bloqueio', valor: 14, alvo: 'aliadoMaisFerido' }],
       },
-      { id: 'golpeDeOsso', nome: 'Golpe de Osso', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
+      {
+        id: 'golpeDeOsso',
+        nome: 'Golpe de Osso',
+        efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }],
+      },
     ],
   },
   {
@@ -89,13 +99,18 @@ const lista: EnemyDef[] = [
   {
     id: 'cavaleiro',
     nome: 'Cavaleiro Oco',
-    descricao: 'Mini-chefe. Anuncia a Execução antes de usá-la. Abaixo de 50% de vida, entra em fúria.',
+    descricao:
+      'Mini-chefe. Anuncia a Execução antes de usá-la. Abaixo de 50% de vida, entra em fúria.',
     vidaMax: 520,
     ataque: 10,
     velocidade: 55,
     padrao: 'ciclo',
     acoes: [
-      { id: 'golpePesado', nome: 'Golpe Pesado', efeitos: [{ tipo: 'dano', mult: 1.4, alvo: 'alvo' }] },
+      {
+        id: 'golpePesado',
+        nome: 'Golpe Pesado',
+        efeitos: [{ tipo: 'dano', mult: 1.4, alvo: 'alvo' }],
+      },
       { id: 'varredura', nome: 'Varredura', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
       {
         id: 'execucao',

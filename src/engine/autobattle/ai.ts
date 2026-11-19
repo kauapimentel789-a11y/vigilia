@@ -51,7 +51,13 @@ export function chooseIntent(ctx: BattleCtx, u: BattleUnit): void {
     }
   }
   u.intencao = acao.id;
-  emit(ctx, { tipo: 'intencao', inimigo: u.uid, acao: acao.id, nome: acao.nome, forte: !!acao.forte });
+  emit(ctx, {
+    tipo: 'intencao',
+    inimigo: u.uid,
+    acao: acao.id,
+    nome: acao.nome,
+    forte: !!acao.forte,
+  });
 }
 
 export function intentAction(ctx: BattleCtx, u: BattleUnit): EnemyActionDef | undefined {
@@ -71,7 +77,13 @@ export function checkSpecial(ctx: BattleCtx, host: EffectHost<BattleUnit>, u: Ba
 export function enemyAct(ctx: BattleCtx, host: EffectHost<BattleUnit>, u: BattleUnit): void {
   const acao = intentAction(ctx, u);
   if (acao) {
-    emit(ctx, { tipo: 'acao', ator: u.uid, acao: acao.id, nome: acao.nome, alvo: ctx.state.cacador.uid });
+    emit(ctx, {
+      tipo: 'acao',
+      ator: u.uid,
+      acao: acao.id,
+      nome: acao.nome,
+      alvo: ctx.state.cacador.uid,
+    });
     runEffects(host, acao.efeitos, { unidade: u, fonte: acao.id, alvo: ctx.state.cacador });
   }
   if (u.vida > 0 && ctx.state.resultado === null) chooseIntent(ctx, u);

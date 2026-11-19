@@ -48,5 +48,5 @@ export const PROGRESSAO: ProgressionDef = {
     pausaEntreLutasS: 3,
     tetoHoras: 8,
   },
-  xpAcimaDoRecomendado: { tolerancia: 1, quedaPorLevel: 0.25, minimo: 0.1 },
+  xpAcimaDoRecomendado: { tolerancia: 1, quedaPorLevel: 0.25, minimo: 0.02 },
 };

@@ -31,7 +31,12 @@ const inimigos: EnemyDef[] = [
     padrao: 'ciclo',
     acoes: [
       { id: 'soco', nome: 'Soco', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
-      { id: 'esmagar', nome: 'Esmagar', forte: true, efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }] },
+      {
+        id: 'esmagar',
+        nome: 'Esmagar',
+        forte: true,
+        efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }],
+      },
     ],
   },
   {
@@ -44,9 +49,17 @@ const inimigos: EnemyDef[] = [
     padrao: 'aleatorio',
     acoes: [
       { id: 'a', nome: 'A', peso: 2, efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
-      { id: 'b', nome: 'B', efeitos: [{ tipo: 'status', status: 'veneno', valor: 2, alvo: 'alvo' }] },
+      {
+        id: 'b',
+        nome: 'B',
+        efeitos: [{ tipo: 'status', status: 'veneno', valor: 2, alvo: 'alvo' }],
+      },
     ],
-    especial: { abaixoDe: 0.5, anuncio: 'Fúria', efeitos: [{ tipo: 'status', status: 'forca', valor: 2, alvo: 'proprio' }] },
+    especial: {
+      abaixoDe: 0.5,
+      anuncio: 'Fúria',
+      efeitos: [{ tipo: 'status', status: 'forca', valor: 2, alvo: 'proprio' }],
+    },
   },
   {
     id: 'imortal',

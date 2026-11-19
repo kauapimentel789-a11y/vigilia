@@ -64,12 +64,19 @@ function withHunter(estado: GameState, r: HunterResult): GameResult {
   return { estado: { ...structuredClone(estado), cacador: r.cacador } };
 }
 
-export function spendPoint(estado: GameState, content: GameContent, a: AtributoId, delta: number): GameResult {
+export function spendPoint(
+  estado: GameState,
+  content: GameContent,
+  a: AtributoId,
+  delta: number,
+): GameResult {
   return withHunter(estado, changeAttribute(estado.cacador, content, a, delta));
 }
 
 export function respec(estado: GameState, content: GameContent): GameResult {
-  return { estado: { ...structuredClone(estado), cacador: resetAttributes(estado.cacador, content) } };
+  return {
+    estado: { ...structuredClone(estado), cacador: resetAttributes(estado.cacador, content) },
+  };
 }
 
 export function equip(estado: GameState, content: GameContent, ids: readonly string[]): GameResult {
@@ -107,7 +114,8 @@ export function fightPortal(
   if (estado.expedicao) return { erro: 'O caçador está em expedição. Chame-o de volta primeiro.' };
   const portal = portalOrError(content, portalId);
   if (typeof portal === 'string') return { erro: portal };
-  if (!isPortalOpen(estado, content, portalId)) return { erro: `${portal.nome} ainda está fechado.` };
+  if (!isPortalOpen(estado, content, portalId))
+    return { erro: `${portal.nome} ainda está fechado.` };
 
   const novo = structuredClone(estado);
   const batalha = simulatePortal({
@@ -139,8 +147,17 @@ export function fightPortal(
 
 /* ---------- Expedição ---------- */
 
-function withRate(estado: GameState, content: GameContent, portal: PortalDef): GameState['expedicao'] & object {
-  const taxa = calculateRate(buildProfile(estado.cacador, content), portal, content, estado.proximaSemente);
+function withRate(
+  estado: GameState,
+  content: GameContent,
+  portal: PortalDef,
+): GameState['expedicao'] & object {
+  const taxa = calculateRate(
+    buildProfile(estado.cacador, content),
+    portal,
+    content,
+    estado.proximaSemente,
+  );
   return { portal: portal.id, inicio: 0, ultimaColeta: 0, taxa };
 }
 
@@ -192,7 +209,11 @@ export function collectExpedition(
   if (encerrar) {
     novo.expedicao = null;
   } else {
-    novo.expedicao = { ...withRate(novo, content, portal), inicio: exp.inicio, ultimaColeta: agora };
+    novo.expedicao = {
+      ...withRate(novo, content, portal),
+      inicio: exp.inicio,
+      ultimaColeta: agora,
+    };
     novo.proximaSemente = nextSeed(estado.proximaSemente);
   }
   return { estado: novo, ganhos, levelsGanhos: r.levelsGanhos };

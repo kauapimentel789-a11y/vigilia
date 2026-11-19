@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpeditionState } from '../../../src/engine/expedition/expedition.ts';
-import { accruedGains, calculateRate, rewardMultiplier } from '../../../src/engine/expedition/expedition.ts';
+import {
+  accruedGains,
+  calculateRate,
+  rewardMultiplier,
+} from '../../../src/engine/expedition/expedition.ts';
 import { TEST_CONTENT as C, hunter, profile } from '../../helpers.ts';
 
 const H = 3_600_000;
@@ -8,7 +12,15 @@ const exp = (mods: Partial<ExpeditionState['taxa']> = {}): ExpeditionState => ({
   portal: 'treino',
   inicio: 0,
   ultimaColeta: 0,
-  taxa: { portal: 'treino', vitoria: 1, duracaoMediaS: 10, lutasPorHora: 100, xpPorHora: 1000, ouroPorHora: 400, ...mods },
+  taxa: {
+    portal: 'treino',
+    vitoria: 1,
+    duracaoMediaS: 10,
+    lutasPorHora: 100,
+    xpPorHora: 1000,
+    ouroPorHora: 400,
+    ...mods,
+  },
 });
 
 describe('taxa da expedição', () => {
@@ -22,7 +34,9 @@ describe('taxa da expedição', () => {
   });
 
   it('é determinística para a mesma semente', () => {
-    expect(calculateRate(profile(), C.portais.caos!, C, 9)).toEqual(calculateRate(profile(), C.portais.caos!, C, 9));
+    expect(calculateRate(profile(), C.portais.caos!, C, 9)).toEqual(
+      calculateRate(profile(), C.portais.caos!, C, 9),
+    );
   });
 });
 
@@ -59,7 +73,9 @@ describe('ganho por tempo', () => {
     const p = C.portais.treino!;
     const r = C.progressao.xpAcimaDoRecomendado;
     expect(rewardMultiplier(C, p, p.levelRecomendado + r.tolerancia)).toBe(1);
-    expect(rewardMultiplier(C, p, p.levelRecomendado + r.tolerancia + 1)).toBeCloseTo(1 - r.quedaPorLevel);
+    expect(rewardMultiplier(C, p, p.levelRecomendado + r.tolerancia + 1)).toBeCloseTo(
+      1 - r.quedaPorLevel,
+    );
     expect(rewardMultiplier(C, p, 30)).toBe(r.minimo);
     const alto = accruedGains(exp(), H, C, hunter({ level: 30 }));
     expect(alto.xp).toBe(Math.floor(1000 * r.minimo));

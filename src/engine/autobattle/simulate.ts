@@ -110,7 +110,11 @@ function spawnWave(ctx: BattleCtx, portal: PortalDef, indice: number): void {
   for (const i of s.inimigos) chooseIntent(ctx, i);
 }
 
-function finish(ctx: BattleCtx, resultado: BattleResult, motivo: NonNullable<BattleState['motivo']>): void {
+function finish(
+  ctx: BattleCtx,
+  resultado: BattleResult,
+  motivo: NonNullable<BattleState['motivo']>,
+): void {
   ctx.state.resultado = resultado;
   ctx.state.motivo = motivo;
   emit(ctx, { tipo: 'fim', resultado, motivo });
@@ -133,14 +137,30 @@ function hunterAct(ctx: BattleCtx, host: EffectHost<BattleUnit>, perfil: HunterP
   if (hab) {
     s.recargas[hab.def.id] = hab.recargaMs;
     s.stats.usos[hab.def.id] = (s.stats.usos[hab.def.id] ?? 0) + 1;
-    emit(ctx, { tipo: 'acao', ator: s.cacador.uid, acao: hab.def.id, nome: hab.def.nome, ...(alvo ? { alvo: alvo.uid } : {}) });
+    emit(ctx, {
+      tipo: 'acao',
+      ator: s.cacador.uid,
+      acao: hab.def.id,
+      nome: hab.def.nome,
+      ...(alvo ? { alvo: alvo.uid } : {}),
+    });
     runEffects(host, hab.def.efeitos, { unidade: s.cacador, fonte: hab.def.id, alvo }, hab.escala);
     return;
   }
   const basico = ctx.content.progressao.ataqueBasico;
   s.stats.usos.basico = (s.stats.usos.basico ?? 0) + 1;
-  emit(ctx, { tipo: 'acao', ator: s.cacador.uid, acao: 'basico', nome: basico.nome, ...(alvo ? { alvo: alvo.uid } : {}) });
-  runEffects(host, [{ tipo: 'dano', mult: basico.mult, alvo: 'alvo' }], { unidade: s.cacador, fonte: 'basico', alvo });
+  emit(ctx, {
+    tipo: 'acao',
+    ator: s.cacador.uid,
+    acao: 'basico',
+    nome: basico.nome,
+    ...(alvo ? { alvo: alvo.uid } : {}),
+  });
+  runEffects(host, [{ tipo: 'dano', mult: basico.mult, alvo: 'alvo' }], {
+    unidade: s.cacador,
+    fonte: 'basico',
+    alvo,
+  });
 }
 
 function secondTick(ctx: BattleCtx): void {

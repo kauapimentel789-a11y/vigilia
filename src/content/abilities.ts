@@ -70,4 +70,6 @@ const lista: AbilityDef[] = [
   },
 ];
 
-export const HABILIDADES: Record<string, AbilityDef> = Object.fromEntries(lista.map((h) => [h.id, h]));
+export const HABILIDADES: Record<string, AbilityDef> = Object.fromEntries(
+  lista.map((h) => [h.id, h]),
+);
