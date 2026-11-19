@@ -3,8 +3,10 @@
  * contra os adversários do jogo, ganhar Glória e trocá-la por ajuda na Caçada.
  */
 import type { GameContent } from '../definitions.ts';
-import type { ArenaMatch, MatchResult, RoundReport } from '../arena/match.ts';
+import type { ArenaMatch, ArenaRetrato, RoundReport } from '../arena/match.ts';
 import { createMatch, endRound, placement } from '../arena/match.ts';
+import type { ArenaComando, ArenaInicio } from '../arena/replay.ts';
+import { applyCommand } from '../arena/replay.ts';
 import type { GameResult, GameState } from './game.ts';
 
 export interface ArenaState {
@@ -13,10 +15,24 @@ export interface ArenaState {
   partida: ArenaMatch | null;
   partidas: number;
   melhorLugar: number | null;
+  /** Como a partida atual começou e tudo o que foi feito nela (para o servidor conferir). */
+  registro?: ArenaRegistro | null;
+}
+
+export interface ArenaRegistro {
+  inicio: ArenaInicio;
+  comandos: ArenaComando[];
 }
 
 export function newArenaState(): ArenaState {
-  return { gloria: 0, heroi: 'vigia', partida: null, partidas: 0, melhorLugar: null };
+  return {
+    gloria: 0,
+    heroi: 'vigia',
+    partida: null,
+    partidas: 0,
+    melhorLugar: null,
+    registro: null,
+  };
 }
 
 export function isHeroUnlocked(estado: GameState, content: GameContent, id: string): boolean {
@@ -33,32 +49,49 @@ export function chooseArenaHero(estado: GameState, content: GameContent, id: str
   return { estado: novo };
 }
 
-export function startArenaMatch(estado: GameState, content: GameContent): GameResult {
+export function startArenaMatch(
+  estado: GameState,
+  content: GameContent,
+  rivais: ArenaRetrato[] = [],
+  nome = 'Você',
+): GameResult {
   if (estado.arena.partida && !estado.arena.partida.fim)
     return { erro: 'Já existe uma partida em andamento.' };
   if (!isHeroUnlocked(estado, content, estado.arena.heroi))
     return { erro: 'Escolha um herói liberado.' };
   const novo = structuredClone(estado);
-  novo.arena.partida = createMatch(content, estado.proximaSemente, estado.arena.heroi, 'Você');
+  const inicio: ArenaInicio = {
+    semente: estado.proximaSemente,
+    heroi: estado.arena.heroi,
+    nome,
+    rivais,
+  };
+  novo.arena.partida = createMatch(content, inicio.semente, inicio.heroi, nome, rivais);
+  novo.arena.registro = { inicio, comandos: [] };
   novo.proximaSemente = (Math.imul(estado.proximaSemente, 1664525) + 1013904223) >>> 0;
   return { estado: novo };
 }
 
-/** Aplica um comando da partida (comprar, vender, mover...) ao estado. */
-export function arenaAction(estado: GameState, fn: (m: ArenaMatch) => MatchResult): GameResult {
+/** Aplica um comando da partida (comprar, vender, mover...) ao estado e o anota. */
+export function arenaAction(
+  estado: GameState,
+  content: GameContent,
+  comando: Exclude<ArenaComando, { t: 'lutar' }>,
+): GameResult {
   const m = estado.arena.partida;
   if (!m) return { erro: 'Nenhuma partida em andamento.' };
-  const r = fn(m);
+  const r = applyCommand(m, content, comando);
   if (r.erro !== undefined) return { erro: r.erro };
   const novo = structuredClone(estado);
   novo.arena.partida = r.partida;
+  novo.arena.registro?.comandos.push(comando);
   return { estado: novo };
 }
 
 export interface ArenaRoundOutcome {
   relatorio: RoundReport;
-  /** Fim da partida: colocação e Glória ganha. */
-  fim: { lugar: number; gloria: number } | null;
+  /** Fim da partida: colocação, Glória ganha e o registro para o ranking. */
+  fim: { lugar: number; gloria: number; registro: ArenaRegistro | null } | null;
 }
 
 export function playArenaRound(
@@ -71,6 +104,7 @@ export function playArenaRound(
   if (r.erro !== undefined) return { erro: r.erro };
   const novo = structuredClone(estado);
   novo.arena.partida = r.partida;
+  novo.arena.registro?.comandos.push({ t: 'lutar' });
   let fim: ArenaRoundOutcome['fim'] = null;
   if (r.partida.fim) {
     const lugar = placement(r.partida);
@@ -78,7 +112,7 @@ export function playArenaRound(
     novo.arena.gloria += gloria;
     novo.arena.partidas++;
     novo.arena.melhorLugar = Math.min(novo.arena.melhorLugar ?? lugar, lugar);
-    fim = { lugar, gloria };
+    fim = { lugar, gloria, registro: novo.arena.registro ?? null };
   }
   return { estado: novo, resultado: { relatorio: r.relatorio, fim } };
 }
@@ -87,6 +121,7 @@ export function playArenaRound(
 export function leaveArenaMatch(estado: GameState): GameResult {
   const novo = structuredClone(estado);
   novo.arena.partida = null;
+  novo.arena.registro = null;
   return { estado: novo };
 }
 

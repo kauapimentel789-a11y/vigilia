@@ -1,8 +1,8 @@
 # Vigília
 
-Jogo idle de fantasia dark para navegador. Você é um Portador da Vigília recém-desperto, o mais fraco de todos, e fica mais forte a cada portal fechado. A Caçada (PvE idle) vem primeiro; a Arena (PvP auto-battler com cartas) vem em etapas futuras.
+Jogo idle de fantasia dark para navegador. Você é um Portador da Vigília recém-desperto, o mais fraco de todos, e fica mais forte a cada portal fechado. A Caçada é PvE em tempo real com modo idle; a Arena é um auto-battler contra times de outros jogadores.
 
-> **Status:** Etapa 5 (Arena contra o jogo). A Caçada tem o Posto, a Cinza, o Exame de Rank e a Brasa, com chefes de mecânicas, itens, Selos, auto-caçar e Expedição offline. A Arena é um auto-battler: loja, banco, tabuleiro 2×4, estrelas, marcas e Heróis da Arena liberados pelos Selos, contra 3 rivais controlados pelo jogo.
+> **Status:** jogo completo (Etapas 0 a 8), pronto para a fase de refinamento. A Caçada tem o Posto, a Cinza, o Exame de Rank e a Brasa, com chefes de mecânicas, itens, Selos, auto-caçar e Expedição offline. A Arena tem loja, banco, tabuleiro 2×4, estrelas, marcas, Heróis da Arena liberados pelos Selos, rivais gravados de outros jogadores e ranking. Contas opcionais guardam o save na nuvem.
 
 ## Requisitos
 
@@ -45,6 +45,8 @@ npm run sim      # relatório de ritmo e equilíbrio
 
 11. **Arena (aba ♜):** escolha um Herói da Arena e comece a partida. A cada rodada, compre unidades na loja, ponha no tabuleiro (frente em cima) e aperte **Lutar**. A luta é automática; quem perde perde vida. Três cópias iguais viram ★★ (e três ★★ viram ★★★). Duas ou quatro unidades diferentes da mesma marca dão bônus ao time. A colocação dá **Glória**, que vira poções e ouro na Caçada.
 
+12. **Conta (aba Caçador):** opcional. Com conta, o save vai para a nuvem e abre em qualquer aparelho; se os dois saves forem diferentes, você escolhe qual manter. Na Arena, seus rivais passam a ser times montados por outros jogadores, e cada partida terminada entra no ranking.
+
 O jogo salva sozinho no navegador. Fora do site de produção aparece um **painel de teste** (🛠) para avançar o tempo da expedição e apagar o progresso.
 
 ## Regras principais
@@ -60,6 +62,16 @@ O jogo salva sozinho no navegador. Fora do site de produção aparece um **paine
 **Expedição.** O motor simula lutas reais e calcula uma taxa por hora (vitórias, XP, ouro e itens). O ganho é taxa × tempo, com teto de 8 h. Se o relógio do aparelho voltar no tempo, nada é acumulado. Mapas fáceis demais para o seu level rendem menos XP.
 
 **Determinismo.** Mesma semente e mesmos comandos geram exatamente o mesmo resultado. A interface só desenha o que o motor devolve.
+
+**Arena online.** A partida anota cada comando (comprar, vender, rolar, XP, mover, lutar). No fim, o cliente manda a semente, o herói, os ids dos rivais e os comandos para a função `arena-registrar`, que refaz a partida inteira com o mesmo motor, confere a colocação e só então grava o time (para virar rival de outros) e soma a Glória no ranking. Cada time gravado é uma **sombra**: entra em cada rodada com o time que o jogador tinha naquela rodada.
+
+## Nuvem (Supabase)
+
+A nuvem é opcional: sem as variáveis abaixo, o jogo roda só com save local e a Arena usa rivais do jogo.
+
+1. Crie um projeto no Supabase e aplique `supabase/migrations/*.sql` em ordem.
+2. Rode `npm run edge` (empacota o motor em `supabase/functions/arena-registrar/motor.js`) e publique a função `arena-registrar`.
+3. Defina no Vercel (ou em `.env.local`) `VITE_SUPABASE_URL` e `VITE_SUPABASE_KEY` (a chave publicável).
 
 ## Simulador
 
@@ -79,6 +91,7 @@ As faixas são **indicadores**, não regras. Nunca distorcemos mecânicas para e
 | `npm run typecheck`  | Verifica os tipos do TypeScript                |
 | `npm run format`     | Formata o código com Prettier                  |
 | `npm run build`      | Gera a versão final em `dist/`                 |
+| `npm run edge`       | Empacota o motor para a função da Arena online |
 | `npm run preview`    | Serve localmente a versão gerada pelo build    |
 
 ## Estrutura
@@ -104,10 +117,14 @@ src/
    ├─ app/              topo, abas e navegação
    ├─ store/            Zustand: guarda o estado e chama o motor; save no localStorage
    ├─ screens/          Caçador, Habilidades, Portais, Expedição, Combate (reprodução)
-   ├─ components/       barra de progresso, relatório de retorno, painel de teste
-   └─ theme/            tokens de cor e espaçamento (provisórios)
+   ├─ art/              sprites em pixel art (16 × 16) desenhados em código
+   ├─ cloud/            conta, save na nuvem e Arena online (Supabase)
+   ├─ components/       barra de progresso, relatório de retorno, conta, painel de teste
+   └─ theme/            cores, fontes e estilos base
+supabase/               esquema do banco (migrations) e a função arena-registrar
 tests/                  testes do motor e integridade do conteúdo
 tools/sim/              simulador de ritmo
+tools/edge/             empacota o motor para a função do servidor
 ```
 
 ## Regras do projeto

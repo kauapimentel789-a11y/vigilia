@@ -13,6 +13,7 @@ import { Tile } from '../../../engine/world/map.ts';
 import type { Sessao } from './session.ts';
 import { isPortalOpen } from '../../../engine/game/game.ts';
 import { useGame } from '../../store/game.ts';
+import { APARENCIA, drawSprite } from '../../art/sprites.ts';
 
 export const TILE = 36;
 
@@ -62,27 +63,6 @@ const TEMAS: Record<string, Partial<typeof COR_BASE>> = {
 let COR = COR_BASE;
 
 const COR_RARIDADE_ITEM = { comum: '#c9cedd', incomum: '#4fa3c7', rara: '#b07cf6' } as const;
-
-const COR_MONSTRO: Record<string, string> = {
-  carnical: '#9fae7e',
-  ratoDeCinza: '#8a7f70',
-  tecela: '#6fb3a0',
-  sentinela: '#9aa3b5',
-  arqueiro: '#c49a6c',
-  cavaleiro: '#7c7f99',
-  centelha: '#ffb347',
-  caoDeEscoria: '#8c6a5a',
-  ferreiro: '#9b8f86',
-  lancadora: '#e0814f',
-  escudeiro: '#a7adb8',
-  acolita: '#e8a0b8',
-  guardiaLimiar: '#d9c27a',
-  matilheiro: '#b0704a',
-  forjadora: '#e0583f',
-  caldeira: '#ff7a3c',
-  colosso: '#6f5f5a',
-  arauto: '#ffcf5a',
-};
 
 /** Hash estável por tile, para os detalhes do chão não piscarem. */
 function hash(x: number, y: number): number {
@@ -145,6 +125,12 @@ function drawTile(
   if (tile === Tile.Agua) {
     ctx.fillStyle = COR.agua;
     ctx.fillRect(px, py, TILE, TILE);
+    if (COR.agua !== COR_BASE.agua) {
+      // Lava: pulsa devagar, cada tile no seu tempo.
+      const k = 0.18 + 0.12 * Math.sin(t / 700 + r * 6.28);
+      ctx.fillStyle = `rgba(255,140,60,${k})`;
+      ctx.fillRect(px, py, TILE, TILE);
+    }
     ctx.strokeStyle = COR.aguaBrilho;
     ctx.lineWidth = 2;
     const onda = Math.sin(t / 600 + x * 0.9 + y * 0.6) * 3;
@@ -161,6 +147,12 @@ function drawTile(
   }
   ctx.fillStyle = (x + y) % 2 === 0 ? COR.chao : COR.chaoB;
   ctx.fillRect(px, py, TILE, TILE);
+  // Lajes de pedra: juntas finas, desencontradas a cada fileira.
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(px, py, TILE, 1);
+  ctx.fillRect(px + (y % 2 === 0 ? 0 : TILE / 2), py, 1, TILE);
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  ctx.fillRect(px, py + 1, TILE, 1);
   if (tile === Tile.Objeto) {
     drawObject(ctx, m.objetos[y * m.largura + x] ?? '', px, py, t, aberto);
     return;
@@ -286,6 +278,9 @@ function bar(
   ctx.fillRect(x, y, Math.max(0, w * frac), 4);
 }
 
+/** Para que lado cada ator olha (os sprites de fera olham para a direita). */
+const OLHANDO_ESQUERDA = new Map<string, boolean>();
+
 function drawActor(
   ctx: CanvasRenderingContext2D,
   a: RtActor,
@@ -295,7 +290,7 @@ function drawActor(
   alvo: boolean,
 ) {
   const heroi = a.uid === HEROI;
-  const raio = heroi ? TILE * 0.3 : a.chefe ? TILE * 0.42 : TILE * 0.28;
+  const raio = heroi ? TILE * 0.3 : a.chefe ? TILE * 0.42 : TILE * 0.3;
   const bob = Math.sin(t / 260 + (heroi ? 0 : a.origemX * 1.7)) * 1.2;
   // Sombra.
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -313,40 +308,27 @@ function drawActor(
     ctx.setLineDash([]);
   }
   const y = cy + bob - 2;
-  if (heroi) {
-    const g = ctx.createRadialGradient(cx - 3, y - 4, 1, cx, y, raio);
-    g.addColorStop(0, COR.heroiCore);
-    g.addColorStop(1, COR.heroi);
-    ctx.fillStyle = g;
+  // Vira para o lado em que andou por último.
+  if (a.moverTotal > 0 && a.x !== a.deX) OLHANDO_ESQUERDA.set(a.uid, a.x < a.deX);
+  const tamanho = a.chefe ? TILE * 1.5 : TILE;
+  const ap = APARENCIA[heroi ? 'cacador' : a.defId] ?? APARENCIA.carnical!;
+  drawSprite(ctx, ap, cx, cy + TILE * 0.42 + bob, tamanho, {
+    espelhar: OLHANDO_ESQUERDA.get(a.uid) ?? false,
+    ...(!heroi && a.agressivo && ap.forma !== 'olho' ? { olhos: '#ff5a6e' } : {}),
+  });
+  if (a.chefe) {
+    const topo = cy + TILE * 0.42 + bob - tamanho - 2;
+    ctx.fillStyle = COR.chefe;
     ctx.beginPath();
-    ctx.arc(cx, y, raio, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  } else {
-    ctx.fillStyle = COR_MONSTRO[a.defId] ?? '#999';
-    ctx.beginPath();
-    // Corpo levemente curvado: mais largo embaixo.
-    ctx.moveTo(cx - raio, y + raio * 0.7);
-    ctx.quadraticCurveTo(cx - raio * 1.1, y - raio * 1.1, cx, y - raio);
-    ctx.quadraticCurveTo(cx + raio * 1.1, y - raio * 1.1, cx + raio, y + raio * 0.7);
+    ctx.moveTo(cx - 9, topo + 6);
+    ctx.lineTo(cx - 9, topo);
+    ctx.lineTo(cx - 4.5, topo + 3);
+    ctx.lineTo(cx, topo - 3);
+    ctx.lineTo(cx + 4.5, topo + 3);
+    ctx.lineTo(cx + 9, topo);
+    ctx.lineTo(cx + 9, topo + 6);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = a.agressivo ? '#ff5a6e' : '#2a2030';
-    ctx.fillRect(cx - raio * 0.45, y - raio * 0.35, 3, 3);
-    ctx.fillRect(cx + raio * 0.45 - 3, y - raio * 0.35, 3, 3);
-    if (a.chefe) {
-      ctx.strokeStyle = COR.chefe;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx - raio * 0.6, y - raio * 0.95);
-      ctx.lineTo(cx - raio * 0.3, y - raio * 1.35);
-      ctx.lineTo(cx, y - raio * 1.05);
-      ctx.lineTo(cx + raio * 0.3, y - raio * 1.35);
-      ctx.lineTo(cx + raio * 0.6, y - raio * 0.95);
-      ctx.stroke();
-    }
   }
   // Próxima ação é golpe forte: sinal de alerta sobre o monstro.
   if (
@@ -362,7 +344,8 @@ function drawActor(
   }
   if (heroi || alvo || a.vida < a.vidaMax) {
     const w = a.chefe ? TILE * 1.1 : TILE * 0.8;
-    bar(ctx, cx - w / 2, cy - raio - 14, w, a.vida / a.vidaMax, heroi ? '#6fcf97' : COR.vida);
+    const topoBarra = a.chefe ? cy + TILE * 0.42 - TILE * 1.5 - 12 : cy - TILE * 0.62 - 6;
+    bar(ctx, cx - w / 2, topoBarra, w, a.vida / a.vidaMax, heroi ? '#6fcf97' : COR.vida);
   }
 }
 

@@ -3,6 +3,9 @@ import { CONTEUDO } from '../../../content/index.ts';
 import type { AtributoId } from '../../../engine/definitions.ts';
 import { ATRIBUTOS } from '../../../engine/definitions.ts';
 import { deriveStats } from '../../../engine/hunter/stats.ts';
+import { Account } from '../../components/Account.tsx';
+import { Sprite } from '../../art/Sprite.tsx';
+import { APARENCIA } from '../../art/sprites.ts';
 import ui from '../../components/common.module.css';
 import { pct } from '../../format.ts';
 import { useGame } from '../../store/game.ts';
@@ -61,6 +64,7 @@ export function Hunter() {
     <div className={s.grid}>
       <section className={ui.panel}>
         <div className={ui.row}>
+          <Sprite ap={APARENCIA.cacador} tamanho={48} />
           <h2 className={ui.title}>Atributos</h2>
           <span className={ui.spacer} />
           <span className={c.pontosLivres > 0 ? s.pontos : ui.muted}>
@@ -150,8 +154,9 @@ export function Hunter() {
       </section>
 
       <section className={ui.panel}>
-        <h2 className={ui.title}>Progresso</h2>
+        <h2 className={ui.title}>Conta e progresso</h2>
         <p className={ui.muted}>O jogo salva sozinho neste navegador.</p>
+        <Account />
         {confirmar ? (
           <div className={ui.row}>
             <span>Apagar tudo e recomeçar?</span>

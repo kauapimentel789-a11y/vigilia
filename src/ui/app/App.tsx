@@ -5,6 +5,7 @@ import ui from '../components/common.module.css';
 import { DEV_PANEL_VISIVEL, DevPanel } from '../components/DevPanel.tsx';
 import { ProgressBar } from '../components/ProgressBar.tsx';
 import { ReturnReport } from '../components/ReturnReport.tsx';
+import { SaveConflict } from '../components/Account.tsx';
 import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
 import { Arena } from '../screens/Arena/Arena.tsx';
@@ -38,7 +39,8 @@ export function App() {
     <div className={s.app}>
       <header className={s.topo}>
         <div className={s.marca}>
-          <strong>Vigília</strong>
+          <img className={s.icone} src="/icone.svg" alt="" width={28} height={28} />
+          <strong className={s.nome}>Vigília</strong>
           <span className={ui.tag}>Rank {CONTEUDO.ranks[estado.rank].nome}</span>
         </div>
         <div className={s.level}>
@@ -102,6 +104,7 @@ export function App() {
         </div>
       )}
       <ReturnReport />
+      <SaveConflict />
       {DEV_PANEL_VISIVEL && <DevPanel />}
     </div>
   );
