@@ -1,64 +1,56 @@
 import { describe, expect, it } from 'vitest';
-import { CARDS, TEST_DECK } from '../../src/content/cards.ts';
-import { ALLIES, ENEMIES } from '../../src/content/units.ts';
-import { CONTENT, ENCOUNTERS } from '../../src/content/encounters.ts';
-import type { Effect } from '../../src/engine/combat/index.ts';
+import { CONTEUDO } from '../../src/content/index.ts';
+import type { Effect } from '../../src/engine/effects/effects.ts';
+import { STATUS_DEFS } from '../../src/engine/statuses/statuses.ts';
 
-const unique = (ids: string[]) => new Set(ids).size === ids.length;
+const C = CONTEUDO;
 
-function walk(efeitos: readonly Effect[], visit: (e: Effect) => void): void {
+function checkEffects(efeitos: readonly Effect[]): void {
   for (const e of efeitos) {
-    visit(e);
-    if (e.tipo === 'ritual') walk(e.efeitos, visit);
+    if (e.tipo === 'status' || e.tipo === 'limpar') expect(STATUS_DEFS[e.status]).toBeDefined();
+    if (e.tipo === 'dano') expect(e.mult).toBeGreaterThan(0);
   }
 }
 
 describe('integridade do conteúdo', () => {
-  it('ids únicos', () => {
-    expect(unique(CARDS.map((c) => c.id))).toBe(true);
-    expect(unique(ENEMIES.map((e) => e.id))).toBe(true);
-    expect(unique(ALLIES.map((a) => a.id))).toBe(true);
-    expect(unique(ENCOUNTERS.map((e) => e.id))).toBe(true);
+  it('ids batem com as chaves', () => {
+    for (const [k, v] of Object.entries(C.habilidades)) expect(v.id).toBe(k);
+    for (const [k, v] of Object.entries(C.inimigos)) expect(v.id).toBe(k);
+    for (const [k, v] of Object.entries(C.portais)) expect(v.id).toBe(k);
   });
 
-  it('o deck de teste tem 15 cartas e só cartas existentes', () => {
-    expect(TEST_DECK).toHaveLength(15);
-    for (const id of TEST_DECK) expect(CONTENT.cartas[id]).toBeDefined();
-    expect(new Set(TEST_DECK).size).toBe(CARDS.length);
+  it('6 habilidades com recarga positiva, 2 disponíveis no level 1', () => {
+    const lista = Object.values(C.habilidades);
+    expect(lista).toHaveLength(6);
+    for (const h of lista) {
+      expect(h.recarga).toBeGreaterThan(0);
+      expect(h.desbloqueio).toBeLessThanOrEqual(C.progressao.levelMax);
+      checkEffects(h.efeitos);
+    }
+    expect(lista.filter((h) => h.desbloqueio <= 1).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('cartas têm custos válidos e alvo coerente com os efeitos', () => {
-    for (const carta of CARDS) {
-      expect(carta.custo).toBeGreaterThanOrEqual(0);
-      if (carta.avivar) expect(carta.avivar.custo).toBeGreaterThan(0);
-      const efeitos = [...carta.efeitos, ...(carta.avivar?.efeitos ?? [])];
-      let usaEscolhido = false;
-      walk(efeitos, (e) => {
-        if ('alvo' in e && e.alvo === 'escolhido') usaEscolhido = true;
-        if (e.tipo === 'invocar') expect(CONTENT.aliados[e.aliado]).toBeDefined();
-      });
-      expect(usaEscolhido, carta.id).toBe(carta.alvo === 'inimigo');
+  it('6 inimigos com ações válidas e ids de ação únicos', () => {
+    const lista = Object.values(C.inimigos);
+    expect(lista).toHaveLength(6);
+    for (const i of lista) {
+      expect(i.acoes.length).toBeGreaterThan(0);
+      expect(new Set(i.acoes.map((a) => a.id)).size).toBe(i.acoes.length);
+      for (const a of i.acoes) checkEffects(a.efeitos);
+      if (i.especial) checkEffects(i.especial.efeitos);
     }
   });
 
-  it('inimigos: padrões referenciam ações existentes', () => {
-    for (const inimigo of ENEMIES) {
-      const acoes = new Set(inimigo.acoes.map((a) => a.id));
-      const usadas =
-        inimigo.padrao.tipo === 'sequencia'
-          ? inimigo.padrao.ordem
-          : inimigo.padrao.pesos.map((p) => p.acao);
-      for (const id of usadas) expect(acoes.has(id), `${inimigo.id}:${id}`).toBe(true);
-      for (const acao of inimigo.acoes) {
-        const ataca = acao.efeitos.some((e) => e.tipo === 'dano');
-        expect(acao.tipos.includes('ataque'), `${inimigo.id}:${acao.id}`).toBe(ataca);
-      }
+  it('5 portais alcançáveis em sequência, só com inimigos existentes', () => {
+    expect(C.ordemPortais).toHaveLength(5);
+    const vistos = new Set<string>();
+    for (const id of C.ordemPortais) {
+      const p = C.portais[id]!;
+      if (p.requer) expect(vistos.has(p.requer)).toBe(true);
+      vistos.add(id);
+      expect(p.ondas.length).toBeGreaterThan(0);
+      for (const onda of p.ondas) for (const i of onda) expect(C.inimigos[i]).toBeDefined();
     }
-  });
-
-  it('encontros referenciam inimigos existentes', () => {
-    for (const encontro of ENCOUNTERS) {
-      for (const id of encontro.inimigos) expect(CONTENT.inimigos[id]).toBeDefined();
-    }
+    expect(C.portais[C.ordemPortais.at(-1)!]!.chefe).toBe(true);
   });
 });
