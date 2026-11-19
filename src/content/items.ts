@@ -140,5 +140,6 @@ export const ITENS: ItemsDef = {
   },
   capacidadeMochila: 20,
   capacidadeBau: 60,
+  expedicao: { fator: 0.5, maximo: 15 },
   pocao: { preco: 12, curaPct: 0.3, recargaS: 10, maximo: 10 },
 };

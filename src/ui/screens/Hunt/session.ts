@@ -9,6 +9,7 @@ import { CONTEUDO } from '../../../content/index.ts';
 import type { RtEvent, RtInput, WorldState } from '../../../engine/realtime/state.ts';
 import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
 import { applyProfile, createWorld, stepWorld } from '../../../engine/realtime/world.ts';
+import { autoHuntInput } from '../../../engine/realtime/auto.ts';
 import type { HunterProfile } from '../../../engine/hunter/stats.ts';
 
 export interface Flutuante {
@@ -40,6 +41,10 @@ export interface Sessao {
   dir: [number, number];
   /** Depois de trocar de mapa, ignora a direção até o jogador soltar as teclas. */
   travaDir: boolean;
+  /** Auto-caçar ligado (só em portais já fechados). */
+  auto: boolean;
+  /** Registro curto de acontecimentos. */
+  log: Array<{ texto: string; cor: string; t: number }>;
 }
 
 const semente = () => Math.floor(Math.random() * 2 ** 31);
@@ -57,6 +62,8 @@ export function getSessao(perfil: HunterProfile): Sessao {
       fila: [],
       dir: [0, 0],
       travaDir: false,
+      auto: false,
+      log: [],
     };
   } else if (sessao.perfil !== perfil) {
     applyProfile(sessao.w, CONTEUDO, perfil);
@@ -74,15 +81,24 @@ export function trocarMapa(s: Sessao, mapaId: string): void {
   s.golpes = [];
   s.fila = [];
   s.travaDir = true;
+  s.auto = false;
+}
+
+export function registrar(s: Sessao, texto: string, cor = '#c9cedd'): void {
+  s.log.push({ texto, cor, t: s.agora });
+  if (s.log.length > 5) s.log.shift();
 }
 
 /** Avança um passo fixo com os comandos pendentes e devolve os eventos. */
-export function passo(s: Sessao): RtEvent[] {
+export function passo(s: Sessao, pocoes: number, mochilaCheia = false): RtEvent[] {
   const segurando = s.dir[0] !== 0 || s.dir[1] !== 0;
   if (!segurando) s.travaDir = false;
   const input: RtInput = { dir: segurando && !s.travaDir ? s.dir : null };
   const pendente = s.fila.shift();
   if (pendente) Object.assign(input, pendente);
+  // Auto-caçar só decide quando o jogador não está mandando nada.
+  else if (s.auto && !input.dir)
+    Object.assign(input, autoHuntInput(s.w, CONTEUDO, s.perfil, { pocoes, mochilaCheia }));
   return stepWorld(s.w, CONTEUDO, s.perfil, input);
 }
 

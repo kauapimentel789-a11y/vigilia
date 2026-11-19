@@ -211,3 +211,44 @@
     height: 56px;
   }
 }
+
+.ligado {
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+
+.joystick {
+  display: none;
+  position: absolute;
+  left: var(--space-4);
+  bottom: calc(100% - clamp(360px, 68vh, 680px) + var(--space-4));
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 124, 246, 0.12);
+  border: 1px solid rgba(139, 124, 246, 0.45);
+  border-radius: 50%;
+  touch-action: none;
+  z-index: 2;
+}
+
+.pino {
+  width: 44px;
+  height: 44px;
+  background: rgba(139, 124, 246, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .joystick {
+    display: flex;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  .joystick {
+    bottom: calc(100% - 52vh + var(--space-4));
+  }
+}

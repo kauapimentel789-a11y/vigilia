@@ -255,6 +255,8 @@ export interface ItemsDef {
   saquePorPortal: Record<string, number[]>;
   capacidadeMochila: number;
   capacidadeBau: number;
+  /** Expedição: fração do saque de caçar ativamente e máximo de itens por coleta. */
+  expedicao: { fator: number; maximo: number };
   pocao: { preco: number; curaPct: number; recargaS: number; maximo: number };
 }
 

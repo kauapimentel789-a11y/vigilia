@@ -14,7 +14,8 @@ import { changeAttribute, createHunter, gainXp, resetAttributes } from '../hunte
 import { setBehavior, setEquipped, upgradeAbility } from '../hunter/abilities.ts';
 import { buildProfile } from '../hunter/stats.ts';
 import type { ItemInstance } from '../items/items.ts';
-import { baseOf, sellValue } from '../items/items.ts';
+import { baseOf, rollItem, sellValue } from '../items/items.ts';
+import { createRng } from '../core/index.ts';
 
 export const VERSAO_DO_ESTADO = 2;
 
@@ -195,6 +196,10 @@ export function startExpedition(
 export interface Collected {
   ganhos: ExpeditionGains;
   levelsGanhos: number;
+  /** Itens achados que foram para o baú. */
+  itens: ItemInstance[];
+  /** Itens que não couberam no baú. */
+  semEspaco: number;
 }
 
 /**
@@ -214,6 +219,21 @@ export function collectExpedition(
 
   const ganhos = accruedGains(exp, agora, content, estado.cacador);
   const novo = structuredClone(estado);
+  // Saque da expedição: vai direto para o baú, até ele encher.
+  const rng = createRng(estado.proximaSemente ^ 0x5eed);
+  const itens: ItemInstance[] = [];
+  let semEspaco = 0;
+  for (let i = 0; i < ganhos.itens; i++) {
+    const item = rollItem(content, exp.portal, rng, `it${novo.proximoItem}`);
+    if (!item) break;
+    if (novo.bau.length >= content.itens.capacidadeBau) {
+      semEspaco++;
+      continue;
+    }
+    novo.proximoItem++;
+    novo.bau.push(item);
+    itens.push(item);
+  }
   const r = gainXp(novo.cacador, content, ganhos.xp);
   novo.cacador = r.cacador;
   novo.ouro += ganhos.ouro;
@@ -229,7 +249,7 @@ export function collectExpedition(
     };
     novo.proximaSemente = nextSeed(estado.proximaSemente);
   }
-  return { estado: novo, ganhos, levelsGanhos: r.levelsGanhos };
+  return { estado: novo, ganhos, levelsGanhos: r.levelsGanhos, itens, semEspaco };
 }
 
 /** Ferramenta de teste: faz a expedição "envelhecer" `ms`, como se o tempo tivesse passado. */

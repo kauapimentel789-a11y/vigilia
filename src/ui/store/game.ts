@@ -10,13 +10,12 @@ import type { AtributoId, SlotId } from '../../engine/definitions.ts';
 import type { ItemInstance } from '../../engine/items/items.ts';
 import type { ExpeditionGains } from '../../engine/expedition/expedition.ts';
 import { accruedGains } from '../../engine/expedition/expedition.ts';
-import type { GameState, KillReward, Reward } from '../../engine/game/game.ts';
+import type { GameState, KillReward } from '../../engine/game/game.ts';
 import {
   advanceTime,
   changeBehavior,
   collectExpedition,
   equip,
-  fightPortal,
   newGame,
   respec,
   rewardKill,
@@ -35,29 +34,23 @@ import {
   upgrade,
 } from '../../engine/game/game.ts';
 import type { Comportamento } from '../../engine/hunter/hunter.ts';
-import type { PortalBattleOutput } from '../../engine/autobattle/simulate.ts';
 import { clearSave, loadSave, writeSave } from './persist.ts';
 
 /** Ausência mínima para mostrar o relatório de retorno. */
 const AUSENCIA_MINIMA_MS = 60_000;
-
-export interface CombateAtual {
-  portal: string;
-  batalha: PortalBattleOutput;
-  recompensa: Reward;
-}
 
 export interface Relatorio {
   ganhos: ExpeditionGains;
   /** Já coletado (true) ou só uma prévia do que está esperando (false). */
   coletado: boolean;
   levelsGanhos: number;
+  itens?: ItemInstance[];
+  semEspaco: number;
 }
 
 interface Store {
   estado: GameState;
   aviso: string | null;
-  combate: CombateAtual | null;
   relatorio: Relatorio | null;
 
   avisar(texto: string | null): void;
@@ -66,8 +59,6 @@ interface Store {
   equipar(ids: string[]): void;
   melhorar(id: string): void;
   definirComportamento(c: Comportamento): void;
-  entrarNoPortal(id: string): void;
-  fecharCombate(): void;
   /** Mapa: guarda um item achado. Devolve false se a mochila está cheia. */
   pegarItem(item: ItemInstance): boolean;
   equiparItem(uid: string): void;
@@ -115,6 +106,7 @@ function initial(): Pick<Store, 'estado' | 'aviso' | 'relatorio'> {
           ganhos: accruedGains(exp, agora, CONTEUDO, r.estado.cacador),
           coletado: false,
           levelsGanhos: 0,
+          semEspaco: 0,
         }
       : null;
   return { estado: r.estado, aviso: null, relatorio };
@@ -133,7 +125,6 @@ export const useGame = create<Store>()((set, get) => {
 
   return {
     ...initial(),
-    combate: null,
 
     avisar: (aviso) => set({ aviso }),
     gastarPonto: (a, delta) => apply(spendPoint(get().estado, CONTEUDO, a, delta)),
@@ -142,13 +133,6 @@ export const useGame = create<Store>()((set, get) => {
     melhorar: (id) => apply(upgrade(get().estado, CONTEUDO, id)),
     definirComportamento: (c) => apply(changeBehavior(get().estado, c)),
 
-    entrarNoPortal(id) {
-      const r = fightPortal(get().estado, CONTEUDO, id);
-      if (apply(r) && r.batalha && r.recompensa) {
-        set({ combate: { portal: id, batalha: r.batalha, recompensa: r.recompensa } });
-      }
-    },
-    fecharCombate: () => set({ combate: null }),
     pegarItem(item) {
       const r = pickUp(get().estado, CONTEUDO, item);
       if (r.erro !== undefined) return false;
@@ -183,7 +167,15 @@ export const useGame = create<Store>()((set, get) => {
     coletar(encerrar = false) {
       const r = collectExpedition(get().estado, CONTEUDO, Date.now(), encerrar);
       if (apply(r) && r.ganhos) {
-        set({ relatorio: { ganhos: r.ganhos, coletado: true, levelsGanhos: r.levelsGanhos ?? 0 } });
+        set({
+          relatorio: {
+            ganhos: r.ganhos,
+            coletado: true,
+            levelsGanhos: r.levelsGanhos ?? 0,
+            itens: r.itens ?? [],
+            semEspaco: r.semEspaco ?? 0,
+          },
+        });
       }
     },
     fecharRelatorio: () => set({ relatorio: null }),
@@ -192,7 +184,6 @@ export const useGame = create<Store>()((set, get) => {
       clearSave();
       set({
         estado: newGame(CONTEUDO, semente(), Date.now()),
-        combate: null,
         relatorio: null,
         aviso: null,
       });

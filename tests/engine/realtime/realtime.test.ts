@@ -152,3 +152,30 @@ describe('objetos e poção', () => {
     expect(stepWorld(w, C, PERFIL, { pocao: true }).some((e) => e.tipo === 'aviso')).toBe(true);
   });
 });
+
+describe('auto-caçar', () => {
+  it('escolhe alvo, luta sozinho e vence o brutamontes', async () => {
+    const { autoHuntInput } = await import('../../../src/engine/realtime/auto.ts');
+    const forte = { ...PERFIL, stats: { ...PERFIL.stats, ataque: 60 } };
+    const w = createWorld(C, 'arena', forte, 11);
+    const ev: RtEvent[] = [];
+    let pocoes = 3;
+    for (let i = 0; i < 3000 && !w.chefeDerrotado && !ev.some((e) => e.tipo === 'abate'); i++) {
+      const out = stepWorld(w, C, forte, autoHuntInput(w, C, forte, { pocoes }));
+      if (out.some((e) => e.tipo === 'pocao')) pocoes--;
+      ev.push(...out);
+    }
+    expect(ev.some((e) => e.tipo === 'abate')).toBe(true);
+    expect(w.heroiCaido).toBe(false);
+  });
+
+  it('sai da área do golpe forte', async () => {
+    const { autoHuntInput } = await import('../../../src/engine/realtime/auto.ts');
+    const tanque = { ...PERFIL, stats: { ...PERFIL.stats, vidaMax: 5000, ataque: 1 } };
+    const w = createWorld(C, 'arena', tanque, 5);
+    const ev: RtEvent[] = [];
+    for (let i = 0; i < 2000 && !ev.some((e) => e.tipo === 'esquiva'); i++)
+      ev.push(...stepWorld(w, C, tanque, autoHuntInput(w, C, tanque, { pocoes: 0 })));
+    expect(ev.some((e) => e.tipo === 'esquiva')).toBe(true);
+  });
+});

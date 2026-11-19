@@ -497,3 +497,67 @@ export function render(
   }
   ctx.globalAlpha = 1;
 }
+
+/** Minimapa no canto e registro curto de acontecimentos, em coordenadas da tela. */
+export function renderOverlay(
+  ctx: CanvasRenderingContext2D,
+  s: Sessao,
+  cam: Camera,
+  dpr: number,
+): void {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const m = loadMap(CONTEUDO.mapas[s.w.mapa]!);
+  if (cam.largura >= 560) {
+    const esc = Math.max(2, Math.min(150 / m.largura, 110 / m.altura));
+    const mw = m.largura * esc;
+    const mh = m.altura * esc;
+    const ox = cam.largura - mw - 12;
+    const oy = cam.altura - mh - 12;
+    ctx.fillStyle = 'rgba(5,6,10,0.78)';
+    ctx.fillRect(ox - 4, oy - 4, mw + 8, mh + 8);
+    ctx.strokeStyle = '#262c40';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox - 4.5, oy - 4.5, mw + 9, mh + 9);
+    for (let y = 0; y < m.altura; y++) {
+      for (let x = 0; x < m.largura; x++) {
+        const i = y * m.largura + x;
+        if (!s.w.revelado[i]) continue;
+        const t = m.tiles[i];
+        ctx.fillStyle =
+          t === Tile.Parede
+            ? '#2e3449'
+            : t === Tile.Agua
+              ? '#1d4a70'
+              : t === Tile.Portao
+                ? '#8b7cf6'
+                : t === Tile.Objeto
+                  ? '#f2b56b'
+                  : '#555b70';
+        ctx.fillRect(ox + x * esc, oy + y * esc, esc, esc);
+      }
+    }
+    const h = heroOf(s.w);
+    const raio = CONTEUDO.mundo.raioRevelado;
+    for (const a of s.w.atores) {
+      if (a.uid === HEROI || a.vida <= 0) continue;
+      if ((a.x - h.x) ** 2 + (a.y - h.y) ** 2 > raio * raio + 1) continue;
+      ctx.fillStyle = a.chefe ? '#f2b56b' : '#e5536b';
+      ctx.fillRect(ox + a.x * esc - 1, oy + a.y * esc - 1, esc + 2, esc + 2);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ox + h.x * esc - 1, oy + h.y * esc - 1, esc + 2, esc + 2);
+  }
+  // Registro: as últimas linhas somem depois de alguns segundos.
+  ctx.font = '12px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  const recentes = s.log.filter((l) => s.agora - l.t < 10000);
+  recentes.forEach((l, i) => {
+    const y = cam.altura - 14 - (recentes.length - 1 - i) * 17;
+    ctx.globalAlpha = Math.min(1, (10000 - (s.agora - l.t)) / 1500);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(10, y - 12, ctx.measureText(l.texto).width + 10, 16);
+    ctx.fillStyle = l.cor;
+    ctx.fillText(l.texto, 15, y);
+  });
+  ctx.globalAlpha = 1;
+}

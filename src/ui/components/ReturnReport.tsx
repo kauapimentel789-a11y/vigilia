@@ -1,3 +1,4 @@
+import { COR_RARIDADE, nomeItem } from '../items.ts';
 import { duracao, num } from '../format.ts';
 import { useGame } from '../store/game.ts';
 import ui from './common.module.css';
@@ -28,6 +29,29 @@ export function ReturnReport() {
               {num(g.vitorias)} vitórias em {num(g.lutas)} lutas: <strong>+{num(g.xp)} XP</strong> e{' '}
               <strong>+{num(g.ouro)} ouro</strong>.
             </p>
+            {relatorio.itens && relatorio.itens.length > 0 ? (
+              <div>
+                <p>
+                  Achou {relatorio.itens.length} {relatorio.itens.length === 1 ? 'item' : 'itens'},
+                  guardados no baú do Posto:
+                </p>
+                <ul>
+                  {relatorio.itens.map((i) => (
+                    <li key={i.uid} style={{ color: COR_RARIDADE[i.raridade] }}>
+                      {nomeItem(i)}
+                    </li>
+                  ))}
+                </ul>
+                {relatorio.semEspaco > 0 && (
+                  <p style={{ color: 'var(--color-danger)' }}>
+                    {relatorio.semEspaco} não couberam: o baú está cheio.
+                  </p>
+                )}
+              </div>
+            ) : (
+              !relatorio.coletado &&
+              g.itens > 0 && <p>E cerca de {g.itens} itens esperando para coletar.</p>
+            )}
             {relatorio.levelsGanhos > 0 && (
               <p style={{ color: 'var(--color-ember)' }}>
                 Subiu {relatorio.levelsGanhos} level{relatorio.levelsGanhos > 1 ? 's' : ''}!

@@ -13,12 +13,13 @@ import { chebyshev, isWalkable, objectAt } from '../../../engine/world/map.ts';
 import { useGame } from '../../store/game.ts';
 import { COR_RARIDADE, nomeItem } from '../../items.ts';
 import { Inventory } from '../../windows/Inventory.tsx';
+import { Joystick } from './Joystick.tsx';
 import { Altar, Chest, ExpeditionTable, Merchant } from '../../windows/PostoWindows.tsx';
 import { takeGroundItem } from '../../../engine/realtime/world.ts';
 import type { Camera } from './render.ts';
-import { TILE, actorPos, cameraFor, render } from './render.ts';
+import { TILE, actorPos, cameraFor, render, renderOverlay } from './render.ts';
 import type { Sessao } from './session.ts';
-import { efeitosVisuais, getSessao, passo, trocarMapa } from './session.ts';
+import { efeitosVisuais, getSessao, passo, registrar, trocarMapa } from './session.ts';
 import s from './Hunt.module.css';
 
 interface Hud {
@@ -30,6 +31,7 @@ interface Hud {
   habilidades: Array<{ nome: string; resta: number; total: number }>;
   caido: boolean;
   pocaoResta: number;
+  auto: boolean;
 }
 
 type JanelaId = 'mochila' | 'mercadora' | 'bau' | 'altar' | 'expedicao';
@@ -53,6 +55,7 @@ function hudOf(se: Sessao): Hud {
     })),
     caido: se.w.heroiCaido,
     pocaoResta: se.w.recargaPocao,
+    auto: se.auto,
   };
 }
 
@@ -84,6 +87,7 @@ export function Hunt() {
   }, []);
   const msgTimer = useRef(0);
   const beberRef = useRef<() => void>(() => {});
+  const alternarAutoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     perfilRef.current = perfil;
@@ -130,10 +134,15 @@ export function Hunt() {
             cor: '#f2b56b',
             nasceu: se.agora + 120,
           });
-        if (r.primeiraVitoria)
+        const nome = se.w.atores.find((a) => a.uid === ev.alvo)?.nome ?? 'Monstro';
+        registrar(se, `${nome} derrotado: +${r.xp} XP, +${r.ouro} ouro`);
+        if (r.primeiraVitoria) {
           avisar(`${CONTEUDO.portais[portal]?.nome} fechado! O próximo portal se abriu.`);
-        else if (r.levelsGanhos > 0)
+          registrar(se, `${CONTEUDO.portais[portal]?.nome} fechado!`, '#f2b56b');
+        } else if (r.levelsGanhos > 0) {
           avisar(`Subiu de level! (${useGame.getState().estado.cacador.level})`);
+          registrar(se, `Level ${useGame.getState().estado.cacador.level}!`, '#8b7cf6');
+        }
       }
       if (ev.tipo === 'itemNoChao') {
         for (const id of ev.ids) {
@@ -144,6 +153,7 @@ export function Hunt() {
             break;
           }
           takeGroundItem(se.w, id);
+          registrar(se, `Pegou ${nomeItem(g.item)}`, COR_RARIDADE[g.item.raridade]);
           se.flutuantes.push({
             x: g.x,
             y: g.y - 0.3,
@@ -180,7 +190,9 @@ export function Hunt() {
       se.agora = agora;
       while (acumulado >= tick) {
         acumulado -= tick;
-        for (const ev of passo(se)) tratar(se, ev);
+        const est = useGame.getState().estado;
+        const cheia = est.mochila.length >= CONTEUDO.itens.capacidadeMochila;
+        for (const ev of passo(se, est.pocoes, cheia)) tratar(se, ev);
       }
       const dpr = window.devicePixelRatio || 1;
       const largura = canvas.clientWidth;
@@ -196,6 +208,7 @@ export function Hunt() {
       const cam = cameraFor(se, largura, altura, alpha);
       camRef.current = cam;
       render(ctx, se, cam, alpha, dpr);
+      renderOverlay(ctx, se, cam, dpr);
       if (agora - hudEm > 100) {
         hudEm = agora;
         setHud(hudOf(se));
@@ -203,6 +216,21 @@ export function Hunt() {
       raf = requestAnimationFrame(quadro);
     };
     raf = requestAnimationFrame(quadro);
+
+    const alternarAuto = () => {
+      const se = getSessao(perfilRef.current);
+      if (se.auto) {
+        se.auto = false;
+        return avisar('Auto-caçar desligado.');
+      }
+      const portal = CONTEUDO.mapas[se.w.mapa]?.portal;
+      if (!portal) return avisar('Auto-caçar funciona dentro dos portais.');
+      if (!useGame.getState().estado.portaisFechados.includes(portal))
+        return avisar('Feche este portal (derrote o chefe) para liberar o auto-caçar aqui.');
+      se.auto = true;
+      avisar('Auto-caçar ligado. Qualquer comando seu tem prioridade.');
+    };
+    alternarAutoRef.current = alternarAuto;
 
     const beber = () => {
       if (useGame.getState().estado.pocoes <= 0)
@@ -259,6 +287,8 @@ export function Hunt() {
         alternarRef.current('mochila');
       } else if (e.code === 'KeyQ') {
         beber();
+      } else if (e.code === 'KeyR') {
+        alternarAuto();
       } else if (e.code === 'KeyE') {
         const h = heroOf(se.w);
         const m = loadMap(CONTEUDO.mapas[se.w.mapa]!);
@@ -335,6 +365,11 @@ export function Hunt() {
   return (
     <section className={s.tela} aria-label="Mapa de caça">
       <canvas ref={canvasRef} className={s.canvas} data-testid="mapa" />
+      <Joystick
+        onDir={(d) => {
+          getSessao(perfilRef.current).dir = d;
+        }}
+      />
 
       <div className={s.topoEsq}>
         <strong>{hud.mapa}</strong>
@@ -415,6 +450,15 @@ export function Hunt() {
           )}
         </button>
         <button
+          className={`${s.hab} ${hud.auto ? s.ligado : ''}`}
+          onClick={() => alternarAutoRef.current()}
+          disabled={hud.caido}
+          title="Auto-caçar (tecla R): só em portais já fechados"
+        >
+          <span className={s.tecla}>R</span>
+          <span className={s.habNome}>Auto {hud.auto ? 'ligado' : 'desligado'}</span>
+        </button>
+        <button
           className={s.hab}
           onClick={() => setJanela((j) => (j ? null : 'mochila'))}
           title="Mochila (tecla I)"
@@ -426,7 +470,7 @@ export function Hunt() {
 
       <p className={s.ajuda}>
         WASD ou setas: andar · Clique no chão: ir até lá · Clique no monstro ou Tab: atacar · 1 a 4:
-        habilidades · Q: poção · E: usar · I: mochila · Esc: soltar alvo
+        habilidades · Q: poção · E: usar · R: auto-caçar · I: mochila · Esc: soltar alvo
       </p>
 
       {hud.caido && (
