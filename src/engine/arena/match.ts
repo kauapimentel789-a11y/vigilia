@@ -28,6 +28,20 @@ export interface ArenaPlayer {
   caiuNaRodada: number | null;
   vitorias: number;
   derrotas: number;
+  /**
+   * Rival de outro jogador: o time que ele montou em cada rodada (índice = rodada - 1).
+   * Uma sombra não compra nem vende; entra com o time gravado daquela rodada.
+   */
+  sombra?: Array<Array<ArenaUnitInst | null>>;
+}
+
+/** O time que um jogador montou em cada rodada de uma partida, para virar rival de outros. */
+export interface ArenaRetrato {
+  /** Id do retrato no servidor, quando veio de lá. */
+  id?: number;
+  nome: string;
+  heroi: string;
+  times: Array<Array<ArenaUnitInst | null>>;
 }
 
 export interface ArenaMatch {
@@ -38,6 +52,8 @@ export interface ArenaMatch {
   /** Cópias de cada unidade ainda disponíveis para as lojas. */
   estoque: Record<string, number>;
   fim: boolean;
+  /** Times do jogador em cada rodada (para gravar o retrato no fim). */
+  meusTimes?: Array<Array<ArenaUnitInst | null>>;
 }
 
 export interface ArenaFight {
@@ -181,10 +197,15 @@ export function createMatch(
   semente: number,
   heroi: string,
   nome: string,
+  rivais: ArenaRetrato[] = [],
 ): ArenaMatch {
   const arena = content.arena;
   const regras = arena.regras;
   const rng = createRng(semente);
+  const sombras = rivais
+    .map((r) => sanitizeRetrato(content, r))
+    .filter((r): r is ArenaRetrato => r !== null)
+    .slice(0, regras.jogadores - 1);
   const estoque: Record<string, number> = {};
   for (const u of Object.values(arena.unidades)) estoque[u.id] = regras.copias[u.custo - 1] ?? 0;
   const herois = Object.keys(arena.herois);
@@ -192,12 +213,15 @@ export function createMatch(
   const jogadores: ArenaPlayer[] = [];
   for (let i = 0; i < regras.jogadores; i++) {
     const bot = i !== EU;
-    const h = bot ? herois[Math.floor(rng.next() * herois.length)]! : heroi;
-    const efeito = arena.herois[h]?.efeito ?? {};
+    const sombra = bot ? sombras[i - 1] : undefined;
+    let h = bot ? herois[Math.floor(rng.next() * herois.length)]! : heroi;
     const nomeBot = nomes.splice(Math.floor(rng.next() * nomes.length), 1)[0] ?? `Rival ${i}`;
+    if (sombra) h = sombra.heroi;
+    const efeito = arena.herois[h]?.efeito ?? {};
     jogadores.push({
+      ...(sombra ? { sombra: sombra.times } : {}),
       id: i,
-      nome: bot ? nomeBot : nome,
+      nome: sombra ? sombra.nome : bot ? nomeBot : nome,
       bot,
       heroi: h,
       vida: regras.vidaJogador + (efeito.vidaJogador ?? 0),
@@ -220,8 +244,9 @@ export function createMatch(
     jogadores,
     estoque,
     fim: false,
+    meusTimes: [],
   };
-  for (const p of jogadores) rollShop(m, arena, p, rng);
+  for (const p of jogadores) if (!p.sombra) rollShop(m, arena, p, rng);
   m.rngState = rng.getState();
   return m;
 }
@@ -483,7 +508,11 @@ export function endRound(
   const regras = arena.regras;
   const novo = clone(m);
   const rng = restoreRng(novo.rngState);
-  for (const p of alive(novo)) if (p.bot) botTurn(novo, arena, p, rng);
+  for (const p of alive(novo)) {
+    if (p.sombra) p.tabuleiro = shadowBoard(p.sombra, novo.rodada, regras.colunas * 2);
+    else if (p.bot) botTurn(novo, arena, p, rng);
+  }
+  (novo.meusTimes ??= []).push(structuredClone(player(novo, EU).tabuleiro));
 
   const relatorio: RoundReport = { rodada: novo.rodada, lutas: [], minha: null };
   for (const [a, b, fantasma] of pairings(novo, rng)) {
@@ -558,7 +587,7 @@ export function endRound(
     p.ouro += renda + juros;
     gainXp(arena, p, regras.xpPorRodada + (efeito.xpExtra ?? 0));
     p.rolagensGratis = efeito.rolagemGratis ?? 0;
-    rollShop(novo, arena, p, rng);
+    if (!p.sombra) rollShop(novo, arena, p, rng);
   }
   novo.rngState = rng.getState();
   return { partida: novo, relatorio };
@@ -585,4 +614,68 @@ export function autoTurn(m: ArenaMatch, content: GameContent): ArenaMatch {
   botTurn(novo, content.arena, player(novo, EU), rng);
   novo.rngState = rng.getState();
   return novo;
+}
+
+/* ---------- Rivais de outros jogadores ---------- */
+
+/** O time da sombra na rodada; depois do último gravado, repete o último. */
+function shadowBoard(
+  times: Array<Array<ArenaUnitInst | null>>,
+  rodada: number,
+  tamanho: number,
+): Array<ArenaUnitInst | null> {
+  const t = times[Math.min(rodada, times.length) - 1] ?? [];
+  const tab = new Array<ArenaUnitInst | null>(tamanho).fill(null);
+  t.forEach((u, i) => {
+    if (u && i < tamanho) tab[i] = { ...u, uid: `s${i}` };
+  });
+  return tab;
+}
+
+/**
+ * Confere um retrato vindo de fora: unidades que existem, estrelas de 1 a 3 e
+ * no máximo o tamanho de time do nível máximo. Devolve null se não servir.
+ */
+export function sanitizeRetrato(content: GameContent, r: unknown): ArenaRetrato | null {
+  const arena = content.arena;
+  const regras = arena.regras;
+  if (typeof r !== 'object' || r === null) return null;
+  const o = r as Record<string, unknown>;
+  if (typeof o.nome !== 'string' || typeof o.heroi !== 'string' || !arena.herois[o.heroi])
+    return null;
+  if (!Array.isArray(o.times) || o.times.length === 0 || o.times.length > regras.rodadasMax)
+    return null;
+  const times: Array<Array<ArenaUnitInst | null>> = [];
+  for (const t of o.times as unknown[]) {
+    if (!Array.isArray(t) || t.length > regras.colunas * 2) return null;
+    const time: Array<ArenaUnitInst | null> = [];
+    for (const u of t as unknown[]) {
+      if (u === null) {
+        time.push(null);
+        continue;
+      }
+      if (typeof u !== 'object') return null;
+      const x = u as Record<string, unknown>;
+      if (typeof x.def !== 'string' || !arena.unidades[x.def]) return null;
+      if (x.estrelas !== 1 && x.estrelas !== 2 && x.estrelas !== 3) return null;
+      time.push({ uid: 'x', def: x.def, estrelas: x.estrelas });
+    }
+    if (time.filter(Boolean).length > regras.nivelMax) return null;
+    times.push(time);
+  }
+  const id = typeof o.id === 'number' && Number.isInteger(o.id) ? { id: o.id } : {};
+  return { ...id, nome: o.nome.slice(0, 20), heroi: o.heroi, times };
+}
+
+/** O retrato do jogador numa partida, pronto para ser rival de outros. */
+export function myRetrato(m: ArenaMatch): ArenaRetrato | null {
+  const eu = player(m, EU);
+  if (!m.meusTimes || m.meusTimes.length === 0) return null;
+  return {
+    nome: eu.nome,
+    heroi: eu.heroi,
+    times: m.meusTimes.map((t) =>
+      t.map((u) => (u ? { uid: 'x', def: u.def, estrelas: u.estrelas } : null)),
+    ),
+  };
 }

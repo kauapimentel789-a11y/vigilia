@@ -14,6 +14,9 @@ import type { MarcaId } from '../../../engine/definitions.ts';
 import { MARCAS } from '../../../engine/definitions.ts';
 import type { ArenaRoundOutcome } from '../../../engine/game/arena.ts';
 import { isHeroUnlocked } from '../../../engine/game/arena.ts';
+import type { LinhaRanking, ResultadoOnline } from '../../cloud/arena.ts';
+import { buscarRanking, buscarRivais, registrarPartida } from '../../cloud/arena.ts';
+import { useCloud } from '../../cloud/cloud.ts';
 import ui from '../../components/common.module.css';
 import { useGame } from '../../store/game.ts';
 import s from './Arena.module.css';
@@ -60,7 +63,16 @@ function Saguao() {
   const escolher = useGame((g) => g.arenaHeroi);
   const comecar = useGame((g) => g.arenaComecar);
   const gastar = useGame((g) => g.gastarGloria);
+  const usuario = useCloud((c) => c.usuario);
+  const nome = useCloud((c) => c.nome);
+  const [buscando, setBuscando] = useState(false);
   const ar = estado.arena;
+  const iniciar = async () => {
+    setBuscando(true);
+    const rivais = await buscarRivais(R.jogadores - 1);
+    setBuscando(false);
+    comecar(rivais, nome ?? 'Você');
+  };
   return (
     <div className={s.saguao}>
       <section className={ui.panel}>
@@ -78,10 +90,21 @@ function Saguao() {
           Partidas: {ar.partidas}
           {ar.melhorLugar ? ` · melhor colocação: ${ar.melhorLugar}º` : ''}
         </p>
-        <button className={`${ui.button} ${ui.primary}`} onClick={comecar}>
-          Começar partida
+        <p className={ui.muted}>
+          {usuario
+            ? 'Conectado: seus rivais podem ser times montados por outros jogadores, e o resultado vai para o ranking.'
+            : 'Sem conta, os rivais são controlados pelo jogo. Entre na aba Caçador para enfrentar outros jogadores.'}
+        </p>
+        <button
+          className={`${ui.button} ${ui.primary}`}
+          disabled={buscando}
+          onClick={() => void iniciar()}
+        >
+          {buscando ? 'Procurando rivais…' : 'Começar partida'}
         </button>
       </section>
+
+      <Ranking />
 
       <section className={ui.panel}>
         <h2 className={ui.title}>Herói da Arena</h2>
@@ -439,7 +462,11 @@ function Jogadores({ partida }: { partida: ArenaMatch }) {
           <li key={p.id} className={p.caiuNaRodada !== null ? s.caido : ''}>
             <span>
               {p.bot ? p.nome : <strong>{p.nome}</strong>}
-              <span className={ui.muted}> · {A.herois[p.heroi]?.nome}</span>
+              <span className={ui.muted}>
+                {' '}
+                · {A.herois[p.heroi]?.nome}
+                {p.sombra ? ' · jogador' : ''}
+              </span>
             </span>
             <span className={s.vida}>♥ {p.vida}</span>
             <div className={s.vidaBarra}>
@@ -452,6 +479,37 @@ function Jogadores({ partida }: { partida: ArenaMatch }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function Ranking() {
+  const disponivel = useCloud((c) => c.disponivel);
+  const [linhas, setLinhas] = useState<LinhaRanking[] | null>(null);
+  useEffect(() => {
+    if (disponivel) void buscarRanking().then(setLinhas);
+  }, [disponivel]);
+  if (!disponivel) return null;
+  return (
+    <section className={ui.panel}>
+      <h2 className={ui.title}>Ranking da Arena</h2>
+      {linhas === null ? (
+        <p className={ui.muted}>Carregando…</p>
+      ) : linhas.length === 0 ? (
+        <p className={ui.muted}>Ninguém pontuou ainda. Seja o primeiro.</p>
+      ) : (
+        <ol className={s.ranking}>
+          {linhas.map((l, i) => (
+            <li key={`${l.nome}-${i}`}>
+              <span>{l.nome}</span>
+              <span className={ui.muted}>
+                {l.partidas} partidas · {l.vitorias} vitórias
+              </span>
+              <strong>{l.gloria}</strong>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }
@@ -633,17 +691,26 @@ function Final({
   onSair,
 }: {
   partida: ArenaMatch;
-  fim: { lugar: number; gloria: number } | null;
+  fim: ArenaRoundOutcome['fim'];
   onSair: () => void;
 }) {
   const sair = useGame((g) => g.arenaSair);
   const lugar = standings(partida).findIndex((p) => p.id === 0) + 1;
+  const [online, setOnline] = useState<ResultadoOnline | null>(null);
+  const enviado = useRef(false);
+  useEffect(() => {
+    const registro = fim?.registro;
+    if (!registro || enviado.current) return;
+    enviado.current = true;
+    void registrarPartida(registro).then(setOnline);
+  }, [fim]);
   return (
     <div className={s.saguao}>
       <section className={ui.panel}>
         <h2 className={ui.title}>Fim da partida</h2>
         <p className={s.lugar}>{lugar}º lugar</p>
         {fim && <p>+{fim.gloria} Glória</p>}
+        {online && <p className={ui.muted}>{online.mensagem}</p>}
         <button
           className={`${ui.button} ${ui.primary}`}
           onClick={() => {

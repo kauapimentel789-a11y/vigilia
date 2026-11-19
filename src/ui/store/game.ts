@@ -43,8 +43,8 @@ import {
   spendGloria,
   startArenaMatch,
 } from '../../engine/game/arena.ts';
-import type { ArenaMatch, Lugar, MatchResult } from '../../engine/arena/match.ts';
-import { buyUnit, buyXp, moveUnit, rerollShop, sellUnit } from '../../engine/arena/match.ts';
+import type { ArenaComando } from '../../engine/arena/replay.ts';
+import type { ArenaRetrato, Lugar } from '../../engine/arena/match.ts';
 import { clearSave, loadSave, writeSave } from './persist.ts';
 
 /** Ausência mínima para mostrar o relatório de retorno. */
@@ -84,7 +84,7 @@ interface Store {
   /** Mapa: o caçador caiu. Devolve quantos itens da mochila foram perdidos. */
   morrer(): number;
   arenaHeroi(id: string): void;
-  arenaComecar(): void;
+  arenaComecar(rivais?: ArenaRetrato[], nome?: string): void;
   arenaComprar(slot: number): void;
   arenaVender(uid: string): void;
   arenaRolar(): void;
@@ -147,7 +147,8 @@ export const useGame = create<Store>()((set, get) => {
     return true;
   };
 
-  const partida = (fn: (m: ArenaMatch) => MatchResult) => apply(arenaAction(get().estado, fn));
+  const partida = (c: Exclude<ArenaComando, { t: 'lutar' }>) =>
+    apply(arenaAction(get().estado, CONTEUDO, c));
 
   return {
     ...initial(),
@@ -178,12 +179,13 @@ export const useGame = create<Store>()((set, get) => {
     },
     guardar: (uid) => apply(storeItem(get().estado, CONTEUDO, uid)),
     arenaHeroi: (id) => apply(chooseArenaHero(get().estado, CONTEUDO, id)),
-    arenaComecar: () => apply(startArenaMatch(get().estado, CONTEUDO)),
-    arenaComprar: (slot) => partida((m) => buyUnit(m, CONTEUDO, slot)),
-    arenaVender: (uid) => partida((m) => sellUnit(m, CONTEUDO, uid)),
-    arenaRolar: () => partida((m) => rerollShop(m, CONTEUDO)),
-    arenaXp: () => partida((m) => buyXp(m, CONTEUDO)),
-    arenaMover: (uid, destino) => partida((m) => moveUnit(m, CONTEUDO, uid, destino)),
+    arenaComecar: (rivais = [], nome) =>
+      apply(startArenaMatch(get().estado, CONTEUDO, rivais, nome)),
+    arenaComprar: (slot) => partida({ t: 'comprar', slot }),
+    arenaVender: (uid) => partida({ t: 'vender', uid }),
+    arenaRolar: () => partida({ t: 'rolar' }),
+    arenaXp: () => partida({ t: 'xp' }),
+    arenaMover: (uid, destino) => partida({ t: 'mover', uid, destino }),
     arenaLutar() {
       const r = playArenaRound(get().estado, CONTEUDO);
       if (!apply(r) || !r.resultado) return null;

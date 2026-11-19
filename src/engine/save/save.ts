@@ -115,6 +115,18 @@ function sanitize(estado: GameState, content: GameContent): GameState {
   if (!content.arena.herois[e.arena.heroi]) e.arena.heroi = 'vigia';
   // Uma partida salva com unidades que saíram do conteúdo (ou estragada) é descartada.
   if (e.arena.partida !== null && !validMatch(e.arena.partida, content)) e.arena.partida = null;
+  // O registro só serve para a partida atual; se algo estiver estranho, a partida
+  // continua, mas não vai para o ranking.
+  const reg = e.arena.registro as unknown;
+  if (
+    !e.arena.partida ||
+    !isObj(reg) ||
+    !isObj(reg.inicio) ||
+    !isInt(reg.inicio.semente) ||
+    !Array.isArray(reg.inicio.rivais) ||
+    !Array.isArray(reg.comandos)
+  )
+    e.arena.registro = null;
   e.cacador.equipadas = e.cacador.equipadas
     .filter((id) => content.habilidades[id])
     .slice(0, content.progressao.espacosDeHabilidade);
@@ -154,7 +166,10 @@ function validMatch(m: unknown, content: GameContent): boolean {
       Array.isArray(p.tabuleiro) &&
       p.tabuleiro.every(unidade) &&
       Array.isArray(p.loja) &&
-      p.loja.every((id) => id === null || !!content.arena.unidades[id as string]),
+      p.loja.every((id) => id === null || !!content.arena.unidades[id as string]) &&
+      (p.sombra === undefined ||
+        (Array.isArray(p.sombra) &&
+          p.sombra.every((t) => Array.isArray(t) && t.every(unidade)))),
   );
 }
 
