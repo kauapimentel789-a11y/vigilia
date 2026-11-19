@@ -68,6 +68,39 @@ const lista: AbilityDef[] = [
       { tipo: 'dano', mult: 1.5, alvo: 'alvo' },
     ],
   },
+  {
+    id: 'laminaDaBrasa',
+    nome: 'Lâmina da Brasa',
+    descricao: '140% do ataque e 5 de Queimadura no alvo.',
+    categoria: 'ataque',
+    desbloqueio: 18,
+    recarga: 7,
+    efeitos: [
+      { tipo: 'dano', mult: 1.4, alvo: 'alvo' },
+      { tipo: 'status', status: 'queimadura', valor: 5, alvo: 'alvo' },
+    ],
+  },
+  {
+    id: 'baluarte',
+    nome: 'Baluarte da Vigília',
+    descricao: 'Bloqueio igual a 45% da vida máxima e apaga a Queimadura.',
+    categoria: 'defesa',
+    desbloqueio: 22,
+    recarga: 16,
+    efeitos: [
+      { tipo: 'bloqueio', pctVidaMax: 0.45, alvo: 'proprio' },
+      { tipo: 'limpar', status: 'queimadura', alvo: 'proprio' },
+    ],
+  },
+  {
+    id: 'tormentaDeCinzas',
+    nome: 'Tormenta de Cinzas',
+    descricao: 'Dois golpes de 80% do ataque em todos os inimigos em volta.',
+    categoria: 'ataque',
+    desbloqueio: 26,
+    recarga: 14,
+    efeitos: [{ tipo: 'dano', mult: 0.8, golpes: 2, alvo: 'inimigos' }],
+  },
 ];
 
 export const HABILIDADES: Record<string, AbilityDef> = Object.fromEntries(

@@ -120,3 +120,31 @@ describe('abates no mapa', () => {
     expect(r2.recompensa?.xp).toBeLessThan(r1.recompensa!.xp);
   });
 });
+
+describe('rank e Selos', () => {
+  it('vencer o Exame pela primeira vez promove o caçador e dá um Selo', () => {
+    let e = newGame(C, 1, 0);
+    e.portaisFechados.push('treino');
+    expect(isPortalOpen(e, C, 'exame')).toBe(true);
+    expect(isPortalOpen(e, C, 'alto')).toBe(false);
+    const r = rewardKill(e, C, 'exame', { xp: 10, ouro: 1, chefe: true });
+    expect(r.recompensa).toMatchObject({
+      primeiraVitoria: true,
+      promovido: 'brasa',
+      selo: 'seloLimiar',
+    });
+    e = r.estado!;
+    expect(e.rank).toBe('brasa');
+    expect(e.selos.seloLimiar).toBe(1);
+    expect(isPortalOpen(e, C, 'alto')).toBe(true);
+    const de_novo = rewardKill(e, C, 'exame', { xp: 10, ouro: 1, chefe: true });
+    expect(de_novo.recompensa?.promovido).toBeUndefined();
+    expect(de_novo.estado!.selos.seloLimiar).toBe(2);
+  });
+
+  it('portal de rank acima do caçador fica fechado mesmo com o anterior vencido', () => {
+    const e = newGame(C, 1, 0);
+    e.portaisFechados.push('treino', 'exame');
+    expect(isPortalOpen(e, C, 'alto')).toBe(false);
+  });
+});

@@ -32,6 +32,10 @@ export interface BattleUnit extends EffectUnit {
   /** Inimigos: posição no ciclo de ações. */
   cicloIndice: number;
   especialUsado: boolean;
+  /** Inimigos: quantas fases de chefe já dispararam. */
+  fase?: number;
+  /** Inimigos: ações em uso desde a última fase (ausente = todas). */
+  acoesFase?: string[] | null;
 }
 
 export type BattleResult = 'vitoria' | 'derrota';

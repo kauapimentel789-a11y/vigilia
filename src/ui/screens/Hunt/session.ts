@@ -124,7 +124,10 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
       if (ev.bloqueado > 0) flut(ev.alvo, `(${ev.bloqueado})`, '#6aa8e8');
       break;
     case 'perdaDeVida':
-      flut(ev.alvo, `${ev.valor}`, '#8bc34a');
+      flut(ev.alvo, `${ev.valor}`, ev.motivo === 'queimadura' ? '#ff9a3c' : '#8bc34a');
+      break;
+    case 'invocado':
+      flut(ev.alvo, 'Invocado!', '#ff8a8a');
       break;
     case 'cura':
       flut(ev.alvo, `+${ev.valor}`, '#6fcf97');

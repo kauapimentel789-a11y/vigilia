@@ -11,6 +11,7 @@ import { loadMap } from './world.ts';
 import type { RtActor, RtInput, WorldState } from './state.ts';
 import { HEROI } from './state.ts';
 import { DIRECOES, canStep } from '../world/path.ts';
+import type { WorldMap } from '../world/map.ts';
 import { chebyshev } from '../world/map.ts';
 
 export interface AutoOptions {
@@ -24,6 +25,38 @@ export interface AutoOptions {
 
 const vivo = (a: RtActor) => a.vida > 0;
 
+/** Primeiro passo do caminho mais curto até um tile fora de `perigo`. */
+function escapeStep(
+  m: WorldMap,
+  x0: number,
+  y0: number,
+  perigo: ReadonlySet<number>,
+  ocupado: (x: number, y: number) => boolean,
+): readonly [number, number] | undefined {
+  const primeiro = new Map<number, readonly [number, number]>();
+  let fronteira: Array<[number, number]> = [[x0, y0]];
+  const visto = new Set([y0 * m.largura + x0]);
+  for (let passo = 0; passo < 6 && fronteira.length > 0; passo++) {
+    const proxima: Array<[number, number]> = [];
+    for (const [x, y] of fronteira) {
+      for (const d of DIRECOES) {
+        const nx = x + d[0];
+        const ny = y + d[1];
+        const i = ny * m.largura + nx;
+        if (visto.has(i) || !canStep(m, x, y, d[0], d[1], ocupado)) continue;
+        visto.add(i);
+        const dir =
+          passo === 0 ? d : (primeiro.get(y * m.largura + x) as readonly [number, number]);
+        primeiro.set(i, dir);
+        if (!perigo.has(i)) return dir;
+        proxima.push([nx, ny]);
+      }
+    }
+    fronteira = proxima;
+  }
+  return undefined;
+}
+
 export function autoHuntInput(
   w: WorldState,
   content: GameContent,
@@ -36,17 +69,15 @@ export function autoHuntInput(
   const vidaPct = h.vida / h.vidaMax;
   const monstros = w.atores.filter((a) => a.lado === 'inimigo' && vivo(a));
 
-  // 1. Sair de uma área de golpe forte.
+  // 1. Sair de uma área de golpe forte: o tile seguro mais perto (até 6 passos).
   const perigo = monstros.filter((a) => a.preparo?.tiles.some(([x, y]) => x === h.x && y === h.y));
   if (perigo.length > 0 && h.moverRestante <= 0) {
-    const tiles = perigo.flatMap((a) => a.preparo?.tiles ?? []);
+    const tiles = new Set(
+      monstros.flatMap((a) => a.preparo?.tiles ?? []).map(([x, y]) => y * m.largura + x),
+    );
     const ocupado = (x: number, y: number) =>
       w.atores.some((a) => a !== h && vivo(a) && a.x === x && a.y === y);
-    const fuga = DIRECOES.find(
-      ([dx, dy]) =>
-        canStep(m, h.x, h.y, dx, dy, ocupado) &&
-        !tiles.some(([x, y]) => x === h.x + dx && y === h.y + dy),
-    );
+    const fuga = escapeStep(m, h.x, h.y, tiles, ocupado);
     if (fuga) return { dir: fuga };
   }
 
@@ -91,6 +122,22 @@ export function autoHuntInput(
     )[0];
     if (alvo) return { alvo: alvo.uid };
     return {};
+  }
+
+  // O alvo está longe e alguém já está batendo no caçador: cuida de quem está perto.
+  if (chebyshev(alvo.x, alvo.y, h.x, h.y) > h.alcance) {
+    const encostado = monstros.find(
+      (a) => a.agressivo && chebyshev(a.x, a.y, h.x, h.y) <= h.alcance,
+    );
+    if (encostado) return { alvo: encostado.uid };
+  }
+
+  // Contra um chefe, derruba primeiro os ajudantes que ele chamou e estão por perto.
+  if (alvo.chefe) {
+    const ajudante = monstros
+      .filter((a) => a.invocado && a.agressivo && chebyshev(a.x, a.y, h.x, h.y) <= 3)
+      .sort((a, b) => a.vida - b.vida)[0];
+    if (ajudante) return { alvo: ajudante.uid };
   }
 
   // 4. Habilidades, na ordem de prioridade.

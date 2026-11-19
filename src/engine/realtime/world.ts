@@ -15,6 +15,7 @@ import type { HunterProfile } from '../hunter/stats.ts';
 import { addStatus, tickSecond } from '../statuses/statuses.ts';
 import { rollItem } from '../items/items.ts';
 import { computeHit } from '../autobattle/damage.ts';
+import { phaseActions } from '../autobattle/ai.ts';
 import type { WorldMap } from '../world/map.ts';
 import { chebyshev, gateAt, isWalkable, objectAt, parseMap } from '../world/map.ts';
 import { hasLineOfSight } from '../world/los.ts';
@@ -74,6 +75,7 @@ function baseActor(
   | 'xp'
   | 'ouro'
   | 'chefe'
+  | 'invocado'
 > {
   return {
     uid,
@@ -133,6 +135,7 @@ export function createWorld(
     xp: 0,
     ouro: 0,
     chefe: false,
+    invocado: false,
   };
   const w: WorldState = {
     mapa: mapaId,
@@ -152,29 +155,45 @@ export function createWorld(
     const e = content.inimigos[sp.defId];
     if (!e) throw new Error(`Mapa ${mapaId}: inimigo desconhecido ${sp.defId}`);
     const mult = sp.chefe ? { ...CHEFE, ...def.chefe } : { vida: 1, ataque: 1, recompensa: 1 };
-    const vidaMax = Math.round(e.vidaMax * escala.vida * mult.vida);
-    w.atores.push({
-      ...baseActor(`m${w.proximoId++}`, sp.x, sp.y),
-      defId: e.id,
-      nome: sp.chefe ? `${e.nome} (chefe)` : e.nome,
-      lado: 'inimigo',
-      vida: vidaMax,
-      vidaMax,
-      ataque: e.ataque * escala.ataque * mult.ataque,
-      velocidade: e.velocidade,
-      reducao: 0,
-      critico: 0,
-      danoCritico: 1,
-      passoMs: e.passoMs ?? 450,
-      atkIntervalo: Math.round(attackInterval(content, e.velocidade) * content.mundo.ritmoMonstros),
-      alcance: e.alcance ?? 1,
-      xp: Math.round(e.xp * escala.vida * mult.recompensa),
-      ouro: Math.round(e.ouro * escala.vida * mult.recompensa),
-      chefe: sp.chefe,
-    });
+    w.atores.push(
+      monsterActor(content, `m${w.proximoId++}`, e, sp.x, sp.y, escala, mult, sp.chefe),
+    );
   }
   reveal(w, m, heroi, content.mundo.raioRevelado);
   return w;
+}
+
+function monsterActor(
+  content: GameContent,
+  uid: string,
+  e: EnemyDef,
+  x: number,
+  y: number,
+  escala: { vida: number; ataque: number },
+  mult: { vida: number; ataque: number; recompensa: number },
+  chefe: boolean,
+): RtActor {
+  const vidaMax = Math.round(e.vidaMax * escala.vida * mult.vida);
+  return {
+    ...baseActor(uid, x, y),
+    defId: e.id,
+    nome: chefe ? `${e.nome} (chefe)` : e.nome,
+    lado: 'inimigo',
+    vida: vidaMax,
+    vidaMax,
+    ataque: e.ataque * escala.ataque * mult.ataque,
+    velocidade: e.velocidade,
+    reducao: 0,
+    critico: 0,
+    danoCritico: 1,
+    passoMs: e.passoMs ?? 450,
+    atkIntervalo: Math.round(attackInterval(content, e.velocidade) * content.mundo.ritmoMonstros),
+    alcance: e.alcance ?? 1,
+    xp: Math.round(e.xp * escala.vida * mult.recompensa),
+    ouro: Math.round(e.ouro * escala.vida * mult.recompensa),
+    chefe,
+    invocado: false,
+  };
 }
 
 /**
@@ -253,11 +272,80 @@ function onDeath(ctx: StepCtx, a: RtActor): void {
   a.caminho = [];
   a.status = {};
   a.bloqueio = 0;
-  a.renascer = a.chefe ? -1 : ctx.content.mundo.renascerS * 1000;
+  a.renascer = a.chefe || a.invocado ? -1 : ctx.content.mundo.renascerS * 1000;
   if (a.chefe) ctx.w.chefeDerrotado = true;
   dropLoot(ctx, a);
   if (ctx.heroi.alvo === a.uid) ctx.heroi.alvo = null;
   emit(ctx, { tipo: 'abate', alvo: a.uid, defId: a.defId, xp: a.xp, ouro: a.ouro, chefe: a.chefe });
+  // O chefe caiu: o que ele invocou se desfaz (sem recompensa).
+  if (a.chefe) {
+    for (const o of ctx.w.atores) {
+      if (!o.invocado || !vivo(o)) continue;
+      o.vida = 0;
+      o.agressivo = false;
+      o.preparo = null;
+      o.renascer = -1;
+      if (ctx.heroi.alvo === o.uid) ctx.heroi.alvo = null;
+      emit(ctx, { tipo: 'desfeito', alvo: o.uid });
+    }
+  }
+}
+
+/** Fases de chefe: dispara as que a vida já ultrapassou. */
+function checkPhases(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): void {
+  const def = enemyDef(ctx, a);
+  const fases = def.fases ?? [];
+  while (vivo(a) && (a.fase ?? 0) < fases.length) {
+    const f = fases[a.fase ?? 0];
+    if (!f || a.vida / a.vidaMax >= f.abaixoDe) break;
+    a.fase = (a.fase ?? 0) + 1;
+    emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: f.anuncio });
+    if (f.efeitos) runEffects(host, f.efeitos, { unidade: a, fonte: 'especial' });
+    for (const id of f.invocar ?? []) summon(ctx, a, id);
+    if (f.acoes) {
+      a.acoesFase = f.acoes;
+      a.cicloIndice = 0;
+      if (!a.preparo) chooseIntent(ctx, a);
+    }
+  }
+}
+
+/** Põe um ajudante do chefe num tile livre perto dele, já na luta. */
+function summon(ctx: StepCtx, chefe: RtActor, defId: string): void {
+  const e = ctx.content.inimigos[defId];
+  if (!e) return;
+  const livre = occupiedBy(ctx, chefe);
+  let lugar: [number, number] | undefined;
+  for (let r = 1; r <= 3 && !lugar; r++) {
+    for (let dy = -r; dy <= r && !lugar; dy++) {
+      for (let dx = -r; dx <= r && !lugar; dx++) {
+        const x = chefe.x + dx;
+        const y = chefe.y + dy;
+        if (chebyshev(x, y, chefe.x, chefe.y) !== r) continue;
+        if (!isWalkable(ctx.m, x, y) || livre(x, y) || (x === chefe.x && y === chefe.y)) continue;
+        if (!hasLineOfSight(ctx.m, chefe.x, chefe.y, x, y)) continue;
+        lugar = [x, y];
+      }
+    }
+  }
+  if (!lugar) return;
+  const portal = ctx.content.mapas[ctx.w.mapa]?.portal;
+  const escala = (portal && ctx.content.portais[portal]?.escala) || { vida: 1, ataque: 1 };
+  const novo = monsterActor(
+    ctx.content,
+    `m${ctx.w.proximoId++}`,
+    e,
+    lugar[0],
+    lugar[1],
+    escala,
+    { vida: 1, ataque: 1, recompensa: 0.5 },
+    false,
+  );
+  novo.invocado = true;
+  novo.agressivo = true;
+  novo.renascer = -1;
+  ctx.w.atores.push(novo);
+  emit(ctx, { tipo: 'invocado', alvo: novo.uid, defId, x: novo.x, y: novo.y });
 }
 
 function dropLoot(ctx: StepCtx, a: RtActor): void {
@@ -390,7 +478,11 @@ function followPath(ctx: StepCtx, a: RtActor): boolean {
 }
 
 function pathTowards(ctx: StepCtx, a: RtActor, tx: number, ty: number, parar: number): void {
-  const p = findPath(ctx.m, a.x, a.y, tx, ty, { ocupado: occupiedBy(ctx, a), parar, limite: 1500 });
+  // O caçador pode atravessar o mapa inteiro; monstros procuram perto.
+  const limite = a.uid === HEROI ? ctx.m.largura * ctx.m.altura * 2 : 1500;
+  let p = findPath(ctx.m, a.x, a.y, tx, ty, { ocupado: occupiedBy(ctx, a), parar, limite });
+  // Caminho bloqueado por alguém num corredor: o caçador vai até lá mesmo assim.
+  if (!p && a.uid === HEROI) p = findPath(ctx.m, a.x, a.y, tx, ty, { parar, limite });
   a.caminho = p ?? [];
 }
 
@@ -563,17 +655,18 @@ function chooseIntent(ctx: StepCtx, a: RtActor): EnemyActionDef {
   const def = enemyDef(ctx, a);
   const temAliados = monstersNear(ctx, a.x, a.y, RAIO_ALIADOS).some((o) => o !== a);
   const ok = (x: EnemyActionDef) => !x.requerAliados || temAliados;
+  const acoes = phaseActions(def, a.acoesFase);
   let acao: EnemyActionDef | undefined;
   if (def.padrao === 'ciclo') {
-    for (let i = 0; i < def.acoes.length && !acao; i++) {
-      const c = def.acoes[(a.cicloIndice + i) % def.acoes.length] as EnemyActionDef;
+    for (let i = 0; i < acoes.length && !acao; i++) {
+      const c = acoes[(a.cicloIndice + i) % acoes.length] as EnemyActionDef;
       if (ok(c)) {
         acao = c;
-        a.cicloIndice = (a.cicloIndice + i + 1) % def.acoes.length;
+        a.cicloIndice = (a.cicloIndice + i + 1) % acoes.length;
       }
     }
   } else {
-    const opcoes = def.acoes.filter(ok);
+    const opcoes = acoes.filter(ok);
     const total = opcoes.reduce((s, x) => s + (x.peso ?? 1), 0);
     let r = ctx.rng.next() * total;
     for (const x of opcoes) {
@@ -584,19 +677,54 @@ function chooseIntent(ctx: StepCtx, a: RtActor): EnemyActionDef {
       }
     }
   }
-  const escolhida = acao ?? (def.acoes[0] as EnemyActionDef);
+  const escolhida = acao ?? (acoes[0] as EnemyActionDef);
   a.intencao = escolhida.id;
   return escolhida;
 }
 
-function startPrepare(ctx: StepCtx, a: RtActor, acao: EnemyActionDef): void {
-  const h = ctx.heroi;
+/** Tiles atingidos por um golpe forte, conforme a forma da área. */
+export function strikeTiles(
+  m: WorldMap,
+  a: { x: number; y: number },
+  h: { x: number; y: number },
+  acao: EnemyActionDef,
+): Array<[number, number]> {
   const r = acao.area ?? 0;
   const tiles: Array<[number, number]> = [];
-  for (let y = h.y - r; y <= h.y + r; y++) {
-    for (let x = h.x - r; x <= h.x + r; x++) if (isWalkable(ctx.m, x, y)) tiles.push([x, y]);
+  const forma = acao.forma ?? 'alvo';
+  if (forma === 'cruz') {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      for (let k = 1; k <= r; k++) {
+        const x = a.x + dx * k;
+        const y = a.y + dy * k;
+        if (!isWalkable(m, x, y)) break;
+        tiles.push([x, y]);
+      }
+    }
+    return tiles;
   }
-  const total = ctx.content.mundo.preparoForteMs;
+  const c = forma === 'alvo' ? h : a;
+  const minimo = forma === 'anel' ? 2 : 0;
+  for (let y = c.y - r; y <= c.y + r; y++) {
+    for (let x = c.x - r; x <= c.x + r; x++) {
+      if (!isWalkable(m, x, y)) continue;
+      if (forma !== 'alvo' && x === a.x && y === a.y) continue;
+      if (chebyshev(x, y, c.x, c.y) < minimo) continue;
+      if (forma !== 'alvo' && !hasLineOfSight(m, a.x, a.y, x, y)) continue;
+      tiles.push([x, y]);
+    }
+  }
+  return tiles;
+}
+
+function startPrepare(ctx: StepCtx, a: RtActor, acao: EnemyActionDef): void {
+  const tiles = strikeTiles(ctx.m, a, ctx.heroi, acao);
+  const total = acao.preparoMs ?? ctx.content.mundo.preparoForteMs;
   a.preparo = { acao: acao.id, restante: total, total, tiles };
   emit(ctx, { tipo: 'preparo', origem: a.uid, nome: acao.nome, tiles });
 }
@@ -644,6 +772,8 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       a.intencao = null;
       a.cicloIndice = 0;
       a.especialUsado = false;
+      a.fase = 0;
+      a.acoesFase = null;
       a.preparo = null;
       emit(ctx, { tipo: 'renasceu', alvo: a.uid });
     }
@@ -679,6 +809,7 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: esp.anuncio });
       runEffects(host, esp.efeitos, { unidade: a, fonte: 'especial' });
     }
+    checkPhases(ctx, host, a);
     // Golpe forte em preparo: fica parado e acerta a área avisada no fim.
     if (a.preparo) {
       a.preparo.restante -= dt;

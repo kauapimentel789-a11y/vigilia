@@ -104,6 +104,15 @@ export interface EnemyActionDef {
   forte?: boolean;
   /** Mapa: raio da área avisada no chão de um golpe forte (0 = só o tile do alvo). */
   area?: number;
+  /**
+   * Mapa: onde fica a área do golpe forte.
+   * 'alvo' (padrão): quadrado em volta do caçador · 'emVolta': quadrado em volta de quem golpeia ·
+   * 'cruz': linhas retas a partir de quem golpeia · 'anel': em volta de quem golpeia, menos perto
+   * dele (encostar é o lugar seguro).
+   */
+  forma?: 'alvo' | 'emVolta' | 'cruz' | 'anel';
+  /** Mapa: tempo de preparo deste golpe forte, em ms (padrão: mundo.preparoForteMs). */
+  preparoMs?: number;
   /** Peso no sorteio, quando o padrão é aleatório. */
   peso?: number;
   /** Só é escolhida se houver outro inimigo vivo (ex.: proteger um aliado). */
@@ -122,6 +131,12 @@ export interface EnemyDef {
   acoes: EnemyActionDef[];
   /** Efeito único quando a vida cai abaixo da fração indicada (ex.: fúria). */
   especial?: { abaixoDe: number; anuncio: string; efeitos: Effect[] };
+  /**
+   * Fases de chefe, em ordem de vida decrescente. Cada uma dispara uma vez ao
+   * cair abaixo de `abaixoDe`: anuncia, aplica efeitos, invoca ajudantes (só no
+   * mapa) e pode trocar as ações por uma lista nova.
+   */
+  fases?: FaseDef[];
   /** Mapa: XP e ouro por abate (antes da escala do portal). */
   xp: number;
   ouro: number;
@@ -131,7 +146,31 @@ export interface EnemyDef {
   passoMs?: number;
 }
 
-export type RankId = 'cinza';
+export interface FaseDef {
+  abaixoDe: number;
+  anuncio: string;
+  efeitos?: Effect[];
+  /** Ids de inimigos que aparecem ao lado do chefe (não renascem). */
+  invocar?: string[];
+  /** Ids das ações usadas a partir desta fase (no lugar das anteriores). */
+  acoes?: string[];
+}
+
+export type RankId = 'cinza' | 'brasa';
+export const RANKS_ORDEM: readonly RankId[] = ['cinza', 'brasa'];
+
+export interface RankDef {
+  id: RankId;
+  nome: string;
+  descricao: string;
+}
+
+/** Selo: lembrança de um chefe vencido. Será usado pela Arena. */
+export interface SeloDef {
+  id: string;
+  nome: string;
+  descricao: string;
+}
 
 export interface PortalDef {
   id: string;
@@ -150,6 +189,10 @@ export interface PortalDef {
   /** Portal que precisa estar fechado para este abrir. */
   requer?: string;
   chefe?: boolean;
+  /** Exame de Rank: vencer o chefe pela primeira vez leva o caçador a este rank. */
+  promove?: RankId;
+  /** Selo que o chefe deste portal deixa a cada vitória. */
+  selo?: string;
 }
 
 /** Configuração do mundo jogável (mapas em tempo real). */
@@ -179,6 +222,8 @@ export interface MapDef {
   id: string;
   nome: string;
   tipo: 'posto' | 'portal';
+  /** Paleta do mapa (padrão: 'cinza'). Em 'brasa', a água vira lava. */
+  tema?: 'cinza' | 'brasa';
   /** Portal (da Caçada) que este mapa representa: define escala e recompensas. */
   portal?: string;
   /** Multiplicadores do chefe deste mapa (padrão: vida ×4, ataque ×1,3). */
@@ -272,6 +317,8 @@ export interface GameContent {
   mundo: WorldDef;
   mapas: Record<string, MapDef>;
   itens: ItemsDef;
+  ranks: Record<RankId, RankDef>;
+  selos: Record<string, SeloDef>;
   /** Mapa onde o caçador começa e para onde volta ao morrer. */
   mapaInicial: string;
 }
