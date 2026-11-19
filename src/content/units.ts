@@ -7,14 +7,14 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'carnical-faminto',
     nome: 'Carniçal Faminto',
-    vidaMax: 38,
+    vidaMax: 42,
     descricao: 'Morde duas vezes e então uiva, ficando mais forte a cada ciclo.',
     acoes: [
       {
         id: 'morder',
         nome: 'Morder',
         tipos: ['ataque'],
-        efeitos: [{ tipo: 'dano', valor: 8, alvo: 'jogador' }],
+        efeitos: [{ tipo: 'dano', valor: 9, alvo: 'jogador' }],
       },
       {
         id: 'uivo',
@@ -28,7 +28,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'tecela-palida',
     nome: 'Tecelã Pálida',
-    vidaMax: 30,
+    vidaMax: 34,
     descricao: 'Envenena, enfraquece e se esconde num casulo.',
     acoes: [
       {
@@ -36,8 +36,8 @@ export const ENEMIES: EnemyDef[] = [
         nome: 'Picada',
         tipos: ['ataque', 'debuff'],
         efeitos: [
-          { tipo: 'dano', valor: 5, alvo: 'jogador' },
-          { tipo: 'status', status: 'veneno', valor: 2, alvo: 'jogador' },
+          { tipo: 'dano', valor: 6, alvo: 'jogador' },
+          { tipo: 'status', status: 'veneno', valor: 3, alvo: 'jogador' },
         ],
       },
       {
@@ -66,7 +66,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'cavaleiro-oco',
     nome: 'Cavaleiro Oco',
-    vidaMax: 80,
+    vidaMax: 115,
     descricao:
       'Prepara uma Execução devastadora a cada quatro turnos. Abaixo de 50% de vida, fica mais forte.',
     acoes: [
@@ -74,13 +74,13 @@ export const ENEMIES: EnemyDef[] = [
         id: 'golpe-pesado',
         nome: 'Golpe Pesado',
         tipos: ['ataque'],
-        efeitos: [{ tipo: 'dano', valor: 11, alvo: 'jogador' }],
+        efeitos: [{ tipo: 'dano', valor: 12, alvo: 'jogador' }],
       },
       {
         id: 'varredura',
         nome: 'Varredura',
         tipos: ['ataque'],
-        efeitos: [{ tipo: 'dano', valor: 6, alvo: 'jogadorEAliado' }],
+        efeitos: [{ tipo: 'dano', valor: 8, alvo: 'jogadorEAliado' }],
       },
       {
         id: 'preparar-execucao',
@@ -93,7 +93,7 @@ export const ENEMIES: EnemyDef[] = [
         id: 'execucao',
         nome: 'Execução',
         tipos: ['ataque'],
-        efeitos: [{ tipo: 'dano', valor: 24, alvo: 'jogador' }],
+        efeitos: [{ tipo: 'dano', valor: 28, alvo: 'jogador' }],
       },
     ],
     padrao: {

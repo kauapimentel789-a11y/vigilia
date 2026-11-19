@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "sim": "node tools/sim/simulate.ts"
   },
   "dependencies": {
     "react": "19.3.1",
