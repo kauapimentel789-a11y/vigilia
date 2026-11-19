@@ -11,6 +11,16 @@
   --color-arcane: #8b7cf6;
   --color-ember: #f2b56b;
   --color-ok: #6fcf97;
+  --color-surface-2: #1c2132;
+  --color-danger: #e5536b;
+  --color-health: #d4475e;
+  --color-block: #6aa8e8;
+  --color-poison: #8bc34a;
+  --color-buff: #e8c65a;
+
+  --rarity-comum: #7d8499;
+  --rarity-incomum: #4fa3c7;
+  --rarity-rara: #b07cf6;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -19,7 +29,9 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  --radius-sm: 4px;
   --radius-md: 8px;
+  --radius-lg: 12px;
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
@@ -44,4 +56,57 @@ body {
   font-family: var(--font-ui);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-arcane);
+  outline-offset: 2px;
+}
+
+/* Dica provisória: qualquer elemento com data-tip mostra o texto ao passar o mouse ou focar. */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 240px;
+  padding: var(--space-2) var(--space-3);
+  background: #05060a;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-line;
+  z-index: 50;
+  pointer-events: none;
+}
+
+[data-tip-pos='below']:hover::after,
+[data-tip-pos='below']:focus-visible::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
