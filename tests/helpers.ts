@@ -4,6 +4,8 @@
  */
 import { HABILIDADES } from '../src/content/abilities.ts';
 import { PROGRESSAO } from '../src/content/progression.ts';
+import { ITENS } from '../src/content/items.ts';
+import { MUNDO } from '../src/content/world.ts';
 import type { EnemyDef, GameContent, PortalDef } from '../src/engine/definitions.ts';
 import type { HunterProfile } from '../src/engine/hunter/stats.ts';
 import { buildProfile } from '../src/engine/hunter/stats.ts';
@@ -15,6 +17,8 @@ const inimigos: EnemyDef[] = [
     id: 'boneco',
     nome: 'Boneco',
     descricao: 'Não faz nada.',
+    xp: 5,
+    ouro: 1,
     vidaMax: 100,
     ataque: 0,
     velocidade: 50,
@@ -25,6 +29,8 @@ const inimigos: EnemyDef[] = [
     id: 'brutamontes',
     nome: 'Brutamontes',
     descricao: 'Bate forte a cada duas ações.',
+    xp: 5,
+    ouro: 1,
     vidaMax: 400,
     ataque: 10,
     velocidade: 100,
@@ -43,6 +49,8 @@ const inimigos: EnemyDef[] = [
     id: 'aleatorio',
     nome: 'Aleatório',
     descricao: 'Sorteia ações.',
+    xp: 5,
+    ouro: 1,
     vidaMax: 60,
     ataque: 5,
     velocidade: 120,
@@ -65,6 +73,8 @@ const inimigos: EnemyDef[] = [
     id: 'imortal',
     nome: 'Imortal',
     descricao: 'Vida enorme, nunca morre a tempo.',
+    xp: 5,
+    ouro: 1,
     vidaMax: 1_000_000,
     ataque: 0,
     velocidade: 10,
@@ -100,6 +110,44 @@ export const TEST_CONTENT: GameContent = {
   inimigos: Object.fromEntries(inimigos.map((i) => [i.id, i])),
   portais: Object.fromEntries(portais.map((p) => [p.id, p])),
   ordemPortais: portais.map((p) => p.id),
+  mundo: MUNDO,
+  mapas: {
+    base: {
+      id: 'base',
+      nome: 'Base',
+      tipo: 'posto',
+      linhas: ['#######', '#@...1#', '#######'],
+      legenda: { portoes: { '1': { destino: 'arena', rotulo: 'Arena' } } },
+    },
+    arena: {
+      id: 'arena',
+      nome: 'Arena',
+      tipo: 'portal',
+      portal: 'treino',
+      linhas: ['##########', '#E@......#', '#........#', '#......b.#', '#........#', '##########'],
+      legenda: {
+        monstros: { b: 'brutamontes' },
+        portoes: { E: { destino: 'base', rotulo: 'Base' } },
+      },
+    },
+    grupo: {
+      id: 'grupo',
+      nome: 'Grupo',
+      tipo: 'portal',
+      linhas: ['##########', '#@....b#b#', '##########'],
+      legenda: { monstros: { b: 'brutamontes' } },
+    },
+    tesouro: {
+      id: 'tesouro',
+      nome: 'Tesouro',
+      tipo: 'portal',
+      portal: 'treino',
+      linhas: ['#######', '#@...T#', '#######'],
+      legenda: { objetos: { T: 'tesouro' } },
+    },
+  },
+  itens: { ...ITENS, saquePorPortal: { treino: [1] } },
+  mapaInicial: 'base',
 };
 
 export function hunter(mods: Partial<HunterState> = {}): HunterState {

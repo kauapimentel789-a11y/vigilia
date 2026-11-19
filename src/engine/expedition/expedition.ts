@@ -79,6 +79,8 @@ export interface ExpeditionGains {
   vitorias: number;
   xp: number;
   ouro: number;
+  /** Itens achados (sorteados na coleta e guardados no baú). */
+  itens: number;
   /** O teto foi atingido e parte do tempo não rendeu. */
   noTeto: boolean;
   /** O relógio do aparelho voltou no tempo: nada rende. */
@@ -100,6 +102,7 @@ export function accruedGains(
       vitorias: 0,
       xp: 0,
       ouro: 0,
+      itens: 0,
       noTeto: false,
       relogioVoltou: true,
     };
@@ -128,11 +131,19 @@ export function accruedGains(
       }
     }
   }
+  const vitorias = Math.floor(lutas * t.vitoria);
+  const monstros = portal ? portal.ondas.reduce((s, o) => s + o.length, 0) : 0;
+  const it = content.itens;
+  const itens = Math.min(
+    it.expedicao.maximo,
+    Math.floor(vitorias * monstros * it.chanceDeSaque * it.expedicao.fator),
+  );
   return {
     tempoMs,
     decorridoMs,
     lutas,
-    vitorias: Math.floor(lutas * t.vitoria),
+    vitorias,
+    itens,
     xp: Math.floor(xp + 1e-9),
     ouro: Math.floor(ouro + 1e-9),
     noTeto: decorridoMs > tetoMs,

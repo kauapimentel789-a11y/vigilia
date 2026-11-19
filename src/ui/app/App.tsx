@@ -7,31 +7,26 @@ import { ProgressBar } from '../components/ProgressBar.tsx';
 import { ReturnReport } from '../components/ReturnReport.tsx';
 import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
-import { AutoBattle } from '../screens/AutoBattle/AutoBattle.tsx';
 import { Expedition } from '../screens/Expedition/Expedition.tsx';
+import { Hunt } from '../screens/Hunt/Hunt.tsx';
 import { Hunter } from '../screens/Hunter/Hunter.tsx';
-import { Portals } from '../screens/Portals/Portals.tsx';
 import { useGame } from '../store/game.ts';
 import s from './App.module.css';
 
-type Aba = 'cacador' | 'habilidades' | 'portais' | 'expedicao';
+type Aba = 'cacar' | 'cacador' | 'habilidades' | 'expedicao';
 
 const ABAS: Array<{ id: Aba; nome: string; icone: string }> = [
+  { id: 'cacar', nome: 'Caçar', icone: '⚔' },
   { id: 'cacador', nome: 'Caçador', icone: '◆' },
   { id: 'habilidades', nome: 'Habilidades', icone: '✦' },
-  { id: 'portais', nome: 'Portais', icone: '◎' },
   { id: 'expedicao', nome: 'Expedição', icone: '⧗' },
 ];
 
 export function App() {
-  const [aba, setAba] = useState<Aba>('portais');
+  const [aba, setAba] = useState<Aba>('cacar');
   const estado = useGame((g) => g.estado);
-  const combate = useGame((g) => g.combate);
   const aviso = useGame((g) => g.aviso);
   const avisar = useGame((g) => g.avisar);
-  const fecharCombate = useGame((g) => g.fecharCombate);
-  const entrar = useGame((g) => g.entrarNoPortal);
-  const [rodada, setRodada] = useState(0);
   const c = estado.cacador;
   const P = CONTEUDO.progressao;
   const noMax = c.level >= P.levelMax;
@@ -83,23 +78,12 @@ export function App() {
       </nav>
 
       <main className={s.conteudo}>
-        {combate ? (
-          <AutoBattle
-            key={rodada}
-            combate={combate}
-            podeRepetir={!estado.expedicao}
-            onVoltar={fecharCombate}
-            onRepetir={() => {
-              entrar(combate.portal);
-              setRodada((r) => r + 1);
-            }}
-          />
+        {aba === 'cacar' ? (
+          <Hunt />
         ) : aba === 'cacador' ? (
           <Hunter />
         ) : aba === 'habilidades' ? (
           <Abilities />
-        ) : aba === 'portais' ? (
-          <Portals onExpedicao={() => setAba('expedicao')} />
         ) : (
           <Expedition />
         )}

@@ -7,6 +7,9 @@ import type { EnemyDef } from '../engine/definitions.ts';
 const lista: EnemyDef[] = [
   {
     id: 'carnical',
+    xp: 6,
+    ouro: 2,
+    passoMs: 450,
     nome: 'Carniçal Faminto',
     descricao: 'Lento e insistente. A cada três ataques, rasga com força.',
     vidaMax: 60,
@@ -21,6 +24,9 @@ const lista: EnemyDef[] = [
   },
   {
     id: 'ratoDeCinza',
+    xp: 3,
+    ouro: 1,
+    passoMs: 260,
     nome: 'Rato de Cinza',
     descricao: 'Pouca vida, muito rápido. Vem em bando.',
     vidaMax: 24,
@@ -33,6 +39,10 @@ const lista: EnemyDef[] = [
   },
   {
     id: 'tecela',
+    xp: 7,
+    ouro: 3,
+    alcance: 3,
+    passoMs: 520,
     nome: 'Tecelã Pálida',
     descricao: 'Envenena e enfraquece. Mate-a antes que o veneno acumule.',
     vidaMax: 50,
@@ -57,6 +67,9 @@ const lista: EnemyDef[] = [
   },
   {
     id: 'sentinela',
+    xp: 8,
+    ouro: 3,
+    passoMs: 560,
     nome: 'Sentinela de Osso',
     descricao: 'Protege o aliado mais ferido com bloqueio. Sozinha, só golpeia.',
     vidaMax: 80,
@@ -79,6 +92,10 @@ const lista: EnemyDef[] = [
   },
   {
     id: 'arqueiro',
+    xp: 9,
+    ouro: 4,
+    alcance: 4,
+    passoMs: 460,
     nome: 'Arqueiro Oco',
     descricao: 'Fica atrás e mira. O Tiro Certeiro dói muito.',
     vidaMax: 34,
@@ -98,6 +115,9 @@ const lista: EnemyDef[] = [
   },
   {
     id: 'cavaleiro',
+    xp: 150,
+    ouro: 80,
+    passoMs: 520,
     nome: 'Cavaleiro Oco',
     descricao:
       'Mini-chefe. Anuncia a Execução antes de usá-la. Abaixo de 50% de vida, entra em fúria.',
@@ -116,6 +136,7 @@ const lista: EnemyDef[] = [
         id: 'execucao',
         nome: 'Execução',
         forte: true,
+        area: 1,
         efeitos: [{ tipo: 'dano', mult: 3.2, alvo: 'alvo' }],
       },
     ],

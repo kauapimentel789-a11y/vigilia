@@ -4,7 +4,7 @@
  * Todo comando é puro: recebe o estado atual e devolve um estado novo (ou um
  * erro), sem alterar a entrada. A interface só chama estes comandos.
  */
-import type { AtributoId, GameContent, PortalDef } from '../definitions.ts';
+import type { AtributoId, GameContent, PortalDef, SlotId } from '../definitions.ts';
 import type { PortalBattleOutput } from '../autobattle/simulate.ts';
 import { simulatePortal } from '../autobattle/simulate.ts';
 import type { ExpeditionGains, ExpeditionState } from '../expedition/expedition.ts';
@@ -13,8 +13,11 @@ import type { Comportamento, HunterResult, HunterState } from '../hunter/hunter.
 import { changeAttribute, createHunter, gainXp, resetAttributes } from '../hunter/hunter.ts';
 import { setBehavior, setEquipped, upgradeAbility } from '../hunter/abilities.ts';
 import { buildProfile } from '../hunter/stats.ts';
+import type { ItemInstance } from '../items/items.ts';
+import { baseOf, rollItem, sellValue } from '../items/items.ts';
+import { createRng } from '../core/index.ts';
 
-export const VERSAO_DO_ESTADO = 1;
+export const VERSAO_DO_ESTADO = 2;
 
 export interface GameState {
   versao: typeof VERSAO_DO_ESTADO;
@@ -25,6 +28,13 @@ export interface GameState {
   /** Próxima semente de combate. Avança a cada uso, para as lutas variarem. */
   proximaSemente: number;
   registro: { lutas: number; vitorias: number; criadoEm: number };
+  /** Itens carregados (fora o que está vestido). Perdidos se o caçador cair. */
+  mochila: ItemInstance[];
+  /** Contador para dar um id único a cada item que entra no jogo. */
+  proximoItem: number;
+  /** Baú do Posto: o que está aqui nunca se perde. */
+  bau: ItemInstance[];
+  pocoes: number;
 }
 
 export type GameResult<Extra = object> =
@@ -40,6 +50,10 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     expedicao: null,
     proximaSemente: semente >>> 0,
     registro: { lutas: 0, vitorias: 0, criadoEm: agora },
+    mochila: [],
+    proximoItem: 1,
+    bau: [],
+    pocoes: 3,
   };
 }
 
@@ -182,6 +196,10 @@ export function startExpedition(
 export interface Collected {
   ganhos: ExpeditionGains;
   levelsGanhos: number;
+  /** Itens achados que foram para o baú. */
+  itens: ItemInstance[];
+  /** Itens que não couberam no baú. */
+  semEspaco: number;
 }
 
 /**
@@ -201,6 +219,21 @@ export function collectExpedition(
 
   const ganhos = accruedGains(exp, agora, content, estado.cacador);
   const novo = structuredClone(estado);
+  // Saque da expedição: vai direto para o baú, até ele encher.
+  const rng = createRng(estado.proximaSemente ^ 0x5eed);
+  const itens: ItemInstance[] = [];
+  let semEspaco = 0;
+  for (let i = 0; i < ganhos.itens; i++) {
+    const item = rollItem(content, exp.portal, rng, `it${novo.proximoItem}`);
+    if (!item) break;
+    if (novo.bau.length >= content.itens.capacidadeBau) {
+      semEspaco++;
+      continue;
+    }
+    novo.proximoItem++;
+    novo.bau.push(item);
+    itens.push(item);
+  }
   const r = gainXp(novo.cacador, content, ganhos.xp);
   novo.cacador = r.cacador;
   novo.ouro += ganhos.ouro;
@@ -216,7 +249,7 @@ export function collectExpedition(
     };
     novo.proximaSemente = nextSeed(estado.proximaSemente);
   }
-  return { estado: novo, ganhos, levelsGanhos: r.levelsGanhos };
+  return { estado: novo, ganhos, levelsGanhos: r.levelsGanhos, itens, semEspaco };
 }
 
 /** Ferramenta de teste: faz a expedição "envelhecer" `ms`, como se o tempo tivesse passado. */
@@ -227,4 +260,156 @@ export function advanceTime(estado: GameState, ms: number): GameState {
     novo.expedicao.ultimaColeta -= ms;
   }
   return novo;
+}
+
+/* ---------- Mapa ---------- */
+
+export interface KillReward {
+  xp: number;
+  ouro: number;
+  levelsGanhos: number;
+  /** O abate fechou o portal pela primeira vez (chefe). */
+  primeiraVitoria: boolean;
+}
+
+/**
+ * Paga um abate no mapa. O XP e o ouro do monstro já vêm escalados pelo portal;
+ * aqui entra a queda por level e, no chefe, o bônus da primeira vitória.
+ */
+export function rewardKill(
+  estado: GameState,
+  content: GameContent,
+  portalId: string,
+  abate: { xp: number; ouro: number; chefe: boolean },
+): GameResult<{ recompensa: KillReward }> {
+  const portal = portalOrError(content, portalId);
+  if (typeof portal === 'string') return { erro: portal };
+  const novo = structuredClone(estado);
+  const mult = rewardMultiplier(content, portal, estado.cacador.level);
+  const primeiraVitoria = abate.chefe && !estado.portaisFechados.includes(portalId);
+  const bonus = primeiraVitoria ? portal.primeiraVitoria : { xp: 0, ouro: 0 };
+  const xp = Math.round(abate.xp * mult) + bonus.xp;
+  const ouro = Math.round(abate.ouro * mult) + bonus.ouro;
+  if (primeiraVitoria) novo.portaisFechados.push(portalId);
+  if (abate.chefe) {
+    novo.registro.lutas++;
+    novo.registro.vitorias++;
+  }
+  const r = gainXp(novo.cacador, content, xp);
+  novo.cacador = r.cacador;
+  novo.ouro += ouro;
+  return { estado: novo, recompensa: { xp, ouro, levelsGanhos: r.levelsGanhos, primeiraVitoria } };
+}
+
+/* ---------- Itens ---------- */
+
+/** Põe um item achado na mochila, com um id novo. */
+export function pickUp(
+  estado: GameState,
+  content: GameContent,
+  item: ItemInstance,
+): GameResult<{ item: ItemInstance }> {
+  if (!baseOf(content, item)) return { erro: 'Item desconhecido.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  const guardado: ItemInstance = { ...structuredClone(item), uid: `it${novo.proximoItem++}` };
+  novo.mochila.push(guardado);
+  return { estado: novo, item: guardado };
+}
+
+/** Veste um item da mochila. O que estava no espaço volta para a mochila. */
+export function equipItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const i = estado.mochila.findIndex((x) => x.uid === uid);
+  const item = estado.mochila[i];
+  const base = item && baseOf(content, item);
+  if (!item || !base) return { erro: 'Item não está na mochila.' };
+  const novo = structuredClone(estado);
+  const antigo = novo.cacador.equipamento[base.slot];
+  novo.mochila.splice(i, 1);
+  if (antigo) novo.mochila.splice(i, 0, antigo);
+  novo.cacador.equipamento[base.slot] = structuredClone(item);
+  return { estado: novo };
+}
+
+/** Tira um item vestido e guarda na mochila. */
+export function unequipItem(estado: GameState, content: GameContent, slot: SlotId): GameResult {
+  const item = estado.cacador.equipamento[slot];
+  if (!item) return { erro: 'Nada vestido nesse espaço.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  delete novo.cacador.equipamento[slot];
+  novo.mochila.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** Joga fora um item da mochila. */
+export function discardItem(estado: GameState, uid: string): GameResult {
+  if (!estado.mochila.some((x) => x.uid === uid)) return { erro: 'Item não está na mochila.' };
+  const novo = structuredClone(estado);
+  novo.mochila = novo.mochila.filter((x) => x.uid !== uid);
+  return { estado: novo };
+}
+
+/* ---------- Posto ---------- */
+
+/** Vende itens da mochila para a mercadora. */
+export function sellItems(
+  estado: GameState,
+  content: GameContent,
+  uids: readonly string[],
+): GameResult<{ ouro: number }> {
+  const vender = estado.mochila.filter((i) => uids.includes(i.uid));
+  if (vender.length === 0) return { erro: 'Nada para vender.' };
+  const novo = structuredClone(estado);
+  const ouro = vender.reduce((s, i) => s + sellValue(content, i), 0);
+  novo.mochila = novo.mochila.filter((i) => !uids.includes(i.uid));
+  novo.ouro += ouro;
+  return { estado: novo, ouro };
+}
+
+export function buyPotions(estado: GameState, content: GameContent, qtd: number): GameResult {
+  const p = content.itens.pocao;
+  const n = Math.min(Math.floor(qtd), p.maximo - estado.pocoes);
+  if (n <= 0) return { erro: `Você já carrega o máximo de ${p.maximo} poções.` };
+  if (estado.ouro < n * p.preco) return { erro: 'Ouro insuficiente.' };
+  const novo = structuredClone(estado);
+  novo.pocoes += n;
+  novo.ouro -= n * p.preco;
+  return { estado: novo };
+}
+
+/** Gasta uma poção (a cura acontece no mapa). */
+export function consumePotion(estado: GameState): GameResult {
+  if (estado.pocoes <= 0) return { erro: 'Sem poções. Compre na mercadora do Posto.' };
+  return { estado: { ...structuredClone(estado), pocoes: estado.pocoes - 1 } };
+}
+
+/** Mochila → baú. */
+export function storeItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const item = estado.mochila.find((i) => i.uid === uid);
+  if (!item) return { erro: 'Item não está na mochila.' };
+  if (estado.bau.length >= content.itens.capacidadeBau) return { erro: 'O baú está cheio.' };
+  const novo = structuredClone(estado);
+  novo.mochila = novo.mochila.filter((i) => i.uid !== uid);
+  novo.bau.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** Baú → mochila. */
+export function retrieveItem(estado: GameState, content: GameContent, uid: string): GameResult {
+  const item = estado.bau.find((i) => i.uid === uid);
+  if (!item) return { erro: 'Item não está no baú.' };
+  if (estado.mochila.length >= content.itens.capacidadeMochila) return { erro: 'Mochila cheia.' };
+  const novo = structuredClone(estado);
+  novo.bau = novo.bau.filter((i) => i.uid !== uid);
+  novo.mochila.push(structuredClone(item));
+  return { estado: novo };
+}
+
+/** O caçador caiu no mapa: perde a mochila. Equipamento, baú, XP e poções ficam. */
+export function dieInMap(estado: GameState): GameResult<{ perdidos: number }> {
+  const novo = structuredClone(estado);
+  const perdidos = novo.mochila.length;
+  novo.mochila = [];
+  return { estado: novo, perdidos };
 }

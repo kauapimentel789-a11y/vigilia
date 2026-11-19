@@ -54,3 +54,31 @@ describe('integridade do conteúdo', () => {
     expect(C.portais[C.ordemPortais.at(-1)!]!.chefe).toBe(true);
   });
 });
+
+describe('mapas', () => {
+  it('todos os mapas carregam, com monstros, portais e portões válidos', async () => {
+    const { CONTEUDO } = await import('../../src/content/index.ts');
+    const { createWorld } = await import('../../src/engine/realtime/world.ts');
+    const { buildProfile } = await import('../../src/engine/hunter/stats.ts');
+    const { createHunter } = await import('../../src/engine/hunter/hunter.ts');
+    const perfil = buildProfile(createHunter(CONTEUDO), CONTEUDO);
+    for (const m of Object.values(CONTEUDO.mapas)) {
+      const w = createWorld(CONTEUDO, m.id, perfil, 1);
+      expect(w.atores.length).toBeGreaterThan(m.tipo === 'portal' ? 5 : 0);
+      if (m.portal) expect(CONTEUDO.portais[m.portal]).toBeDefined();
+      for (const g of Object.values(m.legenda.portoes ?? {}))
+        expect(CONTEUDO.mapas[g.destino]).toBeDefined();
+      if (m.tipo === 'portal') expect(w.atores.filter((a) => a.chefe)).toHaveLength(1);
+    }
+    expect(CONTEUDO.mapas[CONTEUDO.mapaInicial]?.tipo).toBe('posto');
+  });
+
+  it('todo portal tem mapa e tabela de saque', async () => {
+    const { CONTEUDO } = await import('../../src/content/index.ts');
+    for (const id of CONTEUDO.ordemPortais) {
+      expect(Object.values(CONTEUDO.mapas).some((m) => m.portal === id)).toBe(true);
+      const faixas = CONTEUDO.itens.saquePorPortal[id] ?? [];
+      expect(Object.values(CONTEUDO.itens.bases).some((b) => faixas.includes(b.nivel))).toBe(true);
+    }
+  });
+});

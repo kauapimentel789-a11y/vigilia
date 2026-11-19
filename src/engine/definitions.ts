@@ -102,6 +102,8 @@ export interface EnemyActionDef {
   efeitos: Effect[];
   /** Golpe forte: a regra "Guarda contra golpe forte" reage a ele. */
   forte?: boolean;
+  /** Mapa: raio da área avisada no chão de um golpe forte (0 = só o tile do alvo). */
+  area?: number;
   /** Peso no sorteio, quando o padrão é aleatório. */
   peso?: number;
   /** Só é escolhida se houver outro inimigo vivo (ex.: proteger um aliado). */
@@ -120,6 +122,13 @@ export interface EnemyDef {
   acoes: EnemyActionDef[];
   /** Efeito único quando a vida cai abaixo da fração indicada (ex.: fúria). */
   especial?: { abaixoDe: number; anuncio: string; efeitos: Effect[] };
+  /** Mapa: XP e ouro por abate (antes da escala do portal). */
+  xp: number;
+  ouro: number;
+  /** Mapa: alcance de ataque em tiles (1 = corpo a corpo). */
+  alcance?: number;
+  /** Mapa: tempo para andar um tile, em ms. */
+  passoMs?: number;
 }
 
 export type RankId = 'cinza';
@@ -143,6 +152,116 @@ export interface PortalDef {
   chefe?: boolean;
 }
 
+/** Configuração do mundo jogável (mapas em tempo real). */
+export interface WorldDef {
+  /** Passo fixo da simulação em tempo real, em ms. */
+  tickMs: number;
+  /** Tempo do caçador para andar um tile, em ms (com velocidade 100). */
+  passoMsCacador: number;
+  passoMsMinimo: number;
+  /** Raio (em tiles) em que um monstro nota o caçador. */
+  visaoMonstro: number;
+  /** Distância do ponto de origem em que o monstro desiste de perseguir. */
+  coleira: number;
+  /** Tempo para um monstro comum renascer, em segundos. */
+  renascerS: number;
+  /** Raio revelado da névoa em volta do caçador. */
+  raioRevelado: number;
+  /** Tempo entre o aviso no chão e o golpe forte, em ms. */
+  preparoForteMs: number;
+  /** Monstros cuja origem está a esta distância entram juntos na luta. */
+  raioGrupo: number;
+  /** Multiplica o intervalo entre ataques dos monstros no mapa (1,5 = 50% mais lentos). */
+  ritmoMonstros: number;
+}
+
+export interface MapDef {
+  id: string;
+  nome: string;
+  tipo: 'posto' | 'portal';
+  /** Portal (da Caçada) que este mapa representa: define escala e recompensas. */
+  portal?: string;
+  /** Multiplicadores do chefe deste mapa (padrão: vida ×4, ataque ×1,3). */
+  chefe?: { vida: number; ataque: number };
+  linhas: string[];
+  legenda: {
+    monstros?: Record<string, string>;
+    chefes?: Record<string, string>;
+    portoes?: Record<string, { destino: string; rotulo: string }>;
+    /** Objetos: personagens do Posto ('mercadora', 'bau', 'altar', 'expedicao') ou 'tesouro'. */
+    objetos?: Record<string, string>;
+  };
+}
+
+/* ---------- Itens ---------- */
+
+export type SlotId = 'arma' | 'cabeca' | 'peito' | 'maos' | 'pes' | 'amuleto';
+export const SLOTS: readonly SlotId[] = ['arma', 'cabeca', 'peito', 'maos', 'pes', 'amuleto'];
+
+export type Raridade = 'comum' | 'incomum' | 'rara';
+export const RARIDADES: readonly Raridade[] = ['comum', 'incomum', 'rara'];
+
+/**
+ * O que um item pode somar. Frações (reducao, critico, danoCritico, poder,
+ * rouboVida) são escritas como 0,02 = 2%.
+ */
+export type ItemStatId =
+  | AtributoId
+  | 'vida'
+  | 'ataque'
+  | 'reducao'
+  | 'critico'
+  | 'danoCritico'
+  | 'velocidade'
+  | 'poder'
+  | 'rouboVida'
+  | 'venenoAoAcertar';
+
+export type ItemStats = Partial<Record<ItemStatId, number>>;
+
+export interface ItemBaseDef {
+  id: string;
+  nome: string;
+  slot: SlotId;
+  /** Faixa do item: decide em que portais ele cai e a força dos afixos. */
+  nivel: number;
+  stats: ItemStats;
+  /** Valor de venda na mercadora (Comum). */
+  valor: number;
+}
+
+export interface AffixDef {
+  id: string;
+  /** Sufixo mostrado no nome (ex.: "da Força"). */
+  nome: string;
+  stat: ItemStatId;
+  /** Faixa sorteada no nível 1. Cresce com o nível do item (`porNivel` por nível). */
+  min: number;
+  max: number;
+  porNivel: number;
+  /** Só aparece em itens destes espaços (ausente = todos). */
+  slots?: SlotId[];
+}
+
+export interface ItemsDef {
+  bases: Record<string, ItemBaseDef>;
+  afixos: Record<string, AffixDef>;
+  /** Peso de cada raridade no sorteio, multiplicador dos números base e quantos afixos ela tem. */
+  raridades: Record<
+    Raridade,
+    { peso: number; multBase: number; afixos: number; multValor: number }
+  >;
+  /** Chance de um monstro comum deixar um item. O chefe sempre deixa um, no mínimo Incomum. */
+  chanceDeSaque: number;
+  /** Faixas de item (ItemBaseDef.nivel) que caem em cada portal. */
+  saquePorPortal: Record<string, number[]>;
+  capacidadeMochila: number;
+  capacidadeBau: number;
+  /** Expedição: fração do saque de caçar ativamente e máximo de itens por coleta. */
+  expedicao: { fator: number; maximo: number };
+  pocao: { preco: number; curaPct: number; recargaS: number; maximo: number };
+}
+
 export interface GameContent {
   progressao: ProgressionDef;
   habilidades: Record<string, AbilityDef>;
@@ -150,4 +269,9 @@ export interface GameContent {
   portais: Record<string, PortalDef>;
   /** Ordem de exibição dos portais. */
   ordemPortais: string[];
+  mundo: WorldDef;
+  mapas: Record<string, MapDef>;
+  itens: ItemsDef;
+  /** Mapa onde o caçador começa e para onde volta ao morrer. */
+  mapaInicial: string;
 }

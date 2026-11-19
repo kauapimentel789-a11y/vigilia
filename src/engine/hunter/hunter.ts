@@ -5,6 +5,7 @@
  */
 import type { AtributoId, GameContent, ProgressionDef } from '../definitions.ts';
 import { ATRIBUTOS } from '../definitions.ts';
+import type { Equipamento } from '../items/items.ts';
 
 export type AlvoPreferido = 'menorVida' | 'maiorAtaque' | 'primeiro';
 export type RegraDefesa = 'pronta' | 'contraGolpeForte';
@@ -27,6 +28,8 @@ export interface HunterState {
   /** Habilidades equipadas, na ordem de prioridade. */
   equipadas: string[];
   comportamento: Comportamento;
+  /** Itens vestidos, um por espaço. */
+  equipamento: Equipamento;
 }
 
 export const COMPORTAMENTO_PADRAO: Comportamento = {
@@ -58,6 +61,7 @@ export function createHunter(content: GameContent): HunterState {
     niveisHabilidade: {},
     equipadas: iniciais,
     comportamento: { ...COMPORTAMENTO_PADRAO },
+    equipamento: {},
   };
 }
 

@@ -6,6 +6,7 @@ import {
   isPortalOpen,
   newGame,
   respec,
+  rewardKill,
   spendPoint,
   startExpedition,
   upgrade,
@@ -96,5 +97,26 @@ describe('caçador no jogo', () => {
     fightPortal(e, C, 'treino');
     startExpedition(e, C, 'treino', 0);
     expect(e).toEqual(copia);
+  });
+});
+
+describe('abates no mapa', () => {
+  it('paga XP e ouro do monstro sem alterar o estado antigo', () => {
+    const e = jogo();
+    const r = rewardKill(e, C, 'treino', { xp: 10, ouro: 4, chefe: false });
+    expect(r.recompensa).toMatchObject({ xp: 10, ouro: 4, primeiraVitoria: false });
+    expect(r.estado?.ouro).toBe(4);
+    expect(e.ouro).toBe(0);
+    expect(r.estado?.portaisFechados).toEqual([]);
+  });
+
+  it('o chefe fecha o portal e dá o bônus só na primeira vez', () => {
+    const r1 = rewardKill(jogo(), C, 'treino', { xp: 10, ouro: 4, chefe: true });
+    expect(r1.recompensa?.primeiraVitoria).toBe(true);
+    expect(r1.estado?.portaisFechados).toContain('treino');
+    expect(isPortalOpen(r1.estado!, C, 'ondas')).toBe(true);
+    const r2 = rewardKill(r1.estado!, C, 'treino', { xp: 10, ouro: 4, chefe: true });
+    expect(r2.recompensa?.primeiraVitoria).toBe(false);
+    expect(r2.recompensa?.xp).toBeLessThan(r1.recompensa!.xp);
   });
 });

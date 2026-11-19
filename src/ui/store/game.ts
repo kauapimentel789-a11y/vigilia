@@ -6,46 +6,51 @@
  */
 import { create } from 'zustand';
 import { CONTEUDO } from '../../content/index.ts';
-import type { AtributoId } from '../../engine/definitions.ts';
+import type { AtributoId, SlotId } from '../../engine/definitions.ts';
+import type { ItemInstance } from '../../engine/items/items.ts';
 import type { ExpeditionGains } from '../../engine/expedition/expedition.ts';
 import { accruedGains } from '../../engine/expedition/expedition.ts';
-import type { GameState, Reward } from '../../engine/game/game.ts';
+import type { GameState, KillReward } from '../../engine/game/game.ts';
 import {
   advanceTime,
   changeBehavior,
   collectExpedition,
   equip,
-  fightPortal,
   newGame,
   respec,
+  rewardKill,
+  pickUp,
+  equipItem,
+  unequipItem,
+  discardItem,
+  sellItems,
+  buyPotions,
+  consumePotion,
+  storeItem,
+  retrieveItem,
+  dieInMap,
   spendPoint,
   startExpedition,
   upgrade,
 } from '../../engine/game/game.ts';
 import type { Comportamento } from '../../engine/hunter/hunter.ts';
-import type { PortalBattleOutput } from '../../engine/autobattle/simulate.ts';
 import { clearSave, loadSave, writeSave } from './persist.ts';
 
 /** Ausência mínima para mostrar o relatório de retorno. */
 const AUSENCIA_MINIMA_MS = 60_000;
-
-export interface CombateAtual {
-  portal: string;
-  batalha: PortalBattleOutput;
-  recompensa: Reward;
-}
 
 export interface Relatorio {
   ganhos: ExpeditionGains;
   /** Já coletado (true) ou só uma prévia do que está esperando (false). */
   coletado: boolean;
   levelsGanhos: number;
+  itens?: ItemInstance[];
+  semEspaco: number;
 }
 
 interface Store {
   estado: GameState;
   aviso: string | null;
-  combate: CombateAtual | null;
   relatorio: Relatorio | null;
 
   avisar(texto: string | null): void;
@@ -54,8 +59,24 @@ interface Store {
   equipar(ids: string[]): void;
   melhorar(id: string): void;
   definirComportamento(c: Comportamento): void;
-  entrarNoPortal(id: string): void;
-  fecharCombate(): void;
+  /** Mapa: guarda um item achado. Devolve false se a mochila está cheia. */
+  pegarItem(item: ItemInstance): boolean;
+  equiparItem(uid: string): void;
+  desequipar(slot: SlotId): void;
+  descartar(uid: string): void;
+  vender(uids: string[]): void;
+  comprarPocoes(qtd: number): void;
+  /** Mapa: gasta uma poção. false se não há poções. */
+  gastarPocao(): boolean;
+  guardar(uid: string): void;
+  retirar(uid: string): void;
+  /** Mapa: o caçador caiu. Devolve quantos itens da mochila foram perdidos. */
+  morrer(): number;
+  /** Mapa: paga um abate. Devolve a recompensa para a tela mostrar. */
+  recompensarAbate(
+    portal: string,
+    abate: { xp: number; ouro: number; chefe: boolean },
+  ): KillReward | null;
   enviarExpedicao(portal: string): void;
   coletar(encerrar?: boolean): void;
   fecharRelatorio(): void;
@@ -85,6 +106,7 @@ function initial(): Pick<Store, 'estado' | 'aviso' | 'relatorio'> {
           ganhos: accruedGains(exp, agora, CONTEUDO, r.estado.cacador),
           coletado: false,
           levelsGanhos: 0,
+          semEspaco: 0,
         }
       : null;
   return { estado: r.estado, aviso: null, relatorio };
@@ -103,7 +125,6 @@ export const useGame = create<Store>()((set, get) => {
 
   return {
     ...initial(),
-    combate: null,
 
     avisar: (aviso) => set({ aviso }),
     gastarPonto: (a, delta) => apply(spendPoint(get().estado, CONTEUDO, a, delta)),
@@ -112,19 +133,49 @@ export const useGame = create<Store>()((set, get) => {
     melhorar: (id) => apply(upgrade(get().estado, CONTEUDO, id)),
     definirComportamento: (c) => apply(changeBehavior(get().estado, c)),
 
-    entrarNoPortal(id) {
-      const r = fightPortal(get().estado, CONTEUDO, id);
-      if (apply(r) && r.batalha && r.recompensa) {
-        set({ combate: { portal: id, batalha: r.batalha, recompensa: r.recompensa } });
-      }
+    pegarItem(item) {
+      const r = pickUp(get().estado, CONTEUDO, item);
+      if (r.erro !== undefined) return false;
+      set({ estado: r.estado });
+      return true;
     },
-    fecharCombate: () => set({ combate: null }),
+    equiparItem: (uid) => apply(equipItem(get().estado, CONTEUDO, uid)),
+    desequipar: (slot) => apply(unequipItem(get().estado, CONTEUDO, slot)),
+    descartar: (uid) => apply(discardItem(get().estado, uid)),
+    vender: (uids) => apply(sellItems(get().estado, CONTEUDO, uids)),
+    comprarPocoes: (qtd) => apply(buyPotions(get().estado, CONTEUDO, qtd)),
+    gastarPocao() {
+      const r = consumePotion(get().estado);
+      if (r.erro !== undefined) return false;
+      set({ estado: r.estado });
+      return true;
+    },
+    guardar: (uid) => apply(storeItem(get().estado, CONTEUDO, uid)),
+    retirar: (uid) => apply(retrieveItem(get().estado, CONTEUDO, uid)),
+    morrer() {
+      const r = dieInMap(get().estado);
+      if (r.erro !== undefined) return 0;
+      set({ estado: r.estado });
+      return r.perdidos;
+    },
+    recompensarAbate(portal, abate) {
+      const r = rewardKill(get().estado, CONTEUDO, portal, abate);
+      return apply(r) && r.recompensa ? r.recompensa : null;
+    },
 
     enviarExpedicao: (portal) => apply(startExpedition(get().estado, CONTEUDO, portal, Date.now())),
     coletar(encerrar = false) {
       const r = collectExpedition(get().estado, CONTEUDO, Date.now(), encerrar);
       if (apply(r) && r.ganhos) {
-        set({ relatorio: { ganhos: r.ganhos, coletado: true, levelsGanhos: r.levelsGanhos ?? 0 } });
+        set({
+          relatorio: {
+            ganhos: r.ganhos,
+            coletado: true,
+            levelsGanhos: r.levelsGanhos ?? 0,
+            itens: r.itens ?? [],
+            semEspaco: r.semEspaco ?? 0,
+          },
+        });
       }
     },
     fecharRelatorio: () => set({ relatorio: null }),
@@ -133,7 +184,6 @@ export const useGame = create<Store>()((set, get) => {
       clearSave();
       set({
         estado: newGame(CONTEUDO, semente(), Date.now()),
-        combate: null,
         relatorio: null,
         aviso: null,
       });

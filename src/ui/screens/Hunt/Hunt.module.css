@@ -1,0 +1,254 @@
+.tela {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: clamp(360px, 68vh, 680px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #05060a;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.topoEsq,
+.alvo {
+  position: absolute;
+  top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(11, 13, 20, 0.78);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.topoEsq {
+  left: var(--space-3);
+  min-width: 190px;
+}
+
+.alvo {
+  right: var(--space-3);
+  min-width: 170px;
+}
+
+.chefe {
+  color: var(--color-ember);
+  font-weight: 600;
+}
+
+.barra {
+  position: relative;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.barra em {
+  position: absolute;
+  inset: 0;
+  font-style: normal;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  line-height: 16px;
+  text-align: center;
+}
+
+.vida,
+.vidaAlvo {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--color-ok);
+  transition: width 120ms linear;
+}
+
+.vidaAlvo {
+  background: var(--color-health);
+}
+
+.bloq {
+  color: var(--color-block);
+}
+
+.mensagem {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  padding: var(--space-2) var(--space-4);
+  background: rgba(11, 13, 20, 0.88);
+  border: 1px solid var(--color-arcane);
+  border-radius: var(--radius-md);
+  text-align: center;
+  pointer-events: none;
+}
+
+.habilidades {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.hab {
+  position: relative;
+  width: 76px;
+  height: 64px;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  background: rgba(21, 25, 38, 0.92);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.hab:hover:not(:disabled) {
+  border-color: var(--color-arcane);
+}
+
+.tecla {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.habNome {
+  font-size: 0.68rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.recarga {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.62);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.ajuda {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.caido {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: clamp(360px, 68vh, 680px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: rgba(20, 4, 10, 0.72);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.caido h2 {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.caido p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.botao {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-arcane);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: #0b0d14;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .canvas,
+  .caido {
+    height: 52vh;
+  }
+  .ajuda {
+    display: none;
+  }
+  .topoEsq {
+    min-width: 0;
+  }
+  .alvo {
+    top: 4.6rem;
+    left: var(--space-3);
+    right: auto;
+  }
+  .hab {
+    width: 64px;
+    height: 56px;
+  }
+}
+
+.ligado {
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+
+.joystick {
+  display: none;
+  position: absolute;
+  left: var(--space-4);
+  bottom: calc(100% - clamp(360px, 68vh, 680px) + var(--space-4));
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 124, 246, 0.12);
+  border: 1px solid rgba(139, 124, 246, 0.45);
+  border-radius: 50%;
+  touch-action: none;
+  z-index: 2;
+}
+
+.pino {
+  width: 44px;
+  height: 44px;
+  background: rgba(139, 124, 246, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .joystick {
+    display: flex;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  .joystick {
+    bottom: calc(100% - 52vh + var(--space-4));
+  }
+}
