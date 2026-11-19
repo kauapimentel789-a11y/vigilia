@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, restoreRng } from '../../../src/engine/core';
+import { createRng, restoreRng } from '../../../src/engine/core/index.ts';
 
 const sequence = (seed: number, length = 10) => {
   const rng = createRng(seed);

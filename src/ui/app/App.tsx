@@ -1,4 +1,4 @@
-import { createRng } from '../../engine/core';
+import { createRng } from '../../engine/core/index.ts';
 import styles from './App.module.css';
 
 const DEMO_SEED = 42;

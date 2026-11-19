@@ -1,4 +1,4 @@
-import type { Seed } from './types';
+import type { Seed } from './types.ts';
 
 /**
  * Gerador de números aleatórios determinístico (algoritmo mulberry32).
