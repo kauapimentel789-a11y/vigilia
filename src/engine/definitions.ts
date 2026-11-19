@@ -171,6 +171,8 @@ export interface WorldDef {
   preparoForteMs: number;
   /** Monstros cuja origem está a esta distância entram juntos na luta. */
   raioGrupo: number;
+  /** Multiplica o intervalo entre ataques dos monstros no mapa (1,5 = 50% mais lentos). */
+  ritmoMonstros: number;
 }
 
 export interface MapDef {

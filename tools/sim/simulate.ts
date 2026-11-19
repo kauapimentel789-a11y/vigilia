@@ -26,6 +26,8 @@ import { calculateRate } from '../../src/engine/expedition/expedition.ts';
 import { abilityLevel, isUnlocked, upgradeCost } from '../../src/engine/hunter/abilities.ts';
 import { gainXp } from '../../src/engine/hunter/hunter.ts';
 import { buildProfile } from '../../src/engine/hunter/stats.ts';
+import { createWorld, stepWorld } from '../../src/engine/realtime/world.ts';
+import { autoHuntInput } from '../../src/engine/realtime/auto.ts';
 
 const C: GameContent = CONTEUDO;
 const ORDEM_EQUILIBRADA: AtributoId[] = [
@@ -185,5 +187,39 @@ for (const [lv, portal] of [
   console.log(
     `  level ${lv} em ${C.portais[portal]!.nome}: vitória ${pct(taxa.vitoria)}, ${Math.round(taxa.lutasPorHora)} lutas/h → +${r.ganhos.xp} XP, +${r.ganhos.ouro} ouro, +${r.levelsGanhos} levels`,
   );
+}
+
+// 5. Mapas em tempo real com auto-caçar (sem itens vestidos, 5 poções).
+console.log('\n5) Mapas jogáveis com auto-caçar: 10 min de jogo, sem equipamento, 5 poções');
+console.log('  mapa       level | chefe        abates/h  itens/h  XP bruto/h  caiu');
+for (const portal of C.ordemPortais) {
+  const mapa = Object.values(C.mapas).find((m) => m.portal === portal)!;
+  const rec = C.portais[portal]!.levelRecomendado;
+  for (const lv of [rec, rec + 3]) {
+    const perfil = buildProfile(prepare(levelUpTo(lv)).cacador, C);
+    const w = createWorld(C, mapa.id, perfil, 1234 + lv);
+    let pocoes = 5;
+    let abates = 0;
+    let xp = 0;
+    let itens = 0;
+    let chefeEm = -1;
+    const passos = (10 * 60 * 1000) / C.mundo.tickMs;
+    for (let i = 0; i < passos && !w.heroiCaido; i++) {
+      const ev = stepWorld(w, C, perfil, autoHuntInput(w, C, perfil, { pocoes }));
+      for (const e of ev) {
+        if (e.tipo === 'pocao') pocoes--;
+        if (e.tipo === 'saque') itens++;
+        if (e.tipo === 'abate') {
+          abates++;
+          xp += e.xp;
+          if (e.chefe && chefeEm < 0) chefeEm = w.t;
+        }
+      }
+    }
+    const horas = w.t / 3_600_000;
+    console.log(
+      `  ${mapa.nome.padEnd(10)} ${String(lv).padStart(5)} | ${(chefeEm >= 0 ? `em ${min(chefeEm / 1000)}` : 'não').padEnd(12)} ${String(Math.round(abates / horas)).padStart(8)} ${String(Math.round(itens / horas)).padStart(8)} ${String(Math.round(xp / horas)).padStart(11)}  ${w.heroiCaido ? `sim, ${min(w.t / 1000)}` : 'não'}`,
+    );
+  }
 }
 console.log('');

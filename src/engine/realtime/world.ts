@@ -166,7 +166,7 @@ export function createWorld(
       critico: 0,
       danoCritico: 1,
       passoMs: e.passoMs ?? 450,
-      atkIntervalo: attackInterval(content, e.velocidade),
+      atkIntervalo: Math.round(attackInterval(content, e.velocidade) * content.mundo.ritmoMonstros),
       alcance: e.alcance ?? 1,
       xp: Math.round(e.xp * escala.vida * mult.recompensa),
       ouro: Math.round(e.ouro * escala.vida * mult.recompensa),

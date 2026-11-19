@@ -134,7 +134,7 @@ export const TEST_CONTENT: GameContent = {
       id: 'grupo',
       nome: 'Grupo',
       tipo: 'portal',
-      linhas: ['############', '#@.....b.#b#', '############'],
+      linhas: ['##########', '#@....b#b#', '##########'],
       legenda: { monstros: { b: 'brutamontes' } },
     },
     tesouro: {
