@@ -7,12 +7,13 @@
  */
 import type { GameContent } from '../definitions.ts';
 import type { HunterProfile } from '../hunter/stats.ts';
-import { loadMap } from './world.ts';
+import { actorEnemyDef, loadMap } from './world.ts';
 import type { RtActor, RtInput, WorldState } from './state.ts';
 import { HEROI } from './state.ts';
 import { DIRECOES, canStep } from '../world/path.ts';
 import type { WorldMap } from '../world/map.ts';
 import { chebyshev } from '../world/map.ts';
+import { hasLineOfSight } from '../world/los.ts';
 
 export interface AutoOptions {
   /** Poções disponíveis. */
@@ -142,12 +143,13 @@ export function autoHuntInput(
 
   // 4. Habilidades, na ordem de prioridade.
   const c = perfil.comportamento;
-  const perto = chebyshev(alvo.x, alvo.y, h.x, h.y) <= h.alcance;
+  const perto =
+    chebyshev(alvo.x, alvo.y, h.x, h.y) <= h.alcance && hasLineOfSight(m, h.x, h.y, alvo.x, alvo.y);
   const forteVindo = monstros.some(
     (a) =>
       a.preparo ||
       (a.intencao &&
-        content.inimigos[a.defId]?.acoes.find((x) => x.id === a.intencao)?.forte &&
+        actorEnemyDef(content, a).acoes.find((x) => x.id === a.intencao)?.forte &&
         chebyshev(a.x, a.y, h.x, h.y) <= a.alcance + 1),
   );
   for (let i = 0; i < perfil.habilidades.length; i++) {
@@ -161,7 +163,8 @@ export function autoHuntInput(
       const usaAlvo = hab.def.efeitos.some((e) => e.alvo === 'alvo');
       const area = hab.def.efeitos.some((e) => e.alvo === 'inimigos');
       if (usaAlvo && !perto) continue;
-      if (area && !monstros.some((a) => chebyshev(a.x, a.y, h.x, h.y) <= 1)) continue;
+      if (area && !monstros.some((a) => chebyshev(a.x, a.y, h.x, h.y) <= (hab.def.raio ?? 1)))
+        continue;
     }
     return { habilidade: i };
   }

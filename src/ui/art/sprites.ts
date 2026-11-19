@@ -210,6 +210,19 @@ export const APARENCIA: Record<string, Aparencia> = {
   arauto: { forma: 'manto', cor: '#ffcf5a', detalhe: '#b0402a' },
 };
 
+/** Visual do caçador conforme a classe. */
+export const APARENCIA_CLASSE: Record<string, Aparencia> = {
+  vigia: { forma: 'cacador', cor: '#3a3550', detalhe: '#6c5ce7', olhos: '#d9d3ff' },
+  guardiao: { forma: 'armadura', cor: '#5a7fb8', detalhe: '#e8c65a', olhos: '#d9ecff' },
+  arcanista: { forma: 'manto', cor: '#4a3a8a', detalhe: '#7fd8ff', olhos: '#d9f6ff' },
+  lamina: { forma: 'cacador', cor: '#24202e', detalhe: '#c04a6a', olhos: '#ff8aa8' },
+  atiradora: { forma: 'arqueiro', cor: '#4f7a4a', detalhe: '#d8c08a', olhos: '#f4ffd9' },
+};
+
+export function aparenciaDaClasse(classe: string | undefined): Aparencia {
+  return APARENCIA_CLASSE[classe ?? 'vigia'] ?? APARENCIA.cacador!;
+}
+
 /** Unidades da Arena (ids próprios). */
 export const APARENCIA_ARENA: Record<string, Aparencia> = {
   vigiaDeCinza: { forma: 'armadura', cor: '#9aa3b5', detalhe: '#5c6280' },

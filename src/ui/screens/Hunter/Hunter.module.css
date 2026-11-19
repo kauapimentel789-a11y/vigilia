@@ -103,3 +103,82 @@
 .seloVazio {
   opacity: 0.5;
 }
+
+.classePainel {
+  grid-column: 1 / -1;
+}
+
+.classeAtual {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.classeAtual p {
+  margin: var(--space-1) 0 0;
+}
+
+.classeAtual h2 {
+  margin: 0 var(--space-2) 0 0;
+  display: inline-block;
+}
+
+.subtitulo {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.classes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.classe {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 120ms,
+    border-color 120ms;
+}
+
+.classe:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-arcane);
+}
+
+.classe small {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.classeAtiva {
+  border-color: var(--color-arcane);
+  box-shadow:
+    0 0 0 1px var(--color-arcane),
+    0 0 14px rgba(139, 124, 246, 0.35);
+}
+
+@media (max-width: 560px) {
+  .classes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

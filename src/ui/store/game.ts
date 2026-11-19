@@ -6,12 +6,13 @@
  */
 import { create } from 'zustand';
 import { CONTEUDO } from '../../content/index.ts';
-import type { AtributoId, SlotId } from '../../engine/definitions.ts';
+import type { AtributoId, ClasseId, SlotId } from '../../engine/definitions.ts';
 import type { ItemInstance } from '../../engine/items/items.ts';
 import type { ExpeditionGains } from '../../engine/expedition/expedition.ts';
 import { accruedGains } from '../../engine/expedition/expedition.ts';
 import type { GameState, KillReward } from '../../engine/game/game.ts';
 import {
+  changeClass,
   advanceTime,
   changeBehavior,
   collectExpedition,
@@ -68,6 +69,7 @@ interface Store {
   gastarPonto(a: AtributoId, delta: number): void;
   redistribuir(): void;
   equipar(ids: string[]): void;
+  escolherClasse(classe: ClasseId): void;
   melhorar(id: string): void;
   definirComportamento(c: Comportamento): void;
   /** Mapa: guarda um item achado. Devolve false se a mochila está cheia. */
@@ -157,6 +159,7 @@ export const useGame = create<Store>()((set, get) => {
     gastarPonto: (a, delta) => apply(spendPoint(get().estado, CONTEUDO, a, delta)),
     redistribuir: () => apply(respec(get().estado, CONTEUDO)),
     equipar: (ids) => apply(equip(get().estado, CONTEUDO, ids)),
+    escolherClasse: (classe) => apply(changeClass(get().estado, CONTEUDO, classe)),
     melhorar: (id) => apply(upgrade(get().estado, CONTEUDO, id)),
     definirComportamento: (c) => apply(changeBehavior(get().estado, c)),
 

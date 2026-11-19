@@ -127,8 +127,14 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     !Array.isArray(reg.comandos)
   )
     e.arena.registro = null;
+  if (e.cacador.classe !== undefined && !content.classes[e.cacador.classe])
+    e.cacador.classe = 'vigia';
+  const classe = e.cacador.classe ?? 'vigia';
   e.cacador.equipadas = e.cacador.equipadas
-    .filter((id) => content.habilidades[id])
+    .filter((id) => {
+      const h = content.habilidades[id];
+      return h && (!h.classe || h.classe === classe);
+    })
     .slice(0, content.progressao.espacosDeHabilidade);
   if (e.expedicao && !content.portais[e.expedicao.portal]) e.expedicao = null;
   // Itens cuja base saiu do conteúdo somem; afixos desconhecidos são ignorados.

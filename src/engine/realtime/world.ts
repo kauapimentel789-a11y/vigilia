@@ -135,7 +135,7 @@ export function createWorld(
     danoCritico: s.danoCritico,
     passoMs: heroPasso(content, s.velocidade),
     atkIntervalo: attackInterval(content, s.velocidade),
-    alcance: 1,
+    alcance: s.alcance,
     xp: 0,
     ouro: 0,
     chefe: false,
@@ -222,6 +222,7 @@ export function applyProfile(w: WorldState, content: GameContent, perfil: Hunter
   h.danoCritico = s.danoCritico;
   h.passoMs = heroPasso(content, s.velocidade);
   h.atkIntervalo = attackInterval(content, s.velocidade);
+  h.alcance = s.alcance;
   for (const hab of perfil.habilidades) w.recargas[hab.def.id] ??= 0;
 }
 
@@ -400,7 +401,7 @@ function createHost(ctx: StepCtx): EffectHost<RtActor> {
         case 'inimigos':
           // O caçador acerta os monstros em volta; um monstro acerta o caçador.
           return u.lado === 'cacador'
-            ? monstersNear(ctx, u.x, u.y, 1)
+            ? monstersNear(ctx, u.x, u.y, ctx.content.habilidades[origem.fonte]?.raio ?? 1)
             : vivo(ctx.heroi)
               ? [ctx.heroi]
               : [];
@@ -521,7 +522,7 @@ function useAbility(ctx: StepCtx, host: EffectHost<RtActor>, slot: number): void
   }
   if (
     hab.def.efeitos.some((e) => e.alvo === 'inimigos') &&
-    monstersNear(ctx, h.x, h.y, 1).length === 0
+    monstersNear(ctx, h.x, h.y, hab.def.raio ?? 1).length === 0
   ) {
     emit(ctx, { tipo: 'aviso', texto: 'Nenhum inimigo por perto.' });
     return;
@@ -621,7 +622,9 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
       andou = followPath(ctx, h);
     } else if (alvo && !inRange(ctx, h, alvo, h.alcance) && h.recalcular <= 0) {
       h.recalcular = 300;
-      pathTowards(ctx, h, alvo.x, alvo.y, h.alcance);
+      // Perto o bastante mas sem linha de visão (parede no meio): chega mais perto.
+      const semVisao = chebyshev(h.x, h.y, alvo.x, alvo.y) <= h.alcance;
+      pathTowards(ctx, h, alvo.x, alvo.y, semVisao ? 1 : h.alcance);
       andou = followPath(ctx, h);
     }
     if (andou) {

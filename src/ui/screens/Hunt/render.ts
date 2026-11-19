@@ -10,10 +10,10 @@ import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
 import { actorEnemyDef, loadMap } from '../../../engine/realtime/world.ts';
 import type { WorldMap } from '../../../engine/world/map.ts';
 import { Tile } from '../../../engine/world/map.ts';
-import type { Sessao } from './session.ts';
+import type { Magia, Sessao } from './session.ts';
 import { isPortalOpen } from '../../../engine/game/game.ts';
 import { useGame } from '../../store/game.ts';
-import { APARENCIA, drawSprite } from '../../art/sprites.ts';
+import { APARENCIA, aparenciaDaClasse, drawSprite } from '../../art/sprites.ts';
 
 export const TILE = 36;
 
@@ -64,6 +64,11 @@ const TEMAS: Record<string, Partial<typeof COR_BASE>> = {
 
 let COR = COR_BASE;
 
+/** Canvas de apoio para a escuridão com várias luzes. */
+let escuro: HTMLCanvasElement | null = null;
+/** O mapa desenhado agora é o Posto (sem ossos no chão). */
+let ehPosto = false;
+
 const COR_RARIDADE_ITEM = { comum: '#c9cedd', incomum: '#4fa3c7', rara: '#b07cf6' } as const;
 
 /** Hash estável por tile, para os detalhes do chão não piscarem. */
@@ -105,23 +110,46 @@ function drawTile(
   const tile = m.tiles[y * m.largura + x];
   const r = hash(x, y);
   if (tile === Tile.Parede) {
-    const topo = TILE * 0.66;
+    const topo = TILE * 0.62;
+    const abaixo = y + 1 < m.altura ? m.tiles[(y + 1) * m.largura + x] : Tile.Parede;
+    const faceVisivel = abaixo !== Tile.Parede;
+    // Topo da parede: pedra mais clara com textura.
     ctx.fillStyle = COR.paredeTopo;
-    ctx.fillRect(px, py, TILE, topo);
-    ctx.fillStyle = COR.paredeFace;
-    ctx.fillRect(px, py + topo, TILE, TILE - topo);
-    // Juntas das pedras na face.
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    const desloc = y % 2 === 0 ? 0 : TILE / 2;
-    ctx.fillRect(px + ((desloc + TILE / 4) % TILE), py + topo, 2, TILE - topo);
-    ctx.fillRect(px + ((desloc + (3 * TILE) / 4) % TILE), py + topo, 2, TILE - topo);
+    ctx.fillRect(px, py, TILE, faceVisivel ? topo : TILE);
+    ctx.fillStyle = 'rgba(255,255,255,0.035)';
+    ctx.fillRect(px + 3 + r * 12, py + 4 + r * 9, 9, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(px + 18 - r * 10, py + 12 + r * 6, 7, 3);
+    if (faceVisivel) {
+      // Face: tijolos em fileiras desencontradas, mais escuros embaixo.
+      const fh = TILE - topo;
+      ctx.fillStyle = COR.paredeFace;
+      ctx.fillRect(px, py + topo, TILE, fh);
+      ctx.fillStyle = 'rgba(0,0,0,0.38)';
+      const fileira = fh / 2;
+      ctx.fillRect(px, py + topo + fileira, TILE, 1);
+      for (let f = 0; f < 2; f++) {
+        const des = (x + f) % 2 === 0 ? 0 : TILE / 3;
+        for (let k = 0; k < 3; k++) {
+          const bx = px + ((des + (k * TILE) / 1.5) % TILE);
+          ctx.fillRect(bx, py + topo + f * fileira, 1, fileira);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(px, py + topo, TILE, 1);
+      const g = ctx.createLinearGradient(0, py + topo, 0, py + TILE);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = g;
+      ctx.fillRect(px, py + topo, TILE, fh);
+      // Tocha presa na parede (algumas paredes).
+      if (temTocha(m, x, y)) drawTocha(ctx, px + TILE / 2, py + topo + 2, t, r);
+    }
     // Borda iluminada no topo, só onde não há outra parede acima.
     if (y === 0 || m.tiles[(y - 1) * m.largura + x] !== Tile.Parede) {
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
       ctx.fillRect(px, py, TILE, 2);
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.04)';
-    ctx.fillRect(px + 4 + r * 14, py + 6 + r * 8, 7, 3);
     return;
   }
   if (tile === Tile.Agua) {
@@ -147,14 +175,27 @@ function drawTile(
     ctx.stroke();
     return;
   }
+  // Lajes de pedra com tom variado, chanfro claro em cima e escuro embaixo.
   ctx.fillStyle = (x + y) % 2 === 0 ? COR.chao : COR.chaoB;
   ctx.fillRect(px, py, TILE, TILE);
-  // Lajes de pedra: juntas finas, desencontradas a cada fileira.
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillStyle = r < 0.5 ? `rgba(255,255,255,${r * 0.05})` : `rgba(0,0,0,${(r - 0.5) * 0.14})`;
+  ctx.fillRect(px, py, TILE, TILE);
+  ctx.fillStyle = 'rgba(0,0,0,0.26)';
+  ctx.fillRect(px, py + TILE - 1, TILE, 1);
+  ctx.fillRect(px + TILE - 1, py, 1, TILE);
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
   ctx.fillRect(px, py, TILE, 1);
-  ctx.fillRect(px + (y % 2 === 0 ? 0 : TILE / 2), py, 1, TILE);
-  ctx.fillStyle = 'rgba(255,255,255,0.025)';
-  ctx.fillRect(px, py + 1, TILE, 1);
+  ctx.fillRect(px, py, 1, TILE);
+  // Rachadura em algumas lajes.
+  if (r > 0.62 && r < 0.72) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + 6 + r * 10, py + 5);
+    ctx.lineTo(px + 14, py + 15 + r * 4);
+    ctx.lineTo(px + 11 + r * 8, py + 27);
+    ctx.stroke();
+  }
   if (tile === Tile.Objeto) {
     drawObject(ctx, m.objetos[y * m.largura + x] ?? '', px, py, t, aberto);
     return;
@@ -164,15 +205,14 @@ function drawTile(
     ctx.fillStyle = COR.paredeSombra;
     ctx.fillRect(px, py, TILE, 7);
   }
-  if (tile === Tile.ChaoDetalhe || r > 0.86) {
-    ctx.fillStyle = COR.detalhe;
-    const n = tile === Tile.ChaoDetalhe ? 3 : 1;
-    for (let i = 0; i < n; i++) {
-      const rx = hash(x * 7 + i, y * 13 - i);
-      const ry = hash(y * 5 - i, x * 11 + i);
-      ctx.fillRect(px + 4 + rx * (TILE - 10), py + 4 + ry * (TILE - 10), 3, 2);
-    }
+  // Sombra das paredes vizinhas (canto mais escuro).
+  if (x > 0 && m.tiles[y * m.largura + x - 1] === Tile.Parede) {
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(px, py, 5, TILE);
   }
+  const enfeite = hash(x * 29 + 3, y * 31 + 7);
+  if ((tile === Tile.ChaoDetalhe && enfeite < 0.45) || enfeite > 0.93)
+    drawDecoracao(ctx, m, x, y, px, py, t, r);
   if (tile === Tile.Portao) {
     const pulso = 0.55 + 0.25 * Math.sin(t / 400);
     const cx = px + TILE / 2;
@@ -187,6 +227,120 @@ function drawTile(
     ctx.beginPath();
     ctx.ellipse(cx, cy, TILE * 0.32, TILE * 0.4, 0, 0, Math.PI * 2);
     ctx.stroke();
+  }
+}
+
+/** Paredes com tocha: face visível, chão embaixo e espaçadas pelo hash. */
+function temTocha(m: WorldMap, x: number, y: number): boolean {
+  if (y + 1 >= m.altura) return false;
+  const abaixo = m.tiles[(y + 1) * m.largura + x];
+  if (abaixo === Tile.Parede || abaixo === Tile.Agua) return false;
+  return hash(x * 3 + 17, y * 5 + 3) < 0.11;
+}
+
+function drawTocha(ctx: CanvasRenderingContext2D, cx: number, y: number, t: number, r: number) {
+  ctx.fillStyle = '#4a3424';
+  ctx.fillRect(cx - 2, y, 4, 9);
+  ctx.fillStyle = '#2a1d14';
+  ctx.fillRect(cx - 4, y + 7, 8, 2);
+  const f = Math.sin(t / 90 + r * 20) * 1.5;
+  const f2 = Math.sin(t / 57 + r * 11) * 1.2;
+  ctx.fillStyle = '#ff7a2c';
+  ctx.beginPath();
+  ctx.moveTo(cx - 4, y + 1);
+  ctx.quadraticCurveTo(cx - 3 + f2, y - 7, cx + f, y - 11);
+  ctx.quadraticCurveTo(cx + 4 + f2, y - 5, cx + 4, y + 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffd27a';
+  ctx.beginPath();
+  ctx.moveTo(cx - 2, y + 1);
+  ctx.quadraticCurveTo(cx - 1, y - 4, cx + f * 0.6, y - 7);
+  ctx.quadraticCurveTo(cx + 2, y - 3, cx + 2, y + 1);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Enfeites do chão: ossos, pedrinhas, cinza, mato seco, teias e brasas. */
+function drawDecoracao(
+  ctx: CanvasRenderingContext2D,
+  m: WorldMap,
+  x: number,
+  y: number,
+  px: number,
+  py: number,
+  t: number,
+  r: number,
+) {
+  const brasa = COR.agua !== COR_BASE.agua;
+  const posto = ehPosto;
+  let tipo = Math.floor(hash(x * 13 + 5, y * 7 + 1) * 5);
+  // Ossos são raros (e não aparecem no Posto).
+  if (tipo === 0 && (posto || hash(x * 3 + 2, y * 11) > 0.3)) tipo = 1;
+  const ox = px + 6 + hash(x, y * 3) * (TILE - 18);
+  const oy = py + 8 + hash(y, x * 5) * (TILE - 18);
+  const paredeAcima = y > 0 && m.tiles[(y - 1) * m.largura + x] === Tile.Parede;
+  const paredeEsq = x > 0 && m.tiles[y * m.largura + x - 1] === Tile.Parede;
+  if (paredeAcima && paredeEsq) {
+    // Teia no canto.
+    ctx.strokeStyle = 'rgba(220,220,235,0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i <= 3; i++) {
+      ctx.moveTo(px, py + i * 5);
+      ctx.quadraticCurveTo(px + i * 3, py + i * 3, px + i * 5, py);
+    }
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + 16, py + 16);
+    ctx.stroke();
+    return;
+  }
+  if (tipo === 0) {
+    // Osso.
+    ctx.fillStyle = '#cfc6b0';
+    ctx.fillRect(ox, oy + 2, 10, 2);
+    ctx.fillRect(ox - 1, oy + 1, 3, 4);
+    ctx.fillRect(ox + 9, oy + 1, 3, 4);
+  } else if (tipo === 1) {
+    // Pedrinhas.
+    ctx.fillStyle = COR.detalhe;
+    ctx.fillRect(ox, oy, 4, 3);
+    ctx.fillRect(ox + 6, oy + 3, 3, 2);
+    ctx.fillRect(ox + 2, oy + 6, 2, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(ox, oy, 4, 1);
+  } else if (tipo === 2) {
+    if (brasa) {
+      // Brasa no chão, pulsando.
+      const k = 0.5 + 0.5 * Math.sin(t / 400 + r * 9);
+      ctx.fillStyle = `rgba(255,${120 + k * 60},60,${0.5 + 0.4 * k})`;
+      ctx.fillRect(ox, oy, 3, 2);
+      ctx.fillRect(ox + 4, oy + 2, 2, 2);
+    } else {
+      // Mato seco.
+      ctx.strokeStyle = '#5a6a48';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        ctx.moveTo(ox + i * 2, oy + 7);
+        ctx.lineTo(ox + i * 2 + (i - 1.5), oy + 1 + (i % 2) * 2);
+      }
+      ctx.stroke();
+    }
+  } else if (tipo === 3) {
+    // Montinho de cinza.
+    ctx.fillStyle = brasa ? 'rgba(60,40,36,0.8)' : 'rgba(120,124,140,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(ox + 5, oy + 5, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Poça escura.
+    ctx.fillStyle = brasa ? 'rgba(90,20,10,0.4)' : 'rgba(10,20,35,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(ox + 6, oy + 6, 9, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(160,190,230,0.1)';
+    ctx.fillRect(ox + 2, oy + 4, 4, 1);
   }
 }
 
@@ -355,7 +509,9 @@ function drawActor(
   // Vira para o lado em que andou por último.
   if (a.moverTotal > 0 && a.x !== a.deX) OLHANDO_ESQUERDA.set(a.uid, a.x < a.deX);
   const tamanho = a.chefe ? TILE * 1.5 : TILE;
-  const ap = APARENCIA[heroi ? 'cacador' : a.defId] ?? APARENCIA.carnical!;
+  const ap = heroi
+    ? aparenciaDaClasse(useGame.getState().estado.cacador.classe)
+    : (APARENCIA[a.defId] ?? APARENCIA.carnical!);
   drawSprite(ctx, ap, x, cy + TILE * 0.42 + bob + an.dy, tamanho, {
     espelhar: OLHANDO_ESQUERDA.get(a.uid) ?? false,
     escalaX,
@@ -423,6 +579,224 @@ function stepProgress(a: RtActor, alpha: number, tickMs: number): number {
   return 1 - resta / a.moverTotal;
 }
 
+const DURACAO_MAGIA: Record<Magia['tipo'], number> = {
+  corte: 320,
+  projetil: 420,
+  nova: 480,
+  escudo: 900,
+  cura: 900,
+  chuva: 700,
+  explosao: 480,
+  sombra: 420,
+};
+
+/** Desenha os efeitos das habilidades do caçador (em coordenadas do mundo). */
+function drawMagias(
+  ctx: CanvasRenderingContext2D,
+  s: Sessao,
+  t: number,
+  heroiPos: [number, number],
+) {
+  s.magias = s.magias.filter((m) => t - m.nasceu < DURACAO_MAGIA[m.tipo]);
+  for (const m of s.magias) {
+    const k = (t - m.nasceu) / DURACAO_MAGIA[m.tipo];
+    const hx = (heroiPos[0] + 0.5) * TILE;
+    const hy = (heroiPos[1] + 0.5) * TILE;
+    const alvo = m.para ?? m.de;
+    const ax = (alvo[0] + 0.5) * TILE;
+    const ay = (alvo[1] + 0.5) * TILE;
+    ctx.save();
+    ctx.strokeStyle = m.cor;
+    ctx.fillStyle = m.cor;
+    ctx.shadowColor = m.cor;
+    ctx.shadowBlur = 12;
+    switch (m.tipo) {
+      case 'corte': {
+        // Dois cortes em meia-lua cruzando o alvo.
+        const ang = Math.atan2(ay - hy, ax - hx);
+        ctx.globalAlpha = 1 - k;
+        ctx.lineWidth = 5 * (1 - k) + 1;
+        for (const lado of [-1, 1]) {
+          ctx.beginPath();
+          const a0 = ang - 1.3 * lado + k * 1.6 * lado;
+          ctx.arc(ax, ay, TILE * 0.55, a0 - 0.9, a0 + 0.9);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'projetil': {
+        const fx = (m.de[0] + 0.5) * TILE;
+        const fy = (m.de[1] + 0.5) * TILE;
+        const voo = Math.min(1, k / 0.6);
+        if (voo < 1) {
+          const px = fx + (ax - fx) * voo;
+          const py = fy + (ay - fy) * voo - Math.sin(voo * Math.PI) * TILE * 0.3;
+          for (let i = 0; i < 5; i++) {
+            const r = voo - i * 0.05;
+            if (r < 0) break;
+            const tx = fx + (ax - fx) * r;
+            const ty = fy + (ay - fy) * r - Math.sin(r * Math.PI) * TILE * 0.3;
+            ctx.globalAlpha = 0.5 - i * 0.09;
+            ctx.beginPath();
+            ctx.arc(tx, ty, 5 - i * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.arc(px, py, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          const e = (k - 0.6) / 0.4;
+          ctx.globalAlpha = 1 - e;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(ax, ay, TILE * (0.2 + 0.6 * e), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'nova': {
+        // Anel que se abre do caçador até o raio da habilidade, com riscos.
+        const r = TILE * (0.4 + (m.raio + 0.3) * k);
+        ctx.globalAlpha = 1 - k;
+        ctx.lineWidth = 6 * (1 - k) + 1;
+        ctx.beginPath();
+        ctx.ellipse(hx, hy + TILE * 0.2, r, r * 0.6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 + m.semente * 6;
+          ctx.beginPath();
+          ctx.moveTo(hx + Math.cos(a) * r * 0.7, hy + TILE * 0.2 + Math.sin(a) * r * 0.42);
+          ctx.lineTo(hx + Math.cos(a) * r, hy + TILE * 0.2 + Math.sin(a) * r * 0.6);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'escudo': {
+        // Bolha hexagonal em volta do caçador.
+        const surge = Math.min(1, k * 5);
+        const some = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+        ctx.globalAlpha = 0.85 * some;
+        ctx.lineWidth = 2.5;
+        const r = TILE * 0.62 * (0.6 + 0.4 * surge) * (1 + 0.04 * Math.sin(t / 60));
+        ctx.beginPath();
+        for (let i = 0; i <= 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+          const x = hx + Math.cos(a) * r;
+          const y = hy - TILE * 0.1 + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 0.18 * some;
+        ctx.fill();
+        break;
+      }
+      case 'cura': {
+        // Cruzes subindo em volta do caçador.
+        ctx.shadowBlur = 8;
+        for (let i = 0; i < 6; i++) {
+          const fase = (k + i / 6) % 1;
+          const a = i * 1.7 + m.semente * 6;
+          const x = hx + Math.cos(a) * TILE * 0.45;
+          const y = hy + TILE * 0.3 - fase * TILE * 1.1;
+          ctx.globalAlpha = Math.sin(fase * Math.PI) * (1 - k * 0.5);
+          ctx.fillRect(Math.round(x - 1), Math.round(y - 4), 3, 9);
+          ctx.fillRect(Math.round(x - 4), Math.round(y - 1), 9, 3);
+        }
+        ctx.globalAlpha = 0.25 * (1 - k);
+        ctx.beginPath();
+        ctx.ellipse(hx, hy + TILE * 0.3, TILE * 0.6, TILE * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'chuva': {
+        // Riscos caindo na área em volta do caçador.
+        ctx.lineWidth = 2;
+        const n = 8 + m.raio * 5;
+        for (let i = 0; i < n; i++) {
+          const r1 = hash(i, Math.floor(m.semente * 1000));
+          const r2 = hash(i + 91, Math.floor(m.semente * 1000));
+          const atraso = r1 * 0.5;
+          const q = (k - atraso) / 0.5;
+          if (q < 0 || q > 1) continue;
+          const x = hx + (r2 * 2 - 1) * TILE * (m.raio + 0.5);
+          const chao = hy + (r1 * 2 - 1) * TILE * (m.raio + 0.5) * 0.7;
+          const y = chao - (1 - q) * TILE * 3;
+          ctx.globalAlpha = 1 - q * 0.3;
+          ctx.beginPath();
+          ctx.moveTo(x - 4, y - 14);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          if (q > 0.85) {
+            ctx.globalAlpha = (1 - q) * 4;
+            ctx.beginPath();
+            ctx.ellipse(x, chao, 7, 3, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+        break;
+      }
+      case 'explosao': {
+        ctx.globalAlpha = 1 - k;
+        const g = ctx.createRadialGradient(ax, ay, 0, ax, ay, TILE * (0.3 + 0.9 * k));
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.4, m.cor);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(ax, ay, TILE * (0.3 + 0.9 * k), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + m.semente * 3;
+          const r0 = TILE * (0.2 + 0.8 * k);
+          ctx.beginPath();
+          ctx.moveTo(ax + Math.cos(a) * r0, ay + Math.sin(a) * r0);
+          ctx.lineTo(ax + Math.cos(a) * (r0 + 10), ay + Math.sin(a) * (r0 + 10));
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'sombra': {
+        // Fumaça escura no caçador e dois cortes em X no alvo.
+        ctx.shadowBlur = 0;
+        for (let i = 0; i < 6; i++) {
+          const a = i + m.semente * 6;
+          ctx.globalAlpha = 0.4 * (1 - k);
+          ctx.fillStyle = '#120d1c';
+          ctx.beginPath();
+          ctx.arc(
+            hx + Math.cos(a) * TILE * 0.3 * (1 + k),
+            hy + Math.sin(a) * TILE * 0.2 - k * TILE * 0.4,
+            TILE * 0.18 * (1 + k),
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
+        ctx.shadowBlur = 12;
+        ctx.globalAlpha = 1 - k;
+        ctx.lineWidth = 3;
+        const d = TILE * 0.45 * Math.min(1, k * 3);
+        ctx.beginPath();
+        ctx.moveTo(ax - d, ay - d);
+        ctx.lineTo(ax + d, ay + d);
+        ctx.moveTo(ax + d, ay - d);
+        ctx.lineTo(ax - d, ay + d);
+        ctx.stroke();
+        break;
+      }
+    }
+    ctx.restore();
+  }
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   s: Sessao,
@@ -433,6 +807,7 @@ export function render(
   const t = s.agora;
   const def = CONTEUDO.mapas[s.w.mapa]!;
   COR = { ...COR_BASE, ...TEMAS[def.tema ?? 'cinza'] };
+  ehPosto = def.tipo === 'posto';
   const m = loadMap(def);
   const tick = CONTEUDO.mundo.tickMs;
   const heroi = heroOf(s.w);
@@ -619,31 +994,68 @@ export function render(
   }
   ctx.globalAlpha = 1;
 
-  // Luz e sombra: um círculo de luz suave em volta do caçador, que treme como
-  // tocha. Fora dele, o mapa já visto fica na penumbra, sem bordas de tile.
+  // Luz e sombra: a escuridão cobre o mapa, com buracos de luz suaves em volta
+  // do caçador e de cada tocha. Tudo tremula de leve, como fogo.
   {
     const lx = (hx + 0.5) * TILE;
     const ly = (hy + 0.5) * TILE;
     const tocha = 1 + 0.018 * Math.sin(t / 170) + 0.012 * Math.sin(t / 61 + 1.3);
-    const dentro = TILE * 3.2 * tocha;
-    const fora = TILE * (raio + 0.3) * tocha;
-    const g = ctx.createRadialGradient(lx, ly, dentro, lx, ly, fora);
-    g.addColorStop(0, `rgba(${COR.sombra},0)`);
-    g.addColorStop(0.5, `rgba(${COR.sombra},0.22)`);
-    g.addColorStop(0.82, `rgba(${COR.sombra},0.6)`);
-    g.addColorStop(1, `rgba(${COR.sombra},0.82)`);
-    ctx.fillStyle = g;
     const margem = TILE * 2;
-    ctx.fillRect(cam.x - margem, cam.y - margem, cam.largura + margem * 2, cam.altura + margem * 2);
-    // Calor da tocha bem perto do caçador.
+    const w = Math.ceil(cam.largura + margem * 2);
+    const h = Math.ceil(cam.altura + margem * 2);
+    const ox = cam.x - margem;
+    const oy = cam.y - margem;
+    if (!escuro) escuro = document.createElement('canvas');
+    if (escuro.width !== w || escuro.height !== h) {
+      escuro.width = w;
+      escuro.height = h;
+    }
+    const e = escuro.getContext('2d')!;
+    e.globalCompositeOperation = 'source-over';
+    e.clearRect(0, 0, w, h);
+    e.fillStyle = `rgba(${COR.sombra},0.84)`;
+    e.fillRect(0, 0, w, h);
+    e.globalCompositeOperation = 'destination-out';
+    const furo = (x: number, y: number, r0: number, r1: number, forca: number) => {
+      const g = e.createRadialGradient(x - ox, y - oy, r0, x - ox, y - oy, r1);
+      g.addColorStop(0, `rgba(0,0,0,${forca})`);
+      g.addColorStop(0.55, `rgba(0,0,0,${forca * 0.72})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      e.fillStyle = g;
+      e.fillRect(x - ox - r1, y - oy - r1, r1 * 2, r1 * 2);
+    };
+    furo(lx, ly, TILE * 3 * tocha, TILE * (raio + 0.3) * tocha, 1);
+    const tochas: Array<[number, number, number]> = [];
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (m.tiles[y * m.largura + x] !== Tile.Parede || !s.w.revelado[y * m.largura + x])
+          continue;
+        if (!temTocha(m, x, y)) continue;
+        const fx = (x + 0.5) * TILE;
+        const fy = (y + 0.9) * TILE;
+        const tr = hash(x, y);
+        const pisca = 1 + 0.06 * Math.sin(t / 110 + tr * 30) + 0.04 * Math.sin(t / 47 + tr * 9);
+        furo(fx, fy, TILE * 0.4, TILE * 2.8 * pisca, 0.85);
+        tochas.push([fx, fy, pisca]);
+      }
+    }
+    ctx.drawImage(escuro, ox, oy);
+    // Calor das luzes: um brilho quente somado por cima.
     ctx.globalCompositeOperation = 'lighter';
-    const q = ctx.createRadialGradient(lx, ly, 0, lx, ly, TILE * 3 * tocha);
-    q.addColorStop(0, `rgba(${COR.luz},0.07)`);
-    q.addColorStop(1, `rgba(${COR.luz},0)`);
-    ctx.fillStyle = q;
-    ctx.fillRect(lx - TILE * 3.2, ly - TILE * 3.2, TILE * 6.4, TILE * 6.4);
+    const brilho = (x: number, y: number, r: number, a: number) => {
+      const q = ctx.createRadialGradient(x, y, 0, x, y, r);
+      q.addColorStop(0, `rgba(${COR.luz},${a})`);
+      q.addColorStop(1, `rgba(${COR.luz},0)`);
+      ctx.fillStyle = q;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    brilho(lx, ly, TILE * 3 * tocha, 0.07);
+    for (const [fx, fy, p] of tochas) brilho(fx, fy - 6, TILE * 2.2 * p, 0.13);
     ctx.globalCompositeOperation = 'source-over';
   }
+
+  // Habilidades brilham por cima da sombra.
+  drawMagias(ctx, s, t, [hx, hy]);
 
   // Nomes dos personagens do Posto.
   ctx.font = '600 11px system-ui, sans-serif';

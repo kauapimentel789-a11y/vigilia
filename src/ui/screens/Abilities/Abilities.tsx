@@ -2,6 +2,7 @@ import { CONTEUDO } from '../../../content/index.ts';
 import type { AbilityDef } from '../../../engine/definitions.ts';
 import { abilityLevel, isUnlocked, upgradeCost } from '../../../engine/hunter/abilities.ts';
 import type { AlvoPreferido, RegraDefesa } from '../../../engine/hunter/hunter.ts';
+import { classOf } from '../../../engine/hunter/hunter.ts';
 import { buildProfile } from '../../../engine/hunter/stats.ts';
 import { Icone } from '../../art/Icone.tsx';
 import ui from '../../components/common.module.css';
@@ -21,7 +22,12 @@ export function Abilities() {
   const c = estado.cacador;
   const eq = c.equipadas;
   const perfil = buildProfile(c, CONTEUDO);
-  const todas = Object.values(CONTEUDO.habilidades).sort((a, b) => a.desbloqueio - b.desbloqueio);
+  const classe = classOf(c);
+  const ordenadas = Object.values(CONTEUDO.habilidades).sort(
+    (a, b) => a.desbloqueio - b.desbloqueio,
+  );
+  const daClasse = ordenadas.filter((h) => h.classe === classe);
+  const comuns = ordenadas.filter((h) => !h.classe);
 
   const mover = (i: number, d: number) => {
     const novo = [...eq];
@@ -197,8 +203,10 @@ export function Abilities() {
       </section>
 
       <section className={ui.panel}>
-        <h2 className={ui.title}>Todas as habilidades</h2>
-        <ul className={s.lista}>{todas.map(card)}</ul>
+        <h2 className={ui.title}>Da classe: {CONTEUDO.classes[classe].nome}</h2>
+        <ul className={s.lista}>{daClasse.map(card)}</ul>
+        <h2 className={ui.title}>Comuns</h2>
+        <ul className={s.lista}>{comuns.map(card)}</ul>
       </section>
     </div>
   );

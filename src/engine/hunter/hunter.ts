@@ -3,7 +3,7 @@
  *
  * Todas as funções são puras: recebem o estado e devolvem um estado novo.
  */
-import type { AtributoId, GameContent, ProgressionDef } from '../definitions.ts';
+import type { AtributoId, ClasseId, GameContent, ProgressionDef } from '../definitions.ts';
 import { ATRIBUTOS } from '../definitions.ts';
 import type { Equipamento } from '../items/items.ts';
 
@@ -18,6 +18,8 @@ export interface Comportamento {
 }
 
 export interface HunterState {
+  /** Classe escolhida (saves antigos não têm: vale 'vigia'). */
+  classe?: ClasseId;
   level: number;
   /** XP acumulado dentro do level atual. */
   xp: number;
@@ -50,10 +52,11 @@ export function createHunter(content: GameContent): HunterState {
     number
   >;
   const iniciais = Object.values(content.habilidades)
-    .filter((h) => h.desbloqueio <= 1)
+    .filter((h) => h.desbloqueio <= 1 && !h.classe)
     .slice(0, prog.espacosDeHabilidade)
     .map((h) => h.id);
   return {
+    classe: 'vigia',
     level: 1,
     xp: 0,
     pontosLivres: 0,
@@ -92,11 +95,43 @@ export function gainXp(cacador: HunterState, content: GameContent, xp: number): 
 
 function autoEquipNew(c: HunterState, content: GameContent, levelAnterior: number): void {
   for (const h of Object.values(content.habilidades)) {
-    const nova = h.desbloqueio > levelAnterior && h.desbloqueio <= c.level;
+    const nova =
+      h.desbloqueio > levelAnterior &&
+      h.desbloqueio <= c.level &&
+      (!h.classe || h.classe === classOf(c));
     if (nova && c.equipadas.length < content.progressao.espacosDeHabilidade) {
       c.equipadas.push(h.id);
     }
   }
+}
+
+export function classOf(c: { classe?: ClasseId | undefined }): ClasseId {
+  return c.classe ?? 'vigia';
+}
+
+/**
+ * Troca de classe (grátis). Saem as exclusivas da classe antiga; as exclusivas
+ * da nova já liberadas pelo level entram primeiro, e as comuns completam.
+ */
+export function chooseClass(
+  cacador: HunterState,
+  content: GameContent,
+  classe: ClasseId,
+): HunterResult {
+  if (!content.classes[classe]) return { erro: 'Classe desconhecida.' };
+  const c = structuredClone(cacador);
+  c.classe = classe;
+  // As exclusivas da classe nova vêm primeiro; as comuns que já estavam completam.
+  const daClasse = Object.values(content.habilidades)
+    .filter((h) => h.classe === classe && h.desbloqueio <= c.level)
+    .map((h) => h.id);
+  const comuns = c.equipadas.filter((id) => {
+    const h = content.habilidades[id];
+    return h && !h.classe;
+  });
+  c.equipadas = [...daClasse.slice(0, 2), ...comuns, ...daClasse.slice(2)];
+  c.equipadas = c.equipadas.slice(0, content.progressao.espacosDeHabilidade);
+  return { cacador: c };
 }
 
 export type HunterResult =

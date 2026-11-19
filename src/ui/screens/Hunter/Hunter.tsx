@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { CONTEUDO } from '../../../content/index.ts';
 import type { AtributoId } from '../../../engine/definitions.ts';
-import { ATRIBUTOS } from '../../../engine/definitions.ts';
+import { ATRIBUTOS, CLASSES_ORDEM } from '../../../engine/definitions.ts';
+import { classOf } from '../../../engine/hunter/hunter.ts';
+import { Sprite } from '../../art/Sprite.tsx';
+import { aparenciaDaClasse } from '../../art/sprites.ts';
 import { deriveStats } from '../../../engine/hunter/stats.ts';
 import { Account } from '../../components/Account.tsx';
 import ui from '../../components/common.module.css';
@@ -39,6 +42,7 @@ export function Hunter() {
   const gastarPonto = useGame((g) => g.gastarPonto);
   const redistribuir = useGame((g) => g.redistribuir);
   const apagar = useGame((g) => g.apagarProgresso);
+  const escolherClasse = useGame((g) => g.escolherClasse);
   const [confirmar, setConfirmar] = useState(false);
   const c = estado.cacador;
   const st = deriveStats(c, CONTEUDO);
@@ -58,8 +62,42 @@ export function Hunter() {
     ['Recarga', `×${st.recargaMult.toFixed(2)}`],
   ];
 
+  const minha = classOf(c);
+  const cl = CONTEUDO.classes[minha];
+
   return (
     <div className={s.grid}>
+      <section className={`${ui.panel} ${s.classePainel}`}>
+        <div className={s.classeAtual}>
+          <Sprite ap={aparenciaDaClasse(minha)} tamanho={72} />
+          <div>
+            <h2 className={ui.title}>{cl.nome}</h2>
+            <span className={ui.tag}>{cl.papel}</span>
+            <p className={ui.muted}>{cl.descricao}</p>
+          </div>
+        </div>
+        <h3 className={s.subtitulo}>Classe · troca grátis, a qualquer hora</h3>
+        <ul className={s.classes}>
+          {CLASSES_ORDEM.map((id) => {
+            const k = CONTEUDO.classes[id];
+            return (
+              <li key={id}>
+                <button
+                  className={`${s.classe} ${id === minha ? s.classeAtiva : ''}`}
+                  onClick={() => escolherClasse(id)}
+                  aria-pressed={id === minha}
+                >
+                  <Sprite ap={aparenciaDaClasse(id)} tamanho={40} />
+                  <strong>{k.nome}</strong>
+                  <small>
+                    {k.papel} · alcance {k.alcance}
+                  </small>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
       <section className={ui.panel}>
         <div className={ui.row}>
           <h2 className={ui.title}>Atributos</h2>

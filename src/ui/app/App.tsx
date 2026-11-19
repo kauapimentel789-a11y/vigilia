@@ -6,7 +6,7 @@ import { DEV_PANEL_VISIVEL, DevPanel } from '../components/DevPanel.tsx';
 import { Icone } from '../art/Icone.tsx';
 import type { IconeId } from '../art/icons.ts';
 import { Sprite } from '../art/Sprite.tsx';
-import { APARENCIA } from '../art/sprites.ts';
+import { aparenciaDaClasse } from '../art/sprites.ts';
 import { ReturnReport } from '../components/ReturnReport.tsx';
 import { SaveConflict } from '../components/Account.tsx';
 import { num } from '../format.ts';
@@ -47,7 +47,7 @@ export function App() {
         </div>
 
         <button className={s.placa} onClick={() => setAba('cacador')} title="Ver o caçador">
-          <Sprite ap={APARENCIA.cacador} tamanho={40} className={s.retrato} />
+          <Sprite ap={aparenciaDaClasse(c.classe)} tamanho={40} className={s.retrato} />
           <span className={s.placaInfo}>
             <span className={s.placaLinha}>
               <strong>Level {c.level}</strong>

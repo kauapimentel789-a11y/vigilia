@@ -11,6 +11,7 @@ import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
 import { applyProfile, createWorld, stepWorld } from '../../../engine/realtime/world.ts';
 import { autoHuntInput } from '../../../engine/realtime/auto.ts';
 import type { HunterProfile } from '../../../engine/hunter/stats.ts';
+import type { VisualHabilidade } from '../../../engine/definitions.ts';
 
 export interface Flutuante {
   x: number;
@@ -50,6 +51,17 @@ export interface Particula {
   tam: number;
 }
 
+/** Efeito visual de uma habilidade do caçador. */
+export interface Magia {
+  tipo: VisualHabilidade['tipo'];
+  cor: string;
+  de: [number, number];
+  para: [number, number] | null;
+  raio: number;
+  nasceu: number;
+  semente: number;
+}
+
 export interface Sessao {
   w: WorldState;
   perfil: HunterProfile;
@@ -67,6 +79,7 @@ export interface Sessao {
   tremor: { forca: number; ate: number };
   /** Lampejo de fase de chefe (anel que se expande a partir dele). */
   ondas: Array<{ x: number; y: number; cor: string; nasceu: number }>;
+  magias: Magia[];
   /** Comandos de um passo só (clique, alvo, habilidade), na ordem em que chegaram. */
   fila: RtInput[];
   /** Direção segurada no teclado. */
@@ -87,6 +100,7 @@ function efeitosVazios() {
     particulas: [] as Particula[],
     tremor: { forca: 0, ate: 0 },
     ondas: [] as Array<{ x: number; y: number; cor: string; nasceu: number }>,
+    magias: [] as Magia[],
   };
 }
 
@@ -262,6 +276,24 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
         fagulhas(s, p[0], p[1], '#ff8a5a', 18, 1.5);
       }
       tremer(s, 6, 400);
+      break;
+    }
+    case 'habilidade': {
+      const def = CONTEUDO.habilidades[ev.id];
+      const h = heroOf(s.w);
+      const alvo = h.alvo ? pos(s, h.alvo) : null;
+      const v = def?.visual ?? { tipo: 'corte' as const, cor: '#f4f1ff' };
+      s.magias.push({
+        tipo: v.tipo,
+        cor: v.cor,
+        de: [h.x, h.y],
+        para: alvo,
+        raio: def?.raio ?? 1,
+        nasceu: s.agora,
+        semente: Math.random(),
+      });
+      if (v.tipo === 'explosao' || v.tipo === 'nova') tremer(s, 3, 160);
+      if (v.tipo === 'cura') fagulhas(s, h.x, h.y, v.cor, 14, 0.7);
       break;
     }
     case 'ataque': {
