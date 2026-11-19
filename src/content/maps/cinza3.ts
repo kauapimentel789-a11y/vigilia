@@ -8,6 +8,7 @@ export const CINZA3: MapDef = {
   id: 'cinza3',
   nome: 'Cinza III',
   tipo: 'portal',
+  chefe: { vida: 9, ataque: 1.8 },
   portal: 'cinza3',
   linhas: [
     '##############################################',

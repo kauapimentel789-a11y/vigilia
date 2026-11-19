@@ -16,6 +16,7 @@
     "typecheck": "tsc -b",
     "format": "prettier --write .",
     "sim": "node tools/sim/simulate.ts",
+    "sim:chefes": "node tools/sim/chefes.ts",
     "edge": "vite build --config tools/edge/vite.config.ts"
   },
   "dependencies": {

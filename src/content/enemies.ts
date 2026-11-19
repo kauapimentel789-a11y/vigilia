@@ -21,6 +21,46 @@ const lista: EnemyDef[] = [
       { id: 'morder2', nome: 'Morder', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
       { id: 'rasgar', nome: 'Rasgar', efeitos: [{ tipo: 'dano', mult: 1.6, alvo: 'alvo' }] },
     ],
+    comoChefe: {
+      acoes: [
+        {
+          id: 'pisao',
+          nome: 'Pisão Faminto',
+          forte: true,
+          forma: 'emVolta',
+          area: 1,
+          preparoMs: 900,
+          efeitos: [{ tipo: 'dano', mult: 2.4, alvo: 'alvo' }],
+        },
+        {
+          id: 'salto',
+          nome: 'Salto na Presa',
+          forte: true,
+          forma: 'alvo',
+          area: 1,
+          preparoMs: 1000,
+          efeitos: [{ tipo: 'dano', mult: 2.8, alvo: 'alvo' }],
+        },
+      ],
+      fases: [
+        {
+          abaixoDe: 1.01,
+          anuncio: 'O Carniçal Ancião fareja você.',
+          acoes: ['morder', 'pisao', 'morder2', 'rasgar'],
+        },
+        {
+          abaixoDe: 0.6,
+          anuncio: 'O Ancião uiva: a ninhada acorda!',
+          invocar: ['carnical', 'carnical'],
+          acoes: ['morder', 'salto', 'rasgar', 'pisao'],
+        },
+        {
+          abaixoDe: 0.3,
+          anuncio: 'O Ancião se empanturra de raiva! (+3 de Força)',
+          efeitos: [{ tipo: 'status', status: 'forca', valor: 3, alvo: 'proprio' }],
+        },
+      ],
+    },
   },
   {
     id: 'ratoDeCinza',
@@ -36,6 +76,46 @@ const lista: EnemyDef[] = [
     acoes: [
       { id: 'mordiscar', nome: 'Mordiscar', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
     ],
+    comoChefe: {
+      acoes: [
+        {
+          id: 'rodopio',
+          nome: 'Rodopio de Cinza',
+          forte: true,
+          forma: 'emVolta',
+          area: 2,
+          preparoMs: 900,
+          efeitos: [{ tipo: 'dano', mult: 2.2, alvo: 'alvo' }],
+        },
+        {
+          id: 'mordidaGigante',
+          nome: 'Mordida Gigante',
+          forte: true,
+          forma: 'alvo',
+          area: 0,
+          preparoMs: 700,
+          efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }],
+        },
+      ],
+      fases: [
+        {
+          abaixoDe: 1.01,
+          anuncio: 'A Rata-Mãe guincha.',
+          acoes: ['mordiscar', 'mordiscar', 'mordidaGigante', 'mordiscar', 'rodopio'],
+        },
+        {
+          abaixoDe: 0.75,
+          anuncio: 'Os filhotes respondem ao chamado!',
+          invocar: ['ratoDeCinza', 'ratoDeCinza', 'ratoDeCinza'],
+        },
+        {
+          abaixoDe: 0.4,
+          anuncio: 'Mais filhotes saem das frestas!',
+          invocar: ['ratoDeCinza', 'ratoDeCinza', 'ratoDeCinza'],
+          acoes: ['mordiscar', 'rodopio', 'mordidaGigante'],
+        },
+      ],
+    },
   },
   {
     id: 'tecela',
@@ -64,6 +144,51 @@ const lista: EnemyDef[] = [
         efeitos: [{ tipo: 'status', status: 'fraco', valor: 4, alvo: 'alvo' }],
       },
     ],
+    comoChefe: {
+      acoes: [
+        {
+          id: 'chuvaDeVeneno',
+          nome: 'Chuva de Veneno',
+          forte: true,
+          forma: 'alvo',
+          area: 1,
+          preparoMs: 1100,
+          efeitos: [
+            { tipo: 'dano', mult: 1.6, alvo: 'alvo' },
+            { tipo: 'status', status: 'veneno', valor: 6, alvo: 'alvo' },
+          ],
+        },
+        {
+          id: 'redeEmCruz',
+          nome: 'Rede em Cruz',
+          forte: true,
+          forma: 'cruz',
+          area: 5,
+          preparoMs: 1000,
+          efeitos: [
+            { tipo: 'dano', mult: 2.2, alvo: 'alvo' },
+            { tipo: 'status', status: 'fraco', valor: 4, alvo: 'alvo' },
+          ],
+        },
+      ],
+      fases: [
+        {
+          abaixoDe: 1.01,
+          anuncio: 'A Tecelã Mãe estende os fios.',
+          acoes: ['picada', 'chuvaDeVeneno', 'teia', 'redeEmCruz'],
+        },
+        {
+          abaixoDe: 0.55,
+          anuncio: 'Os casulos se abrem!',
+          invocar: ['tecela', 'tecela'],
+        },
+        {
+          abaixoDe: 0.25,
+          anuncio: 'A Tecelã cospe veneno sem parar!',
+          acoes: ['chuvaDeVeneno', 'picada', 'redeEmCruz', 'chuvaDeVeneno'],
+        },
+      ],
+    },
   },
   {
     id: 'sentinela',
@@ -89,6 +214,51 @@ const lista: EnemyDef[] = [
         efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }],
       },
     ],
+    comoChefe: {
+      acoes: [
+        {
+          id: 'ondaDeOsso',
+          nome: 'Onda de Osso',
+          forte: true,
+          forma: 'anel',
+          area: 3,
+          preparoMs: 1200,
+          efeitos: [{ tipo: 'dano', mult: 2.6, alvo: 'alvo' }],
+        },
+        {
+          id: 'esmagar',
+          nome: 'Esmagar',
+          forte: true,
+          forma: 'emVolta',
+          area: 1,
+          preparoMs: 900,
+          efeitos: [{ tipo: 'dano', mult: 2.6, alvo: 'alvo' }],
+        },
+        {
+          id: 'muralha',
+          nome: 'Muralha de Osso',
+          efeitos: [{ tipo: 'bloqueio', valor: 30, alvo: 'proprio' }],
+        },
+      ],
+      fases: [
+        {
+          abaixoDe: 1.01,
+          anuncio: 'A Sentinela Antiga ergue o escudo.',
+          acoes: ['golpeDeOsso', 'ondaDeOsso', 'muralha', 'golpeDeOsso', 'esmagar'],
+        },
+        {
+          abaixoDe: 0.66,
+          anuncio: 'Arqueiros ocos acordam nas paredes!',
+          invocar: ['arqueiro', 'arqueiro'],
+        },
+        {
+          abaixoDe: 0.33,
+          anuncio: 'A Sentinela racha e fica mais forte! (+4 de Força)',
+          efeitos: [{ tipo: 'status', status: 'forca', valor: 4, alvo: 'proprio' }],
+          acoes: ['ondaDeOsso', 'esmagar', 'muralha', 'ondaDeOsso', 'golpeDeOsso'],
+        },
+      ],
+    },
   },
   {
     id: 'arqueiro',

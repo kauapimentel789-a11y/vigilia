@@ -36,6 +36,8 @@ export interface RtActor extends BattleUnit {
   chefe: boolean;
   /** Invocado por um chefe: não renasce e some quando o chefe cai. */
   invocado: boolean;
+  /** Chefe abaixo de 25% de vida: ataca e anda mais rápido (uma vez por luta). */
+  furiaFinal?: boolean;
   agressivo: boolean;
   /** Tempo até renascer, em ms. Negativo: não renasce. */
   renascer: number;

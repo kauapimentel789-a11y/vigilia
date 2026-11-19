@@ -24,7 +24,11 @@ import type { RtActor, RtEvent, RtInput, WorldState } from './state.ts';
 import { HEROI } from './state.ts';
 
 /** Multiplicadores do chefe de um mapa. */
-const CHEFE = { vida: 4, ataque: 1.3, recompensa: 8 };
+const CHEFE = { vida: 7, ataque: 1.6, recompensa: 8 };
+/** Chefes sofrem só 40% da lentidão de ritmo dos monstros comuns. */
+const RITMO_CHEFE = 0.4;
+/** Fúria final do chefe: abaixo desta fração de vida, ataca e anda mais rápido. */
+const FURIA_FINAL = 0.25;
 const RAIO_ALIADOS = 4;
 
 const cacheMapas = new WeakMap<MapDef, WorldMap>();
@@ -187,7 +191,10 @@ function monsterActor(
     critico: 0,
     danoCritico: 1,
     passoMs: e.passoMs ?? 450,
-    atkIntervalo: Math.round(attackInterval(content, e.velocidade) * content.mundo.ritmoMonstros),
+    atkIntervalo: Math.round(
+      attackInterval(content, e.velocidade) *
+        (chefe ? 1 + (content.mundo.ritmoMonstros - 1) * RITMO_CHEFE : content.mundo.ritmoMonstros),
+    ),
     alcance: e.alcance ?? 1,
     xp: Math.round(e.xp * escala.vida * mult.recompensa),
     ouro: Math.round(e.ouro * escala.vida * mult.recompensa),
@@ -307,6 +314,12 @@ function checkPhases(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): void 
       a.cicloIndice = 0;
       if (!a.preparo) chooseIntent(ctx, a);
     }
+  }
+  if (vivo(a) && a.chefe && !a.furiaFinal && a.vida / a.vidaMax < FURIA_FINAL) {
+    a.furiaFinal = true;
+    a.atkIntervalo = Math.round(a.atkIntervalo * 0.75);
+    a.passoMs = Math.round(a.passoMs * 0.85);
+    emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: `${def.nome} entra em fúria final!` });
   }
 }
 
@@ -647,8 +660,31 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
 
 /* ---------- Monstros ---------- */
 
+const COMO_CHEFE = new WeakMap<EnemyDef, EnemyDef>();
+
+/** Definição que vale para este ator: a de chefe soma as ações e fases de `comoChefe`. */
+export function actorEnemyDef(
+  content: GameContent,
+  a: { defId: string; chefe: boolean },
+): EnemyDef {
+  const def = content.inimigos[a.defId] as EnemyDef;
+  if (!a.chefe || !def.comoChefe) return def;
+  let d = COMO_CHEFE.get(def);
+  if (!d) {
+    const c = def.comoChefe;
+    d = {
+      ...def,
+      acoes: [...def.acoes, ...(c.acoes ?? [])],
+      padrao: c.padrao ?? def.padrao,
+      fases: c.fases ?? def.fases ?? [],
+    };
+    COMO_CHEFE.set(def, d);
+  }
+  return d;
+}
+
 function enemyDef(ctx: StepCtx, a: RtActor): EnemyDef {
-  return ctx.content.inimigos[a.defId] as EnemyDef;
+  return actorEnemyDef(ctx.content, a);
 }
 
 function chooseIntent(ctx: StepCtx, a: RtActor): EnemyActionDef {

@@ -10,7 +10,7 @@ export const BRASA5: MapDef = {
   tipo: 'portal',
   tema: 'brasa',
   portal: 'brasa5',
-  chefe: { vida: 2.5, ataque: 1 },
+  chefe: { vida: 3.8, ataque: 1.15 },
   linhas: [
     '####################################################',
     '#........##,,,,,,,,,,,,,,,###.....................##',
