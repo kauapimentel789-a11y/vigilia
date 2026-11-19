@@ -46,20 +46,39 @@ describe('save', () => {
   });
 });
 
-describe('migração v1 → v2', () => {
+describe('migrações', () => {
   it('um save da Etapa 2 abre com mochila vazia e nada vestido', () => {
     const atual = newGame(C, 7, 0);
     const estado: Record<string, unknown> = { ...atual, versao: 1 };
     delete estado.mochila;
     delete estado.proximoItem;
+    delete estado.rank;
+    delete estado.selos;
     const cacador: Record<string, unknown> = { ...atual.cacador };
     delete cacador.equipamento;
     const v1 = { v: 1, salvoEm: 5, estado: { ...estado, cacador } };
     const r = deserialize(JSON.stringify(v1), C);
     expect(r.erro).toBeUndefined();
-    expect(r.estado?.versao).toBe(2);
+    expect(r.estado?.versao).toBe(3);
     expect(r.estado?.mochila).toEqual([]);
     expect(r.estado?.cacador.equipamento).toEqual({});
+    expect(r.estado?.rank).toBe('cinza');
+  });
+
+  it('um save da Etapa 3 abre no rank Cinza, sem Selos', () => {
+    const atual = newGame(C, 7, 0);
+    const estado: Record<string, unknown> = { ...atual, versao: 2 };
+    delete estado.rank;
+    delete estado.selos;
+    const r = deserialize(JSON.stringify({ v: 2, salvoEm: 5, estado }), C);
+    expect(r.erro).toBeUndefined();
+    expect(r.estado?.rank).toBe('cinza');
+    expect(r.estado?.selos).toEqual({});
+  });
+
+  it('rank inválido é recusado', () => {
+    const e = { ...newGame(C, 7, 0), rank: 'sol' };
+    expect(deserialize(JSON.stringify({ v: 3, salvoEm: 1, estado: e }), C).erro).toMatch(/rank/);
   });
 
   it('itens de base desconhecida somem ao carregar', () => {

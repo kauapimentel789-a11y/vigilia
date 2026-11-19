@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CONTEUDO } from '../../../content/index.ts';
-import { isPortalOpen } from '../../../engine/game/game.ts';
+import { isPortalOpen, rankAtLeast } from '../../../engine/game/game.ts';
 import { buildProfile } from '../../../engine/hunter/stats.ts';
 import type { RtEvent } from '../../../engine/realtime/state.ts';
 import { heroOf } from '../../../engine/realtime/state.ts';
@@ -109,6 +109,10 @@ export function Hunt() {
       if (ev.tipo === 'aviso') avisar(ev.texto);
       if (ev.tipo === 'interagir' && JANELAS.has(ev.objeto)) setJanela(ev.objeto as JanelaId);
       if (ev.tipo === 'pocao') useGame.getState().gastarPocao();
+      if (ev.tipo === 'especial') {
+        avisar(ev.anuncio);
+        registrar(se, ev.anuncio, '#ff8a8a');
+      }
       if (ev.tipo === 'heroiCaiu') {
         setJanela(null);
         setPerdidos(useGame.getState().morrer());
@@ -136,7 +140,12 @@ export function Hunt() {
           });
         const nome = se.w.atores.find((a) => a.uid === ev.alvo)?.nome ?? 'Monstro';
         registrar(se, `${nome} derrotado: +${r.xp} XP, +${r.ouro} ouro`);
-        if (r.primeiraVitoria) {
+        if (r.selo) registrar(se, `Ganhou ${CONTEUDO.selos[r.selo]?.nome ?? 'um Selo'}`, '#f2b56b');
+        if (r.promovido) {
+          const rank = CONTEUDO.ranks[r.promovido]?.nome ?? r.promovido;
+          avisar(`Aprovado no Exame! Agora você é rank ${rank}. Novos portais no Posto.`);
+          registrar(se, `Rank ${rank}!`, '#ff9a3c');
+        } else if (r.primeiraVitoria) {
           avisar(`${CONTEUDO.portais[portal]?.nome} fechado! O próximo portal se abriu.`);
           registrar(se, `${CONTEUDO.portais[portal]?.nome} fechado!`, '#f2b56b');
         } else if (r.levelsGanhos > 0) {
@@ -170,6 +179,11 @@ export function Hunt() {
         if (def.portal) {
           if (estado.expedicao)
             return avisar('O caçador está em expedição. Chame-o de volta primeiro.');
+          const p = CONTEUDO.portais[def.portal];
+          if (p && !rankAtLeast(estado.rank, p.rank))
+            return avisar(
+              `${ev.rotulo} pede rank ${CONTEUDO.ranks[p.rank]?.nome}. Passe no Exame de Rank.`,
+            );
           if (!isPortalOpen(estado, CONTEUDO, def.portal))
             return avisar(`${ev.rotulo} ainda está fechado. Feche o portal anterior.`);
         }

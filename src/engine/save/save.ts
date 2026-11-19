@@ -6,7 +6,7 @@
  * entre versões.
  */
 import type { AtributoId, GameContent } from '../definitions.ts';
-import { ATRIBUTOS, SLOTS } from '../definitions.ts';
+import { ATRIBUTOS, RANKS_ORDEM, SLOTS } from '../definitions.ts';
 import type { ItemInstance } from '../items/items.ts';
 import type { GameState } from '../game/game.ts';
 import { VERSAO_DO_ESTADO } from '../game/game.ts';
@@ -25,6 +25,8 @@ const MIGRACOES: Record<number, (estado: unknown) => unknown> = {
     const cacador = isObj(estado.cacador) ? { ...estado.cacador, equipamento: {} } : estado.cacador;
     return { ...estado, versao: 2, cacador, mochila: [], proximoItem: 1, bau: [], pocoes: 3 };
   },
+  // v2 → v3 (Etapa 4): rank do caçador e Selos.
+  2: (estado) => (isObj(estado) ? { ...estado, versao: 3, rank: 'cinza', selos: {} } : estado),
 };
 
 export function serialize(estado: GameState, agora: number): string {
@@ -85,6 +87,9 @@ function validate(e: unknown, content: GameContent): string | null {
   if (!isInt(e.proximoItem, 1)) return 'contador de itens';
   if (!Array.isArray(e.bau) || !e.bau.every(isItem)) return 'baú';
   if (!isInt(e.pocoes)) return 'poções';
+  if (typeof e.rank !== 'string' || !(RANKS_ORDEM as readonly string[]).includes(e.rank))
+    return 'rank';
+  if (!isObj(e.selos) || !Object.values(e.selos).every((n) => isInt(n))) return 'selos';
   if (!isObj(c.equipamento) || !Object.values(c.equipamento).every(isItem)) return 'equipamento';
   if (e.expedicao !== null) {
     const x = e.expedicao;
@@ -100,6 +105,7 @@ function validate(e: unknown, content: GameContent): string | null {
 function sanitize(estado: GameState, content: GameContent): GameState {
   const e = structuredClone(estado);
   e.portaisFechados = e.portaisFechados.filter((id) => content.portais[id]);
+  e.selos = Object.fromEntries(Object.entries(e.selos).filter(([id]) => content.selos[id]));
   e.cacador.equipadas = e.cacador.equipadas
     .filter((id) => content.habilidades[id])
     .slice(0, content.progressao.espacosDeHabilidade);

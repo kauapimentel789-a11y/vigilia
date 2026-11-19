@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createWorld, stepWorld } from '../../../src/engine/realtime/world.ts';
+import { createWorld, stepWorld, strikeTiles } from '../../../src/engine/realtime/world.ts';
+import { loadMap } from '../../../src/engine/realtime/world.ts';
 import type { RtEvent, RtInput, WorldState } from '../../../src/engine/realtime/state.ts';
 import { heroOf } from '../../../src/engine/realtime/state.ts';
 import { TEST_CONTENT as C, profile } from '../../helpers.ts';
@@ -177,5 +178,56 @@ describe('auto-caçar', () => {
     for (let i = 0; i < 2000 && !ev.some((e) => e.tipo === 'esquiva'); i++)
       ev.push(...stepWorld(w, C, tanque, autoHuntInput(w, C, tanque, { pocoes: 0 })));
     expect(ev.some((e) => e.tipo === 'esquiva')).toBe(true);
+  });
+});
+
+describe('chefes com mecânicas', () => {
+  it('ao cair abaixo da fase, anuncia, invoca ajudantes e troca de golpes', () => {
+    const w = createWorld(C, 'covil', PERFIL, 1);
+    const chefe = w.atores.find((a) => a.chefe)!;
+    chefe.vida = Math.round(chefe.vidaMax * 0.55);
+    chefe.agressivo = true;
+    const ev = run(w, 2);
+    expect(ev.find((e) => e.tipo === 'especial')).toMatchObject({ anuncio: 'Chama ajuda' });
+    const invocados = w.atores.filter((a) => a.invocado);
+    expect(invocados).toHaveLength(2);
+    expect(invocados.every((a) => a.agressivo && a.renascer < 0)).toBe(true);
+    expect(chefe.acoesFase).toEqual(['anel']);
+    expect(chefe.intencao).toBe('anel');
+    // A fase não se repete.
+    run(w, 5);
+    expect(w.atores.filter((a) => a.invocado)).toHaveLength(2);
+  });
+
+  it('quando o chefe cai, os invocados se desfazem sem recompensa', () => {
+    const w = createWorld(C, 'covil', PERFIL, 1);
+    const chefe = w.atores.find((a) => a.chefe)!;
+    chefe.vida = Math.round(chefe.vidaMax * 0.55);
+    chefe.agressivo = true;
+    run(w, 2);
+    chefe.vida = 1;
+    heroOf(w).alvo = chefe.uid;
+    const ev = run(w, 400, () => ({ dir: [1, 1] }));
+    expect(ev.some((e) => e.tipo === 'abate' && e.chefe)).toBe(true);
+    expect(ev.filter((e) => e.tipo === 'desfeito')).toHaveLength(2);
+    expect(w.atores.filter((a) => a.invocado && a.vida > 0)).toHaveLength(0);
+  });
+
+  it('formas de área: anel poupa quem encosta, cruz segue as linhas, em volta cerca o chefe', () => {
+    const m = loadMap(C.mapas.covil!);
+    const chefe = { x: 5, y: 3 };
+    const heroi = { x: 2, y: 1 };
+    const base = { id: 'x', nome: 'x', forte: true, efeitos: [] };
+    const anel = strikeTiles(m, chefe, heroi, { ...base, forma: 'anel', area: 3 });
+    expect(anel.some(([x, y]) => x === 4 && y === 3)).toBe(false);
+    expect(anel.some(([x, y]) => x === 2 && y === 3)).toBe(true);
+    const cruz = strikeTiles(m, chefe, heroi, { ...base, forma: 'cruz', area: 9 });
+    expect(cruz.every(([x, y]) => x === 5 || y === 3)).toBe(true);
+    expect(cruz.some(([x, y]) => x === 1 && y === 3)).toBe(true);
+    expect(cruz.some(([x]) => x === 0)).toBe(false);
+    const volta = strikeTiles(m, chefe, heroi, { ...base, forma: 'emVolta', area: 1 });
+    expect(volta).toHaveLength(8);
+    const alvo = strikeTiles(m, chefe, heroi, { ...base, area: 0 });
+    expect(alvo).toEqual([[2, 1]]);
   });
 });

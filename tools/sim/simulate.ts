@@ -59,6 +59,9 @@ function spendAll(e: GameState, ordem: AtributoId[]): GameState {
 function bestLoadout(e: GameState): string[] {
   const pref = [
     'folegoDaVigilia',
+    'baluarte',
+    'laminaDaBrasa',
+    'tormentaDeCinzas',
     'guardaCinzenta',
     'marcaDoCacador',
     'golpeRasgante',
@@ -102,8 +105,10 @@ const min = (s: number) => `${(s / 60).toFixed(0)} min`;
 
 // 1. Matriz
 console.log('\n1) Vitória por level (build equilibrado, habilidades nível 1)\n');
-console.log('level |' + C.ordemPortais.map((p) => C.portais[p]!.nome.padStart(9)).join(''));
-for (const lv of [1, 3, 5, 8, 10, 12, 15, 18, 20, 25]) {
+console.log(
+  'level |' + C.ordemPortais.map((p) => C.portais[p]!.nome.slice(0, 8).padStart(9)).join(''),
+);
+for (const lv of [1, 5, 10, 15, 18, 20, 23, 26, 29, 32, 35]) {
   const e = levelUpTo(lv);
   const perfil = buildProfile(e.cacador, C);
   const linha = C.ordemPortais.map((p) =>
@@ -120,7 +125,8 @@ let e = newGame(C, 12345, 0);
 let t = 0;
 const FARM_S = 300;
 let ultimoFechado = 0;
-for (let guarda = 0; guarda < 400 && !e.portaisFechados.includes('cinza5'); guarda++) {
+let fechouCinza = 0;
+for (let guarda = 0; guarda < 2000 && !e.portaisFechados.includes('brasa5'); guarda++) {
   e = prepare(e);
   const proximo = C.ordemPortais[e.portaisFechados.length]!;
   const chance = calculateRate(
@@ -138,6 +144,7 @@ for (let guarda = 0; guarda < 400 && !e.portaisFechados.includes('cinza5'); guar
         `  ${min(t).padStart(7)}  fechou ${C.portais[proximo]!.nome.padEnd(9)} level ${e.cacador.level}  (chance estimada ${pct(chance)})`,
       );
       ultimoFechado = t;
+      if (proximo === 'cinza5') fechouCinza = t;
       continue;
     }
   }
@@ -152,7 +159,9 @@ for (let guarda = 0; guarda < 400 && !e.portaisFechados.includes('cinza5'); guar
   e = must(collectExpedition(e, C, 0, true)).estado;
   t += FARM_S;
 }
-console.log(`\n  Tempo ativo até fechar o Cinza V: ${min(ultimoFechado)} (indicador: 45 a 90 min)`);
+console.log(
+  `\n  Tempo até fechar o Cinza V: ${min(fechouCinza)}; até o Brasa V: ${min(ultimoFechado)}`,
+);
 
 // 3. Build ruim
 console.log('\n3) Build ruim no Cinza V: tudo em Força, habilidades em ordem qualquer, sem cura');
@@ -177,6 +186,8 @@ for (const [lv, portal] of [
   [10, 'cinza3'],
   [13, 'cinza4'],
   [18, 'cinza5'],
+  [24, 'brasa2'],
+  [30, 'brasa4'],
 ] as const) {
   let o = levelUpTo(lv);
   o.portaisFechados = C.ordemPortais.slice(0, C.ordemPortais.indexOf(portal) + 1);

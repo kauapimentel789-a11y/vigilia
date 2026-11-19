@@ -123,6 +123,33 @@ export function Hunter() {
       </section>
 
       <section className={ui.panel}>
+        <div className={ui.row}>
+          <h2 className={ui.title}>Rank e Selos</h2>
+          <span className={ui.spacer} />
+          <span className={ui.tag}>Rank {CONTEUDO.ranks[estado.rank].nome}</span>
+        </div>
+        <p className={ui.muted}>{CONTEUDO.ranks[estado.rank].descricao}</p>
+        <p className={ui.muted}>
+          Cada chefe deixa um Selo ao ser vencido. Os Selos vão desbloquear unidades na Arena.
+        </p>
+        <ul className={s.selos}>
+          {Object.values(CONTEUDO.selos).map((selo) => {
+            const qtd = estado.selos[selo.id] ?? 0;
+            return (
+              <li key={selo.id} className={qtd > 0 ? s.selo : `${s.selo} ${s.seloVazio}`}>
+                <span aria-hidden>{qtd > 0 ? '◈' : '◇'}</span>
+                <span>
+                  <strong>{qtd > 0 ? selo.nome : '???'}</strong>
+                  <span className={ui.muted}> {selo.descricao}</span>
+                </span>
+                {qtd > 0 && <span className={s.valor}>×{qtd}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section className={ui.panel}>
         <h2 className={ui.title}>Progresso</h2>
         <p className={ui.muted}>O jogo salva sozinho neste navegador.</p>
         {confirmar ? (

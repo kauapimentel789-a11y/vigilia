@@ -34,6 +34,8 @@ export interface RtActor extends BattleUnit {
   origemX: number;
   origemY: number;
   chefe: boolean;
+  /** Invocado por um chefe: não renasce e some quando o chefe cai. */
+  invocado: boolean;
   agressivo: boolean;
   /** Tempo até renascer, em ms. Negativo: não renasce. */
   renascer: number;
@@ -87,6 +89,10 @@ type Body =
   | { tipo: 'esquiva'; origem: string; alvo: string }
   | { tipo: 'abate'; alvo: string; defId: string; xp: number; ouro: number; chefe: boolean }
   | { tipo: 'renasceu'; alvo: string }
+  /** Um chefe chamou ajuda. */
+  | { tipo: 'invocado'; alvo: string; defId: string; x: number; y: number }
+  /** Um invocado sumiu porque o chefe caiu. */
+  | { tipo: 'desfeito'; alvo: string }
   | { tipo: 'saque'; id: string; x: number; y: number }
   /** O caçador pisou num tile com itens. */
   | { tipo: 'itemNoChao'; ids: string[] }

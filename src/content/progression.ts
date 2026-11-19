@@ -5,7 +5,7 @@
 import type { ProgressionDef } from '../engine/definitions.ts';
 
 export const PROGRESSAO: ProgressionDef = {
-  levelMax: 30,
+  levelMax: 40,
   xpBase: 20,
   xpExpoente: 1.6,
   pontosPorLevel: 3,

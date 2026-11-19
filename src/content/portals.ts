@@ -1,12 +1,14 @@
 /**
- * Portais da região "Periferia Apagada" (rank Cinza).
- * Cada portal abre quando o anterior é fechado pela primeira vez.
+ * Portais. Rank Cinza: "Periferia Apagada". Rank Brasa: "Forjas Caídas".
+ * Cada portal abre quando o anterior é fechado pela primeira vez; os de rank
+ * Brasa pedem também que o caçador tenha passado no Exame de Rank.
  */
 import type { PortalDef } from '../engine/definitions.ts';
 
 const lista: PortalDef[] = [
   {
     id: 'cinza1',
+    selo: 'seloCarnical',
     levelRecomendado: 1,
     nome: 'Cinza I',
     rank: 'cinza',
@@ -18,6 +20,7 @@ const lista: PortalDef[] = [
   },
   {
     id: 'cinza2',
+    selo: 'seloRato',
     levelRecomendado: 6,
     nome: 'Cinza II',
     rank: 'cinza',
@@ -34,6 +37,7 @@ const lista: PortalDef[] = [
   },
   {
     id: 'cinza3',
+    selo: 'seloTecela',
     levelRecomendado: 9,
     nome: 'Cinza III',
     rank: 'cinza',
@@ -50,6 +54,7 @@ const lista: PortalDef[] = [
   },
   {
     id: 'cinza4',
+    selo: 'seloSentinela',
     levelRecomendado: 11,
     nome: 'Cinza IV',
     rank: 'cinza',
@@ -66,6 +71,7 @@ const lista: PortalDef[] = [
   },
   {
     id: 'cinza5',
+    selo: 'seloCavaleiro',
     levelRecomendado: 16,
     nome: 'Cinza V',
     rank: 'cinza',
@@ -76,6 +82,100 @@ const lista: PortalDef[] = [
     primeiraVitoria: { xp: 400, ouro: 200 },
     requer: 'cinza4',
     chefe: true,
+  },
+  {
+    id: 'exameBrasa',
+    levelRecomendado: 18,
+    nome: 'Exame de Rank',
+    rank: 'cinza',
+    descricao:
+      'A Guardiã do Limiar decide quem passa para o rank Brasa. Saia da área marcada no chão.',
+    ondas: [['ferreiro', 'carnical'], ['guardiaLimiar']],
+    escala: { vida: 3.3, ataque: 2.8 },
+    recompensa: { xp: 180, ouro: 70 },
+    primeiraVitoria: { xp: 900, ouro: 400 },
+    requer: 'cinza5',
+    chefe: true,
+    promove: 'brasa',
+    selo: 'seloLimiar',
+  },
+  {
+    id: 'brasa1',
+    levelRecomendado: 20,
+    nome: 'Brasa I',
+    rank: 'brasa',
+    descricao: 'Matilhas de cães de escória. Golpes em área e cuidado com a Marca.',
+    ondas: [
+      ['caoDeEscoria', 'caoDeEscoria', 'caoDeEscoria'],
+      ['ferreiro', 'caoDeEscoria'],
+      ['matilheiro'],
+    ],
+    escala: { vida: 3.6, ataque: 2.9 },
+    recompensa: { xp: 200, ouro: 80 },
+    primeiraVitoria: { xp: 1000, ouro: 450 },
+    requer: 'exameBrasa',
+    chefe: true,
+    selo: 'seloMatilheiro',
+  },
+  {
+    id: 'brasa2',
+    levelRecomendado: 23,
+    nome: 'Brasa II',
+    rank: 'brasa',
+    descricao: 'Ferreiros e lançadoras. Saia do Malho e da Cruz Incandescente.',
+    ondas: [['ferreiro', 'lancadora'], ['lancadora', 'lancadora', 'caoDeEscoria'], ['forjadora']],
+    escala: { vida: 4.2, ataque: 3.2 },
+    recompensa: { xp: 260, ouro: 100 },
+    primeiraVitoria: { xp: 1300, ouro: 550 },
+    requer: 'brasa1',
+    chefe: true,
+    selo: 'seloForjadora',
+  },
+  {
+    id: 'brasa3',
+    levelRecomendado: 26,
+    nome: 'Brasa III',
+    rank: 'brasa',
+    descricao: 'Acólitas curam quem estiver ferido. Contra o Anel de Fogo, encoste na Caldeira.',
+    ondas: [['acolita', 'ferreiro'], ['acolita', 'lancadora', 'caoDeEscoria'], ['caldeira']],
+    escala: { vida: 4.9, ataque: 3.5 },
+    recompensa: { xp: 330, ouro: 125 },
+    primeiraVitoria: { xp: 1600, ouro: 700 },
+    requer: 'brasa2',
+    chefe: true,
+    selo: 'seloCaldeira',
+  },
+  {
+    id: 'brasa4',
+    levelRecomendado: 29,
+    nome: 'Brasa IV',
+    rank: 'brasa',
+    descricao: 'Escudeiros protegem tudo. O Colosso aguenta muito: leve poções.',
+    ondas: [['escudeiro', 'ferreiro'], ['escudeiro', 'lancadora', 'acolita'], ['colosso']],
+    escala: { vida: 5.6, ataque: 3.8 },
+    recompensa: { xp: 420, ouro: 155 },
+    primeiraVitoria: { xp: 2000, ouro: 850 },
+    requer: 'brasa3',
+    chefe: true,
+    selo: 'seloColosso',
+  },
+  {
+    id: 'brasa5',
+    levelRecomendado: 32,
+    nome: 'Brasa V',
+    rank: 'brasa',
+    descricao: 'O Arauto da Brasa alterna golpes de perto e de longe. Leia o chão.',
+    ondas: [
+      ['ferreiro', 'acolita', 'lancadora'],
+      ['escudeiro', 'caoDeEscoria', 'lancadora'],
+      ['arauto'],
+    ],
+    escala: { vida: 6.4, ataque: 4.1 },
+    recompensa: { xp: 520, ouro: 190 },
+    primeiraVitoria: { xp: 2600, ouro: 1100 },
+    requer: 'brasa4',
+    chefe: true,
+    selo: 'seloArauto',
   },
 ];
 

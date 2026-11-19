@@ -37,7 +37,7 @@ export function App() {
       <header className={s.topo}>
         <div className={s.marca}>
           <strong>Vigília</strong>
-          <span className={ui.tag}>Rank Cinza</span>
+          <span className={ui.tag}>Rank {CONTEUDO.ranks[estado.rank].nome}</span>
         </div>
         <div className={s.level}>
           <div className={ui.row}>

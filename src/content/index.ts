@@ -5,6 +5,7 @@ import { ITENS } from './items.ts';
 import { ORDEM_PORTAIS, PORTAIS } from './portals.ts';
 import { MAPAS } from './maps/index.ts';
 import { PROGRESSAO } from './progression.ts';
+import { RANKS, SELOS } from './ranks.ts';
 import { MUNDO } from './world.ts';
 
 /** Todo o conteúdo do jogo, no formato que o motor recebe. */
@@ -17,5 +18,7 @@ export const CONTEUDO: GameContent = {
   mundo: MUNDO,
   mapas: MAPAS,
   itens: ITENS,
+  ranks: RANKS,
+  selos: SELOS,
   mapaInicial: 'posto',
 };

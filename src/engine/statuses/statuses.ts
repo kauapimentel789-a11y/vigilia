@@ -6,7 +6,7 @@
  * um status novo, basta adicionar uma entrada em STATUS_DEFS.
  */
 
-export type StatusId = 'vulneravel' | 'fraco' | 'veneno' | 'forca' | 'marca';
+export type StatusId = 'vulneravel' | 'fraco' | 'veneno' | 'forca' | 'marca' | 'queimadura';
 
 /** Quantidade de cada status numa unidade. Ausente ou 0 significa "não tem". */
 export type StatusMap = Partial<Record<StatusId, number>>;
@@ -69,6 +69,14 @@ export const STATUS_DEFS: Record<StatusId, StatusDef> = {
     descricao: (q) => `Cada golpe recebido causa +${q} de dano. Reduz 1 por segundo.`,
     somaDanoRecebido: (q) => q,
     reduzPorSegundo: 1,
+  },
+  queimadura: {
+    id: 'queimadura',
+    nome: 'Queimadura',
+    tipo: 'debuff',
+    descricao: (q) => `Perde ${q} de vida por segundo (ignora bloqueio). Depois, reduz 2.`,
+    perdaPorSegundo: (q) => q,
+    reduzPorSegundo: 2,
   },
 };
 

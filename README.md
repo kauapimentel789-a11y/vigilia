@@ -2,7 +2,7 @@
 
 Jogo idle de fantasia dark para navegador. Você é um Portador da Vigília recém-desperto, o mais fraco de todos, e fica mais forte a cada portal fechado. A Caçada (PvE idle) vem primeiro; a Arena (PvP auto-battler com cartas) vem em etapas futuras.
 
-> **Status:** Etapa 3 (Caçada jogável). Mapa em tempo real visto de cima, em tiles: o caçador anda pelo Posto e pelos 5 mapas da Cinza, enfrenta monstros e chefes, junta itens, e pode caçar sozinho ou ir em Expedição enquanto você está fora.
+> **Status:** Etapa 4 (Caçada: profundidade). Mapa em tempo real visto de cima, em tiles: o Posto, 5 mapas da Cinza, o Exame de Rank e 5 mapas da Brasa, com chefes que invocam ajudantes, mudam de fase e marcam áreas no chão. Itens, Selos dos chefes, auto-caçar e Expedição offline.
 
 ## Requisitos
 
@@ -39,6 +39,9 @@ npm run sim      # relatório de ritmo e equilíbrio
 5. **Morte:** você volta ao Posto e perde o que estava na mochila (o equipado e o baú ficam).
 6. **Auto-caçar (R):** o caçador escolhe alvos, usa habilidades e poções e pega itens sozinho, seguindo o comportamento do Altar.
 7. **Expedição:** em mapas já com chefe derrotado, o caçador farma sozinho até 8 h, mesmo com o jogo fechado. Itens achados vão para o baú.
+8. **Exame de Rank:** depois do Cinza V, o portão **R** do Posto leva à Guardiã do Limiar. Vencê-la sobe o caçador para o rank **Brasa** e abre os portões 6 a 0 (Brasa I a V).
+9. **Chefes com mecânicas:** cada chefe da Brasa tem fases. Ao perder vida, ele anuncia a fase, pode chamar ajudantes e trocar de golpes. As áreas no chão têm formas: em volta do alvo, em volta do chefe (afaste-se), em cruz (saia da linha) e em anel (encoste no chefe).
+10. **Selos:** cada chefe deixa um Selo ao ser vencido (veja na aba Caçador). Eles serão usados na Arena.
 
 O jogo salva sozinho no navegador. Fora do site de produção aparece um **painel de teste** (🛠) para avançar o tempo da expedição e apagar o progresso.
 
@@ -46,7 +49,9 @@ O jogo salva sozinho no navegador. Fora do site de produção aparece um **paine
 
 **Tempo real com passos fixos.** O mapa avança em passos de 50 ms. O caçador anda um tile a cada 300 ms (mais rápido com Agilidade). Monstros têm visão de 5 tiles, chamam os vizinhos do grupo e desistem se você se afastar demais da origem deles. Morto, um monstro volta depois de 90 s.
 
-**Golpes fortes** levam 1 s de preparo e atingem a área mostrada. Inimigos mostram a intenção da próxima ação.
+**Golpes fortes** levam 1 s de preparo (alguns mais) e atingem a área mostrada. Inimigos mostram a intenção da próxima ação. **Queimadura** tira vida por segundo e cai 2 por segundo.
+
+**Rank.** Cada portal tem um rank. Um portal só abre se o caçador tiver o rank dele e se o anterior estiver fechado. O Exame de Rank promove o caçador na primeira vitória.
 
 **Itens** são { base, raridade, afixos }: os números vêm do conteúdo (`src/content/items.ts`), então ajustar uma base muda também os itens que você já tem. O chefe sempre deixa ao menos um incomum.
 

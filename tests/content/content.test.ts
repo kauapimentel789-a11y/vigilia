@@ -19,9 +19,9 @@ describe('integridade do conteúdo', () => {
     for (const [k, v] of Object.entries(C.portais)) expect(v.id).toBe(k);
   });
 
-  it('6 habilidades com recarga positiva, 2 disponíveis no level 1', () => {
+  it('9 habilidades com recarga positiva, ao menos 1 disponível no level 1', () => {
     const lista = Object.values(C.habilidades);
-    expect(lista).toHaveLength(6);
+    expect(lista).toHaveLength(9);
     for (const h of lista) {
       expect(h.recarga).toBeGreaterThan(0);
       expect(h.desbloqueio).toBeLessThanOrEqual(C.progressao.levelMax);
@@ -30,19 +30,27 @@ describe('integridade do conteúdo', () => {
     expect(lista.filter((h) => h.desbloqueio <= 1).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('6 inimigos com ações válidas e ids de ação únicos', () => {
+  it('inimigos com ações válidas, ids de ação únicos e fases coerentes', () => {
     const lista = Object.values(C.inimigos);
-    expect(lista).toHaveLength(6);
+    expect(lista.length).toBeGreaterThanOrEqual(18);
     for (const i of lista) {
       expect(i.acoes.length).toBeGreaterThan(0);
       expect(new Set(i.acoes.map((a) => a.id)).size).toBe(i.acoes.length);
       for (const a of i.acoes) checkEffects(a.efeitos);
       if (i.especial) checkEffects(i.especial.efeitos);
+      let antes = Infinity;
+      for (const f of i.fases ?? []) {
+        expect(f.abaixoDe).toBeLessThan(antes);
+        antes = f.abaixoDe;
+        checkEffects(f.efeitos ?? []);
+        for (const id of f.invocar ?? []) expect(C.inimigos[id]).toBeDefined();
+        for (const id of f.acoes ?? []) expect(i.acoes.some((a) => a.id === id)).toBe(true);
+      }
     }
   });
 
-  it('5 portais alcançáveis em sequência, só com inimigos existentes', () => {
-    expect(C.ordemPortais).toHaveLength(5);
+  it('portais alcançáveis em sequência, só com inimigos existentes', () => {
+    expect(C.ordemPortais).toHaveLength(11);
     const vistos = new Set<string>();
     for (const id of C.ordemPortais) {
       const p = C.portais[id]!;
@@ -52,6 +60,18 @@ describe('integridade do conteúdo', () => {
       for (const onda of p.ondas) for (const i of onda) expect(C.inimigos[i]).toBeDefined();
     }
     expect(C.portais[C.ordemPortais.at(-1)!]!.chefe).toBe(true);
+  });
+
+  it('Selos e Exame de Rank apontam para conteúdo existente', () => {
+    for (const p of Object.values(C.portais)) {
+      if (p.selo) expect(C.selos[p.selo]).toBeDefined();
+      if (p.promove) expect(C.ranks[p.promove]).toBeDefined();
+      expect(C.ranks[p.rank]).toBeDefined();
+    }
+    const exames = Object.values(C.portais).filter((p) => p.promove === 'brasa');
+    expect(exames).toHaveLength(1);
+    for (const p of Object.values(C.portais).filter((x) => x.rank === 'brasa'))
+      expect(p.levelRecomendado).toBeGreaterThan(exames[0]!.levelRecomendado);
   });
 });
 
@@ -69,6 +89,25 @@ describe('mapas', () => {
       for (const g of Object.values(m.legenda.portoes ?? {}))
         expect(CONTEUDO.mapas[g.destino]).toBeDefined();
       if (m.tipo === 'portal') expect(w.atores.filter((a) => a.chefe)).toHaveLength(1);
+      // Do início dá para chegar a todos os monstros e portões.
+      const { loadMap } = await import('../../src/engine/realtime/world.ts');
+      const { canStep, DIRECOES } = await import('../../src/engine/world/path.ts');
+      const mapa = loadMap(m);
+      const visto = new Set([mapa.inicio.y * mapa.largura + mapa.inicio.x]);
+      const fila = [[mapa.inicio.x, mapa.inicio.y] as [number, number]];
+      while (fila.length > 0) {
+        const [x, y] = fila.pop()!;
+        for (const [dx, dy] of DIRECOES) {
+          const i = (y + dy) * mapa.largura + x + dx;
+          if (visto.has(i) || !canStep(mapa, x, y, dx, dy, () => false)) continue;
+          visto.add(i);
+          fila.push([x + dx, y + dy]);
+        }
+      }
+      for (const a of w.atores)
+        expect(visto.has(a.y * mapa.largura + a.x), `${m.id} ${a.nome}`).toBe(true);
+      for (const k of Object.keys(mapa.portoes))
+        expect(visto.has(Number(k)), `${m.id} portão`).toBe(true);
     }
     expect(CONTEUDO.mapas[CONTEUDO.mapaInicial]?.tipo).toBe('posto');
   });

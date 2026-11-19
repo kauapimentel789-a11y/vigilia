@@ -11,6 +11,8 @@ import { loadMap } from '../../../engine/realtime/world.ts';
 import type { WorldMap } from '../../../engine/world/map.ts';
 import { Tile } from '../../../engine/world/map.ts';
 import type { Sessao } from './session.ts';
+import { isPortalOpen } from '../../../engine/game/game.ts';
+import { useGame } from '../../store/game.ts';
 
 export const TILE = 36;
 
@@ -22,7 +24,7 @@ export interface Camera {
   altura: number;
 }
 
-const COR = {
+const COR_BASE = {
   vazio: '#05060a',
   chao: '#1a1e2b',
   chaoB: '#181c28',
@@ -42,6 +44,23 @@ const COR = {
   nevoa: 'rgba(5,6,10,0.6)',
 };
 
+/** Paletas por tema de mapa. Na Brasa, a água vira lava. */
+const TEMAS: Record<string, Partial<typeof COR_BASE>> = {
+  cinza: {},
+  brasa: {
+    chao: '#221b1b',
+    chaoB: '#1f1818',
+    detalhe: '#3a2620',
+    paredeTopo: '#3b2d2a',
+    paredeFace: '#170f0e',
+    agua: '#5c1d0c',
+    aguaBrilho: 'rgba(255,160,70,0.5)',
+    nevoa: 'rgba(8,4,4,0.6)',
+  },
+};
+
+let COR = COR_BASE;
+
 const COR_RARIDADE_ITEM = { comum: '#c9cedd', incomum: '#4fa3c7', rara: '#b07cf6' } as const;
 
 const COR_MONSTRO: Record<string, string> = {
@@ -51,6 +70,18 @@ const COR_MONSTRO: Record<string, string> = {
   sentinela: '#9aa3b5',
   arqueiro: '#c49a6c',
   cavaleiro: '#7c7f99',
+  centelha: '#ffb347',
+  caoDeEscoria: '#8c6a5a',
+  ferreiro: '#9b8f86',
+  lancadora: '#e0814f',
+  escudeiro: '#a7adb8',
+  acolita: '#e8a0b8',
+  guardiaLimiar: '#d9c27a',
+  matilheiro: '#b0704a',
+  forjadora: '#e0583f',
+  caldeira: '#ff7a3c',
+  colosso: '#6f5f5a',
+  arauto: '#ffcf5a',
 };
 
 /** Hash estável por tile, para os detalhes do chão não piscarem. */
@@ -343,7 +374,9 @@ export function render(
   dpr: number,
 ): void {
   const t = s.agora;
-  const m = loadMap(CONTEUDO.mapas[s.w.mapa]!);
+  const def = CONTEUDO.mapas[s.w.mapa]!;
+  COR = { ...COR_BASE, ...TEMAS[def.tema ?? 'cinza'] };
+  const m = loadMap(def);
   const tick = CONTEUDO.mundo.tickMs;
   const heroi = heroOf(s.w);
   const raio = CONTEUDO.mundo.raioRevelado;
@@ -390,11 +423,14 @@ export function render(
     const gx = i % m.largura;
     const gy = Math.floor(i / m.largura);
     if (!s.w.revelado[i]) continue;
+    const destino = CONTEUDO.mapas[g.destino]?.portal;
+    const fechado = !!destino && !isPortalOpen(useGame.getState().estado, CONTEUDO, destino);
+    const rotulo = fechado ? `🔒 ${g.rotulo}` : g.rotulo;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    const w = ctx.measureText(g.rotulo).width + 10;
+    const w = ctx.measureText(rotulo).width + 10;
     ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
-    ctx.fillStyle = '#d9d3ff';
-    ctx.fillText(g.rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
+    ctx.fillStyle = fechado ? '#7d7f8f' : '#d9d3ff';
+    ctx.fillText(rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
   }
 
   // Itens no chão: losango com brilho na cor da raridade.

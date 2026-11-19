@@ -5,6 +5,7 @@
 import { HABILIDADES } from '../src/content/abilities.ts';
 import { PROGRESSAO } from '../src/content/progression.ts';
 import { ITENS } from '../src/content/items.ts';
+import { RANKS, SELOS } from '../src/content/ranks.ts';
 import { MUNDO } from '../src/content/world.ts';
 import type { EnemyDef, GameContent, PortalDef } from '../src/engine/definitions.ts';
 import type { HunterProfile } from '../src/engine/hunter/stats.ts';
@@ -70,6 +71,31 @@ const inimigos: EnemyDef[] = [
     },
   },
   {
+    id: 'senhor',
+    nome: 'Senhor',
+    descricao: 'Chefe de teste: invoca bonecos e troca de golpes.',
+    xp: 50,
+    ouro: 10,
+    vidaMax: 1000,
+    ataque: 1,
+    velocidade: 50,
+    padrao: 'ciclo',
+    acoes: [
+      { id: 'tapa', nome: 'Tapa', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
+      {
+        id: 'anel',
+        nome: 'Anel',
+        forte: true,
+        forma: 'anel',
+        area: 3,
+        efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }],
+      },
+    ],
+    fases: [
+      { abaixoDe: 0.6, anuncio: 'Chama ajuda', invocar: ['boneco', 'boneco'], acoes: ['anel'] },
+    ],
+  },
+  {
     id: 'imortal',
     nome: 'Imortal',
     descricao: 'Vida enorme, nunca morre a tempo.',
@@ -96,12 +122,14 @@ const portal = (id: string, ondas: string[][], requer?: string): PortalDef => ({
   ...(requer ? { requer } : {}),
 });
 
-const portais = [
+const portais: PortalDef[] = [
   portal('treino', [['boneco']]),
   portal('ondas', [['boneco'], ['boneco', 'boneco']], 'treino'),
   portal('bruto', [['brutamontes']], 'ondas'),
   portal('caos', [['aleatorio', 'aleatorio'], ['brutamontes']]),
   portal('eterno', [['imortal']]),
+  { ...portal('exame', [['senhor']], 'treino'), chefe: true, promove: 'brasa', selo: 'seloLimiar' },
+  { ...portal('alto', [['boneco']], 'exame'), rank: 'brasa' },
 ];
 
 export const TEST_CONTENT: GameContent = {
@@ -111,6 +139,8 @@ export const TEST_CONTENT: GameContent = {
   portais: Object.fromEntries(portais.map((p) => [p.id, p])),
   ordemPortais: portais.map((p) => p.id),
   mundo: MUNDO,
+  ranks: RANKS,
+  selos: SELOS,
   mapas: {
     base: {
       id: 'base',
@@ -137,6 +167,15 @@ export const TEST_CONTENT: GameContent = {
       linhas: ['##########', '#@....b#b#', '##########'],
       legenda: { monstros: { b: 'brutamontes' } },
     },
+    covil: {
+      id: 'covil',
+      nome: 'Covil',
+      tipo: 'portal',
+      portal: 'exame',
+      chefe: { vida: 1, ataque: 1 },
+      linhas: ['#########', '#@......#', '#.......#', '#....K..#', '#.......#', '#########'],
+      legenda: { chefes: { K: 'senhor' } },
+    },
     tesouro: {
       id: 'tesouro',
       nome: 'Tesouro',
@@ -146,7 +185,7 @@ export const TEST_CONTENT: GameContent = {
       legenda: { objetos: { T: 'tesouro' } },
     },
   },
-  itens: { ...ITENS, saquePorPortal: { treino: [1] } },
+  itens: { ...ITENS, saquePorPortal: { treino: [1], exame: [1] } },
   mapaInicial: 'base',
 };
 

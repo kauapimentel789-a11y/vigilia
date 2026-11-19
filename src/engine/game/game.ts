@@ -4,7 +4,8 @@
  * Todo comando é puro: recebe o estado atual e devolve um estado novo (ou um
  * erro), sem alterar a entrada. A interface só chama estes comandos.
  */
-import type { AtributoId, GameContent, PortalDef, SlotId } from '../definitions.ts';
+import type { AtributoId, GameContent, PortalDef, RankId, SlotId } from '../definitions.ts';
+import { RANKS_ORDEM } from '../definitions.ts';
 import type { PortalBattleOutput } from '../autobattle/simulate.ts';
 import { simulatePortal } from '../autobattle/simulate.ts';
 import type { ExpeditionGains, ExpeditionState } from '../expedition/expedition.ts';
@@ -17,7 +18,7 @@ import type { ItemInstance } from '../items/items.ts';
 import { baseOf, rollItem, sellValue } from '../items/items.ts';
 import { createRng } from '../core/index.ts';
 
-export const VERSAO_DO_ESTADO = 2;
+export const VERSAO_DO_ESTADO = 3;
 
 export interface GameState {
   versao: typeof VERSAO_DO_ESTADO;
@@ -35,6 +36,10 @@ export interface GameState {
   /** Baú do Posto: o que está aqui nunca se perde. */
   bau: ItemInstance[];
   pocoes: number;
+  /** Rank do caçador. Sobe vencendo o Exame de Rank. */
+  rank: RankId;
+  /** Selos de chefes: id → quantidade. */
+  selos: Record<string, number>;
 }
 
 export type GameResult<Extra = object> =
@@ -54,6 +59,8 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     proximoItem: 1,
     bau: [],
     pocoes: 3,
+    rank: 'cinza',
+    selos: {},
   };
 }
 
@@ -64,7 +71,12 @@ function nextSeed(s: number): number {
 export function isPortalOpen(estado: GameState, content: GameContent, portalId: string): boolean {
   const p = content.portais[portalId];
   if (!p) return false;
+  if (!rankAtLeast(estado.rank, p.rank)) return false;
   return !p.requer || estado.portaisFechados.includes(p.requer);
+}
+
+export function rankAtLeast(atual: RankId, minimo: RankId): boolean {
+  return RANKS_ORDEM.indexOf(atual) >= RANKS_ORDEM.indexOf(minimo);
 }
 
 function portalOrError(content: GameContent, id: string): PortalDef | string {
@@ -151,6 +163,8 @@ export function fightPortal(
     recompensa.xp = Math.round(portal.recompensa.xp * mult) + primeira.xp;
     recompensa.ouro = Math.round(portal.recompensa.ouro * mult) + primeira.ouro;
     if (recompensa.primeiraVitoria) novo.portaisFechados.push(portalId);
+    if (portal.chefe && portal.selo) novo.selos[portal.selo] = (novo.selos[portal.selo] ?? 0) + 1;
+    if (portal.promove && !rankAtLeast(novo.rank, portal.promove)) novo.rank = portal.promove;
     const r = gainXp(novo.cacador, content, recompensa.xp);
     novo.cacador = r.cacador;
     recompensa.levelsGanhos = r.levelsGanhos;
@@ -270,6 +284,10 @@ export interface KillReward {
   levelsGanhos: number;
   /** O abate fechou o portal pela primeira vez (chefe). */
   primeiraVitoria: boolean;
+  /** Selo ganho (chefe de um portal com selo). */
+  selo?: string;
+  /** Novo rank do caçador (primeira vitória num Exame de Rank). */
+  promovido?: RankId;
 }
 
 /**
@@ -291,14 +309,34 @@ export function rewardKill(
   const xp = Math.round(abate.xp * mult) + bonus.xp;
   const ouro = Math.round(abate.ouro * mult) + bonus.ouro;
   if (primeiraVitoria) novo.portaisFechados.push(portalId);
+  let selo: string | undefined;
+  let promovido: RankId | undefined;
   if (abate.chefe) {
     novo.registro.lutas++;
     novo.registro.vitorias++;
+    if (portal.selo) {
+      selo = portal.selo;
+      novo.selos[selo] = (novo.selos[selo] ?? 0) + 1;
+    }
+    if (portal.promove && !rankAtLeast(novo.rank, portal.promove)) {
+      promovido = portal.promove;
+      novo.rank = promovido;
+    }
   }
   const r = gainXp(novo.cacador, content, xp);
   novo.cacador = r.cacador;
   novo.ouro += ouro;
-  return { estado: novo, recompensa: { xp, ouro, levelsGanhos: r.levelsGanhos, primeiraVitoria } };
+  return {
+    estado: novo,
+    recompensa: {
+      xp,
+      ouro,
+      levelsGanhos: r.levelsGanhos,
+      primeiraVitoria,
+      ...(selo ? { selo } : {}),
+      ...(promovido ? { promovido } : {}),
+    },
+  };
 }
 
 /* ---------- Itens ---------- */
