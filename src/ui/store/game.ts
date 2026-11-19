@@ -34,6 +34,17 @@ import {
   upgrade,
 } from '../../engine/game/game.ts';
 import type { Comportamento } from '../../engine/hunter/hunter.ts';
+import type { ArenaRoundOutcome } from '../../engine/game/arena.ts';
+import {
+  arenaAction,
+  chooseArenaHero,
+  leaveArenaMatch,
+  playArenaRound,
+  spendGloria,
+  startArenaMatch,
+} from '../../engine/game/arena.ts';
+import type { ArenaMatch, Lugar, MatchResult } from '../../engine/arena/match.ts';
+import { buyUnit, buyXp, moveUnit, rerollShop, sellUnit } from '../../engine/arena/match.ts';
 import { clearSave, loadSave, writeSave } from './persist.ts';
 
 /** Ausência mínima para mostrar o relatório de retorno. */
@@ -72,6 +83,17 @@ interface Store {
   retirar(uid: string): void;
   /** Mapa: o caçador caiu. Devolve quantos itens da mochila foram perdidos. */
   morrer(): number;
+  arenaHeroi(id: string): void;
+  arenaComecar(): void;
+  arenaComprar(slot: number): void;
+  arenaVender(uid: string): void;
+  arenaRolar(): void;
+  arenaXp(): void;
+  arenaMover(uid: string, destino: Lugar): boolean;
+  /** Fecha a rodada e devolve o relatório (a luta do jogador para assistir). */
+  arenaLutar(): ArenaRoundOutcome | null;
+  arenaSair(): void;
+  gastarGloria(oferta: 'pocao' | 'ouro'): void;
   /** Mapa: paga um abate. Devolve a recompensa para a tela mostrar. */
   recompensarAbate(
     portal: string,
@@ -123,6 +145,8 @@ export const useGame = create<Store>()((set, get) => {
     return true;
   };
 
+  const partida = (fn: (m: ArenaMatch) => MatchResult) => apply(arenaAction(get().estado, fn));
+
   return {
     ...initial(),
 
@@ -151,6 +175,20 @@ export const useGame = create<Store>()((set, get) => {
       return true;
     },
     guardar: (uid) => apply(storeItem(get().estado, CONTEUDO, uid)),
+    arenaHeroi: (id) => apply(chooseArenaHero(get().estado, CONTEUDO, id)),
+    arenaComecar: () => apply(startArenaMatch(get().estado, CONTEUDO)),
+    arenaComprar: (slot) => partida((m) => buyUnit(m, CONTEUDO, slot)),
+    arenaVender: (uid) => partida((m) => sellUnit(m, CONTEUDO, uid)),
+    arenaRolar: () => partida((m) => rerollShop(m, CONTEUDO)),
+    arenaXp: () => partida((m) => buyXp(m, CONTEUDO)),
+    arenaMover: (uid, destino) => partida((m) => moveUnit(m, CONTEUDO, uid, destino)),
+    arenaLutar() {
+      const r = playArenaRound(get().estado, CONTEUDO);
+      if (!apply(r) || !r.resultado) return null;
+      return r.resultado;
+    },
+    arenaSair: () => apply(leaveArenaMatch(get().estado)),
+    gastarGloria: (oferta) => apply(spendGloria(get().estado, CONTEUDO, oferta)),
     retirar: (uid) => apply(retrieveItem(get().estado, CONTEUDO, uid)),
     morrer() {
       const r = dieInMap(get().estado);

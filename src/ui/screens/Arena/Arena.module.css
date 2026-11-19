@@ -1,0 +1,410 @@
+.saguao {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.herois {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+
+.heroi {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.heroi:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ativo {
+  border-color: var(--color-arcane);
+  box-shadow: 0 0 0 1px var(--color-arcane);
+}
+
+.marcasLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.inativa {
+  opacity: 0.6;
+}
+
+.chip,
+.chipMini {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: var(--space-1);
+}
+
+.chipMini {
+  padding: 0 5px;
+  font-size: 0.625rem;
+  margin-right: 2px;
+}
+
+.compras,
+.replay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.vida {
+  color: var(--color-health);
+  font-weight: 600;
+}
+
+.ouro {
+  color: var(--color-ember);
+  font-weight: 600;
+}
+
+.meio {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .meio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lateral {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.subtitulo {
+  margin: var(--space-2) 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.tabuleiro {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.banco {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+@media (max-width: 560px) {
+  .banco {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.loja {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+@media (max-width: 560px) {
+  .loja {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.casa,
+.carta {
+  position: relative;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.carta {
+  min-height: 78px;
+}
+
+.carta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selecionada {
+  box-shadow: 0 0 0 2px var(--color-arcane);
+}
+
+.destino {
+  border-style: dashed;
+  border-color: var(--color-arcane);
+}
+
+.vazio {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.casaNome,
+.cartaNome {
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+
+.cartaNome {
+  font-weight: 600;
+}
+
+.custo {
+  font-size: 0.75rem;
+  color: var(--color-ember);
+}
+
+.estrelas {
+  color: var(--color-ember);
+  font-size: 0.6875rem;
+  letter-spacing: 1px;
+}
+
+.marcasMini {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.jogadores {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.jogadores li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-2);
+}
+
+.vidaBarra {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vidaBarra div {
+  height: 100%;
+  background: var(--color-health);
+}
+
+.caido {
+  opacity: 0.45;
+}
+
+/* Luta */
+
+.arenaLuta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.ladoLuta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.linhaLuta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.meioLuta {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+.vagaLuta {
+  min-height: 70px;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.lutador {
+  position: relative;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  transition: opacity 300ms;
+}
+
+.morto {
+  opacity: 0.2;
+}
+
+.hp,
+.mana {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.mana {
+  height: 3px;
+}
+
+.hp div {
+  height: 100%;
+  background: var(--color-health);
+}
+
+.hp .hpBloqueio {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(106, 168, 232, 0.65);
+}
+
+.mana div {
+  height: 100%;
+  background: var(--color-arcane);
+}
+
+.flutuantes {
+  position: absolute;
+  top: -6px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  pointer-events: none;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-shadow: 0 1px 2px #000;
+}
+
+.fDano {
+  color: #fff;
+}
+
+.fCura {
+  color: var(--color-ok);
+}
+
+.fStatus {
+  color: #ff9a3c;
+}
+
+.fHab {
+  color: var(--color-arcane);
+  white-space: nowrap;
+}
+
+.velAtiva {
+  border-color: var(--color-arcane);
+}
+
+.resultadoLuta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.vitoria {
+  color: var(--color-ok);
+  font-size: 1.25rem;
+}
+
+.derrota {
+  color: var(--color-danger);
+  font-size: 1.25rem;
+}
+
+.lugar {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-ember);
+  margin: var(--space-2) 0;
+}
