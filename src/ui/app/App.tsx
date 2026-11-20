@@ -12,18 +12,20 @@ import { SaveConflict } from '../components/Account.tsx';
 import { num } from '../format.ts';
 import { Abilities } from '../screens/Abilities/Abilities.tsx';
 import { Arena } from '../screens/Arena/Arena.tsx';
+import { Ecos } from '../screens/Ecos/Ecos.tsx';
 import { Expedition } from '../screens/Expedition/Expedition.tsx';
 import { Hunt } from '../screens/Hunt/Hunt.tsx';
 import { Hunter } from '../screens/Hunter/Hunter.tsx';
 import { useGame } from '../store/game.ts';
 import s from './App.module.css';
 
-type Aba = 'cacar' | 'cacador' | 'habilidades' | 'expedicao' | 'arena';
+type Aba = 'cacar' | 'cacador' | 'habilidades' | 'ecos' | 'expedicao' | 'arena';
 
 const ABAS: Array<{ id: Aba; nome: string; icone: IconeId }> = [
   { id: 'cacar', nome: 'Caçar', icone: 'ataque' },
   { id: 'cacador', nome: 'Caçador', icone: 'elmo' },
   { id: 'habilidades', nome: 'Habilidades', icone: 'livro' },
+  { id: 'ecos', nome: 'Ecos', icone: 'eco' },
   { id: 'expedicao', nome: 'Expedição', icone: 'ampulheta' },
   { id: 'arena', nome: 'Arena', icone: 'torre' },
 ];
@@ -108,6 +110,8 @@ export function App() {
           <Hunter />
         ) : aba === 'habilidades' ? (
           <Abilities />
+        ) : aba === 'ecos' ? (
+          <Ecos />
         ) : aba === 'arena' ? (
           <Arena />
         ) : (

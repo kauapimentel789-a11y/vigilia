@@ -9,6 +9,8 @@ import { Hunter } from '../screens/Hunter/Hunter.tsx';
 import { COR_RARIDADE, nomeItem } from '../items.ts';
 import { useGame } from '../store/game.ts';
 import { ItemCard } from './Inventory.tsx';
+import { ECOS, ecosOf } from '../../engine/game/ecos.ts';
+import { Icone } from '../art/Icone.tsx';
 import s from './Windows.module.css';
 
 export function Janela({
@@ -37,6 +39,9 @@ export function Merchant({ onFechar }: { onFechar: () => void }) {
   const estado = useGame((g) => g.estado);
   const vender = useGame((g) => g.vender);
   const comprar = useGame((g) => g.comprarPocoes);
+  const comprarCristais = useGame((g) => g.comprarCristais);
+  const cristais = ecosOf(estado).cristais;
+  const faltamCristais = ECOS.maxCristais - cristais;
   const [ver, setVer] = useState<string | null>(null);
   const p = CONTEUDO.itens.pocao;
   const comuns = estado.mochila.filter((i) => i.raridade === 'comum');
@@ -65,6 +70,29 @@ export function Merchant({ onFechar }: { onFechar: () => void }) {
               onClick={() => comprar(Math.min(faltam, Math.floor(estado.ouro / p.preco)))}
             >
               Encher ({Math.min(faltam, Math.floor(estado.ouro / p.preco)) * p.preco} ●)
+            </button>
+          </div>
+          <h3>
+            <Icone id="cristal" tamanho={16} /> Cristais de Vínculo
+          </h3>
+          <p className={s.muted}>
+            Lance num monstro comum enfraquecido (tecla C) para vinculá-lo como seu Eco. Você tem{' '}
+            {cristais} de {ECOS.maxCristais}.
+          </p>
+          <div className={s.acoes}>
+            <button
+              className={s.botao}
+              disabled={faltamCristais <= 0 || estado.ouro < ECOS.precoCristal}
+              onClick={() => comprarCristais(1)}
+            >
+              Comprar 1 ({ECOS.precoCristal} ●)
+            </button>
+            <button
+              className={s.botaoSec}
+              disabled={faltamCristais <= 0 || estado.ouro < ECOS.precoCristal * 5}
+              onClick={() => comprarCristais(5)}
+            >
+              Comprar 5 ({ECOS.precoCristal * 5} ●)
             </button>
           </div>
           <h3>Vender da mochila</h3>

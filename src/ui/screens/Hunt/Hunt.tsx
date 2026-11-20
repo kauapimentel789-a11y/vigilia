@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CONTEUDO } from '../../../content/index.ts';
 import { isPortalOpen, rankAtLeast } from '../../../engine/game/game.ts';
 import { buildProfile } from '../../../engine/hunter/stats.ts';
+import { ECOS, activeEcoProfile, hasBindRoom } from '../../../engine/game/ecos.ts';
 import type { RtEvent } from '../../../engine/realtime/state.ts';
 import { heroOf } from '../../../engine/realtime/state.ts';
 import { loadMap } from '../../../engine/realtime/world.ts';
@@ -30,7 +31,13 @@ interface Hud {
   vida: number;
   vidaMax: number;
   bloqueio: number;
-  alvo: { nome: string; vida: number; vidaMax: number; chefe: boolean } | null;
+  alvo: {
+    nome: string;
+    vida: number;
+    vidaMax: number;
+    chefe: boolean;
+    vinculavel: boolean;
+  } | null;
   habilidades: Array<{
     nome: string;
     categoria: AbilityDef['categoria'];
@@ -60,7 +67,13 @@ function hudOf(se: Sessao): Hud {
     vidaMax: h.vidaMax,
     bloqueio: h.bloqueio,
     alvo: alvo
-      ? { nome: alvo.nome, vida: alvo.vida, vidaMax: alvo.vidaMax, chefe: alvo.chefe }
+      ? {
+          nome: alvo.nome,
+          vida: alvo.vida,
+          vidaMax: alvo.vidaMax,
+          chefe: alvo.chefe,
+          vinculavel: !alvo.chefe && !alvo.invocado && alvo.vida / alvo.vidaMax <= ECOS.limiteVida,
+        }
       : null,
     habilidades: se.perfil.habilidades.map((x) => ({
       nome: x.def.nome,
@@ -87,7 +100,13 @@ const TECLAS_DIR: Record<string, [number, number]> = {
 
 export function Hunt() {
   const cacador = useGame((g) => g.estado.cacador);
-  const perfil = useMemo(() => buildProfile(cacador, CONTEUDO), [cacador]);
+  const ecos = useGame((g) => g.estado.ecos);
+  const perfil = useMemo(() => {
+    const p = buildProfile(cacador, CONTEUDO);
+    const eco = activeEcoProfile(ecos, CONTEUDO);
+    return eco ? { ...p, eco } : p;
+  }, [cacador, ecos]);
+  const cristais = ecos?.cristais ?? 0;
   const perfilRef = useRef(perfil);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera | null>(null);
@@ -103,6 +122,7 @@ export function Hunt() {
   }, []);
   const msgTimer = useRef(0);
   const beberRef = useRef<() => void>(() => {});
+  const vincularRef = useRef<() => void>(() => {});
   const alternarAutoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -125,6 +145,27 @@ export function Hunt() {
       if (ev.tipo === 'aviso') avisar(ev.texto);
       if (ev.tipo === 'interagir' && JANELAS.has(ev.objeto)) setJanela(ev.objeto as JanelaId);
       if (ev.tipo === 'pocao') useGame.getState().gastarPocao();
+      if (ev.tipo === 'vinculo') {
+        const g = useGame.getState();
+        g.gastarCristal();
+        const nome = CONTEUDO.inimigos[ev.defId]?.nome ?? 'A criatura';
+        if (!ev.sucesso) {
+          avisar(`${nome} quebrou o vínculo! Enfraqueça mais e tente de novo.`);
+          registrar(se, `${nome} escapou do cristal`, '#ff8a8a');
+          return;
+        }
+        const portal = CONTEUDO.mapas[se.w.mapa]?.portal;
+        const rank = (portal && CONTEUDO.portais[portal]?.rank) || 'cinza';
+        const eco = g.vincularEco(ev.defId, rank);
+        if (!eco) return;
+        const ativo = useGame.getState().estado.ecos?.ativo === eco.uid;
+        avisar(
+          ativo
+            ? `${nome} agora é seu Eco e luta ao seu lado!`
+            : `${nome} foi vinculado. Veja na aba Ecos.`,
+        );
+        registrar(se, `Eco vinculado: ${nome}`, '#9fe8ff');
+      }
       if (ev.tipo === 'enigma') {
         avisar('O relicário mostra a ordem das runas. Memorize e pise nelas!');
         registrar(se, 'Enigma das runas começou', '#f2d27a');
@@ -180,6 +221,18 @@ export function Hunt() {
         } else if (r.primeiraVitoria) {
           avisar(`${CONTEUDO.portais[portal]?.nome} fechado! O próximo portal se abriu.`);
           registrar(se, `${CONTEUDO.portais[portal]?.nome} fechado!`, '#f2b56b');
+        } else if (r.ecoNiveis) {
+          const e = useGame.getState().estado.ecos;
+          const eco = e?.lista.find((x) => x.uid === e.ativo);
+          if (eco) {
+            const nome = se.perfil.eco?.nome ?? 'Eco';
+            avisar(
+              eco.nivel === 10 || eco.nivel === 20
+                ? `${nome} despertou! Nível ${eco.nivel}: ganhou um dom.`
+                : `${nome} subiu para o nível ${eco.nivel}.`,
+            );
+            registrar(se, `${nome}: nível ${eco.nivel}`, '#9fe8ff');
+          }
         } else if (r.levelsGanhos > 0) {
           avisar(`Subiu de level! (${useGame.getState().estado.cacador.level})`);
           registrar(se, `Level ${useGame.getState().estado.cacador.level}!`, '#8b7cf6');
@@ -285,6 +338,16 @@ export function Hunt() {
     };
     beberRef.current = beber;
 
+    const vincular = () => {
+      const est = useGame.getState().estado;
+      if ((est.ecos?.cristais ?? 0) <= 0)
+        return avisar('Sem Cristais de Vínculo. Compre na Mercadora do Posto.');
+      if (!hasBindRoom(est))
+        return avisar(`Você já tem ${ECOS.maximo} Ecos. Liberte um na aba Ecos.`);
+      getSessao(perfilRef.current).fila.push({ vincular: true });
+    };
+    vincularRef.current = vincular;
+
     /* ---------- Teclado ---------- */
     const seguradas = new Set<string>();
     const atualizarDir = () => {
@@ -335,6 +398,8 @@ export function Hunt() {
         beber();
       } else if (e.code === 'KeyR') {
         alternarAuto();
+      } else if (e.code === 'KeyC') {
+        vincular();
       } else if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
         const h = heroOf(se.w);
@@ -456,6 +521,11 @@ export function Hunt() {
                 {hud.alvo.vida} / {hud.alvo.vidaMax}
               </em>
             </div>
+            {hud.alvo.vinculavel && (
+              <button className={s.vinculavel} onClick={() => vincularRef.current()}>
+                <Icone id="cristal" tamanho={14} /> Enfraquecido: C para vincular
+              </button>
+            )}
           </div>
         )}
 
@@ -479,6 +549,8 @@ export function Hunt() {
               <dd>poção</dd>
               <dt>Espaço / E</dt>
               <dd>falar, abrir baú, relicário</dd>
+              <dt>C</dt>
+              <dd>lançar Cristal de Vínculo (monstro abaixo de 30% de vida)</dd>
               <dt>R</dt>
               <dd>auto-caçar</dd>
               <dt>I</dt>
@@ -560,6 +632,18 @@ export function Hunt() {
                 {Math.ceil(hud.pocaoResta / 1000)}
               </span>
             )}
+          </button>
+          <button
+            className={`${s.slot} ${hud.alvo?.vinculavel && cristais > 0 ? s.ligado : ''}`}
+            onClick={() => vincularRef.current()}
+            disabled={hud.caido}
+            title="Cristal de Vínculo (tecla C): vincula um monstro enfraquecido como Eco"
+            aria-label={`Cristal de Vínculo, ${cristais} restantes`}
+          >
+            <span className={s.tecla}>C</span>
+            <Icone id="cristal" tamanho={28} />
+            <span className={s.contagem}>{cristais}</span>
+            <span className={s.slotNome}>Vincular</span>
           </button>
           <button
             className={`${s.slot} ${hud.auto ? s.ligado : ''}`}

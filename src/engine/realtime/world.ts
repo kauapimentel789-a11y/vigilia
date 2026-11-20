@@ -21,7 +21,9 @@ import { chebyshev, gateAt, isWalkable, objectAt, parseMap } from '../world/map.
 import { hasLineOfSight } from '../world/los.ts';
 import { DIRECOES, canStep, findPath } from '../world/path.ts';
 import type { Enigma, RtActor, RtEvent, RtInput, WorldState } from './state.ts';
-import { HEROI } from './state.ts';
+import { ECO, HEROI } from './state.ts';
+import type { EcoProfile } from '../game/ecos.ts';
+import { BONUS_AFINIDADE, ECOS, bindChance, hasAdvantage } from '../game/ecos.ts';
 
 /** Multiplicadores do chefe de um mapa. */
 const CHEFE = { vida: 7, ataque: 1.6, recompensa: 8 };
@@ -246,8 +248,34 @@ export function createWorld(
       monsterActor(content, `m${w.proximoId++}`, e, sp.x, sp.y, escala, mult, sp.chefe),
     );
   }
+  if (perfil.eco) w.atores.push(ecoActor(content, heroi, perfil.eco));
   reveal(w, m, heroi, content.mundo.raioRevelado);
   return w;
+}
+
+/** O Eco nasce no tile do caçador; os números de combate são acertados a cada passo. */
+function ecoActor(content: GameContent, h: RtActor, eco: EcoProfile): RtActor {
+  return {
+    ...baseActor(ECO, h.x, h.y),
+    defId: eco.defId,
+    nome: eco.nome,
+    lado: 'cacador',
+    vida: 1,
+    vidaMax: 1,
+    ataque: 0,
+    velocidade: h.velocidade,
+    reducao: 0,
+    critico: 0,
+    danoCritico: 1.5,
+    passoMs: Math.round(h.passoMs * 0.9),
+    atkIntervalo: Math.round(attackInterval(content, h.velocidade) * 1.15),
+    alcance: eco.alcance,
+    xp: 0,
+    ouro: 0,
+    chefe: false,
+    invocado: false,
+    domCd: 4000,
+  };
 }
 
 function monsterActor(
@@ -341,7 +369,7 @@ const vivo = (a: RtActor) => a.vida > 0;
 
 function occupiedBy(ctx: StepCtx, self: RtActor) {
   return (x: number, y: number) =>
-    ctx.w.atores.some((a) => a !== self && vivo(a) && a.x === x && a.y === y);
+    ctx.w.atores.some((a) => a !== self && a.uid !== ECO && vivo(a) && a.x === x && a.y === y);
 }
 
 function monstersNear(ctx: StepCtx, x: number, y: number, raio: number): RtActor[] {
@@ -639,6 +667,41 @@ function drinkPotion(ctx: StepCtx): void {
   emit(ctx, { tipo: 'cura', alvo: h.uid, valor: cura });
 }
 
+/** Lança um Cristal de Vínculo no alvo: só pega em monstro comum enfraquecido. */
+function tryBind(ctx: StepCtx): void {
+  const h = ctx.heroi;
+  const alvo = ctx.w.atores.find((a) => a.uid === h.alvo && a.lado === 'inimigo' && vivo(a));
+  const aviso = (texto: string) => emit(ctx, { tipo: 'aviso', texto });
+  if (!alvo) return aviso('Escolha um monstro enfraquecido como alvo.');
+  if (alvo.chefe || alvo.invocado) return aviso('Esta criatura não aceita vínculo.');
+  const pct = alvo.vida / alvo.vidaMax;
+  if (pct > ECOS.limiteVida)
+    return aviso(`Enfraqueça mais: abaixo de ${Math.round(ECOS.limiteVida * 100)}% de vida.`);
+  if (!inRange(ctx, h, alvo, ECOS.alcance))
+    return aviso('Chegue mais perto para lançar o cristal.');
+  const chance = bindChance(pct);
+  const sucesso = ctx.rng.next() < chance;
+  emit(ctx, {
+    tipo: 'vinculo',
+    alvo: alvo.uid,
+    defId: alvo.defId,
+    sucesso,
+    chance,
+    x: alvo.x,
+    y: alvo.y,
+  });
+  if (!sucesso) return;
+  // Vinculado: sai do mapa sem recompensa e um igual volta a aparecer mais tarde.
+  alvo.vida = 0;
+  alvo.agressivo = false;
+  alvo.preparo = null;
+  alvo.caminho = [];
+  alvo.status = {};
+  alvo.bloqueio = 0;
+  alvo.renascer = ctx.content.mundo.renascerS * 1000;
+  h.alvo = null;
+}
+
 function interact(ctx: StepCtx, idx: number, x: number, y: number): void {
   const objeto = ctx.m.objetos[idx];
   if (!objeto) return;
@@ -711,6 +774,7 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
   if (input.dir && (input.dir[0] !== 0 || input.dir[1] !== 0)) h.interagir = null;
   if (input.habilidade !== undefined) useAbility(ctx, host, input.habilidade);
   if (input.pocao) drinkPotion(ctx);
+  if (input.vincular) tryBind(ctx);
 
   h.moverRestante = Math.max(0, h.moverRestante - dt);
   h.recalcular -= dt;
@@ -766,6 +830,145 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
     if (veneno > 0) efeitos.push({ tipo: 'status', status: 'veneno', valor: veneno, alvo: 'alvo' });
     runEffects(host, efeitos, { unidade: h, fonte: 'basico', alvo });
   }
+}
+
+/* ---------- Eco ---------- */
+
+/** Mantém o Eco do mapa igual ao do perfil (trocou de Eco, liberou, subiu de nível). */
+function syncEco(ctx: StepCtx): RtActor | undefined {
+  const w = ctx.w;
+  const eco = ctx.perfil.eco;
+  let a = w.atores.find((x) => x.uid === ECO);
+  if (a && (!eco || a.defId !== eco.defId)) {
+    w.atores = w.atores.filter((x) => x !== a);
+    a = undefined;
+  }
+  if (!eco) return undefined;
+  if (!a) {
+    a = ecoActor(ctx.content, ctx.heroi, eco);
+    w.atores.push(a);
+  }
+  const s = ctx.perfil.stats;
+  const portal = ctx.content.portais[ctx.content.mapas[w.mapa]?.portal ?? ''];
+  const bonus = hasAdvantage(eco.afinidade, portal?.rank) ? 1 + BONUS_AFINIDADE : 1;
+  a.nome = eco.nome;
+  a.ataque = s.ataque * eco.mult * bonus;
+  a.critico = s.critico * 0.5;
+  a.danoCritico = s.danoCritico;
+  a.alcance = eco.alcance;
+  return a;
+}
+
+/** Move o Eco um tile, atravessando quem estiver no caminho (é um espírito). */
+function ecoMoveTowards(ctx: StepCtx, e: RtActor, tx: number, ty: number, parar: number): void {
+  if (e.recalcular <= 0 || e.caminho.length === 0) {
+    e.recalcular = 350;
+    e.caminho = findPath(ctx.m, e.x, e.y, tx, ty, { parar, limite: 800 }) ?? [];
+  }
+  const prox = e.caminho.shift();
+  if (!prox) return;
+  const [nx, ny] = prox;
+  if (!isWalkable(ctx.m, nx, ny) || chebyshev(nx, ny, e.x, e.y) !== 1) {
+    e.caminho = [];
+    return;
+  }
+  e.deX = e.x;
+  e.deY = e.y;
+  e.moverTotal = Math.round(e.passoMs * (nx !== e.x && ny !== e.y ? 1.41 : 1));
+  e.moverRestante = e.moverTotal;
+  e.x = nx;
+  e.y = ny;
+}
+
+function ecoStep(ctx: StepCtx, host: EffectHost<RtActor>, dt: number): void {
+  const e = syncEco(ctx);
+  const eco = ctx.perfil.eco;
+  if (!e || !eco) return;
+  const h = ctx.heroi;
+  e.moverRestante = Math.max(0, e.moverRestante - dt);
+  e.atkCd = Math.max(0, e.atkCd - dt);
+  e.recalcular -= dt;
+
+  // Dom da afinidade (a partir do primeiro despertar).
+  if (eco.despertar > 0 && eco.afinidade !== 'brasa' && vivo(h)) {
+    e.domCd = (e.domCd ?? 0) - dt;
+    if (e.domCd <= 0) {
+      const lutando = ctx.w.atores.some((a) => a.lado === 'inimigo' && vivo(a) && a.agressivo);
+      if (eco.afinidade === 'cinza') {
+        e.domCd = 10000;
+        if (lutando) host.gainBlock(h, Math.round(h.vidaMax * 0.05 * eco.despertar));
+      } else {
+        e.domCd = 8000;
+        if (h.vida < h.vidaMax) host.heal(h, Math.round(h.vidaMax * 0.025 * eco.despertar));
+      }
+    }
+  }
+
+  // Longe demais (portão, corrida): o Eco reaparece junto do caçador.
+  if (chebyshev(e.x, e.y, h.x, h.y) > 8) {
+    e.x = e.deX = h.x;
+    e.y = e.deY = h.y;
+    e.moverRestante = 0;
+    e.caminho = [];
+  }
+
+  // Alvo: o do caçador ou quem estiver batendo nele.
+  let alvo = ctx.w.atores.find((a) => a.uid === h.alvo && a.lado === 'inimigo' && vivo(a));
+  if (!alvo) {
+    let melhor = Infinity;
+    for (const a of ctx.w.atores) {
+      if (a.lado !== 'inimigo' || !vivo(a) || !a.agressivo) continue;
+      const d = chebyshev(a.x, a.y, h.x, h.y);
+      if (d <= 3 && d < melhor) {
+        melhor = d;
+        alvo = a;
+      }
+    }
+  }
+  if (alvo && chebyshev(alvo.x, alvo.y, h.x, h.y) > 6) alvo = undefined;
+
+  // Dividindo o tile com alguém (caçador ou monstro): sai para o lado, para não cobri-lo.
+  if (
+    e.moverRestante <= 0 &&
+    ctx.w.atores.some((o) => o !== e && vivo(o) && o.x === e.x && o.y === e.y)
+  ) {
+    const livre = DIRECOES.map(([dx, dy]) => [e.x + dx, e.y + dy] as const).find(
+      ([x, y]) =>
+        isWalkable(ctx.m, x, y) &&
+        !ctx.w.atores.some((o) => o !== e && vivo(o) && o.x === x && o.y === y) &&
+        (!alvo || chebyshev(x, y, alvo.x, alvo.y) <= e.alcance),
+    );
+    if (livre) {
+      e.caminho = [[livre[0], livre[1]]];
+      e.recalcular = 350;
+      ecoMoveTowards(ctx, e, livre[0], livre[1], 0);
+    }
+  }
+
+  if (alvo && inRange(ctx, e, alvo, e.alcance)) {
+    if (e.atkCd <= 0) {
+      e.atkCd = e.atkIntervalo;
+      emit(ctx, {
+        tipo: 'ataque',
+        origem: e.uid,
+        alvo: alvo.uid,
+        distancia: chebyshev(e.x, e.y, alvo.x, alvo.y),
+      });
+      const efeitos: Effect[] = [{ tipo: 'dano', mult: 1, alvo: 'alvo' }];
+      if (eco.afinidade === 'brasa' && eco.despertar > 0)
+        efeitos.push({
+          tipo: 'status',
+          status: 'queimadura',
+          valor: Math.max(2, Math.round(e.ataque * 0.12)) * eco.despertar,
+          alvo: 'alvo',
+        });
+      runEffects(host, efeitos, { unidade: e, fonte: 'eco', alvo });
+    }
+    return;
+  }
+  if (e.moverRestante > 0) return;
+  if (alvo) ecoMoveTowards(ctx, e, alvo.x, alvo.y, e.alcance);
+  else if (chebyshev(e.x, e.y, h.x, h.y) > 1) ecoMoveTowards(ctx, e, h.x, h.y, 1);
 }
 
 /* ---------- Monstros ---------- */
@@ -1116,6 +1319,7 @@ export function stepWorld(
   }
 
   heroStep(ctx, host, input, dt);
+  ecoStep(ctx, host, dt);
   for (const a of w.atores) {
     if (w.heroiCaido) break;
     if (a.lado === 'inimigo') monsterStep(ctx, host, a, dt);

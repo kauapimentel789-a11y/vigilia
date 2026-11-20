@@ -46,6 +46,16 @@ import {
 } from '../../engine/game/arena.ts';
 import type { ArenaComando } from '../../engine/arena/replay.ts';
 import type { ArenaRetrato, Lugar } from '../../engine/arena/match.ts';
+import type { Eco } from '../../engine/game/ecos.ts';
+import {
+  addEco,
+  buyCrystals,
+  releaseEco,
+  renameEco,
+  setActiveEco,
+  spendCrystal,
+} from '../../engine/game/ecos.ts';
+import type { RankId } from '../../engine/definitions.ts';
 import { clearSave, loadSave, writeSave } from './persist.ts';
 
 /** Ausência mínima para mostrar o relatório de retorno. */
@@ -101,6 +111,14 @@ interface Store {
     portal: string,
     abate: { xp: number; ouro: number; chefe: boolean },
   ): KillReward | null;
+  comprarCristais(qtd: number): void;
+  /** Mapa: o cristal foi lançado. false se não havia cristal. */
+  gastarCristal(): boolean;
+  /** Mapa: o vínculo pegou. Devolve o Eco novo (ou null se não coube). */
+  vincularEco(defId: string, afinidade: RankId): Eco | null;
+  ativarEco(uid: string | null): void;
+  libertarEco(uid: string): void;
+  renomearEco(uid: string, nome: string): void;
   enviarExpedicao(portal: string): void;
   coletar(encerrar?: boolean): void;
   fecharRelatorio(): void;
@@ -208,6 +226,20 @@ export const useGame = create<Store>()((set, get) => {
       return apply(r) && r.recompensa ? r.recompensa : null;
     },
 
+    comprarCristais: (qtd) => apply(buyCrystals(get().estado, qtd)),
+    gastarCristal() {
+      const r = spendCrystal(get().estado);
+      if (r.erro !== undefined) return false;
+      set({ estado: r.estado });
+      return true;
+    },
+    vincularEco(defId, afinidade) {
+      const r = addEco(get().estado, CONTEUDO, defId, afinidade);
+      return apply(r) && r.eco ? r.eco : null;
+    },
+    ativarEco: (uid) => apply(setActiveEco(get().estado, uid)),
+    libertarEco: (uid) => apply(releaseEco(get().estado, uid)),
+    renomearEco: (uid, nome) => apply(renameEco(get().estado, uid, nome)),
     enviarExpedicao: (portal) => apply(startExpedition(get().estado, CONTEUDO, portal, Date.now())),
     coletar(encerrar = false) {
       const r = collectExpedition(get().estado, CONTEUDO, Date.now(), encerrar);

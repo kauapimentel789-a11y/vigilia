@@ -7,7 +7,7 @@
  */
 import { CONTEUDO } from '../../../content/index.ts';
 import type { RtEvent, RtInput, WorldState } from '../../../engine/realtime/state.ts';
-import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
+import { ECO, HEROI, heroOf } from '../../../engine/realtime/state.ts';
 import { applyProfile, createWorld, stepWorld } from '../../../engine/realtime/world.ts';
 import { autoHuntInput } from '../../../engine/realtime/auto.ts';
 import type { HunterProfile } from '../../../engine/hunter/stats.ts';
@@ -37,6 +37,8 @@ export interface Morte {
   chefe: boolean;
   esquerda: boolean;
   nasceu: number;
+  /** Vinculado com um cristal: em vez de cair, encolhe e sobe em luz. */
+  vinculo?: boolean;
 }
 
 /** Fagulha de pixel: sai voando de quem levou golpe. */
@@ -280,6 +282,49 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
     case 'esquiva':
       flut(ev.alvo, 'Esquivou!', '#d9d3ff');
       break;
+    case 'vinculo': {
+      const h = heroOf(s.w);
+      s.magias.push({
+        tipo: 'projetil',
+        cor: '#9fe8ff',
+        de: [h.x, h.y],
+        para: [ev.x, ev.y],
+        raio: 1,
+        nasceu: s.agora,
+        semente: Math.random(),
+      });
+      if (ev.sucesso) {
+        const a = s.w.atores.find((x) => x.uid === ev.alvo);
+        s.mortes.push({
+          x: ev.x,
+          y: ev.y,
+          defId: ev.defId,
+          chefe: false,
+          esquerda: a ? a.x < a.deX : false,
+          nasceu: s.agora,
+          vinculo: true,
+        });
+        fagulhas(s, ev.x, ev.y, '#9fe8ff', 26, 1.4);
+        s.ondas.push({ x: ev.x, y: ev.y, cor: '#9fe8ff', nasceu: s.agora });
+        s.flutuantes.push({
+          x: ev.x,
+          y: ev.y - 0.4,
+          texto: 'Vinculado!',
+          cor: '#9fe8ff',
+          nasceu: s.agora,
+        });
+      } else {
+        fagulhas(s, ev.x, ev.y, '#5a7a90', 10, 0.9);
+        s.flutuantes.push({
+          x: ev.x,
+          y: ev.y - 0.4,
+          texto: 'Escapou!',
+          cor: '#ff8a8a',
+          nasceu: s.agora,
+        });
+      }
+      break;
+    }
     case 'abate': {
       const a = s.w.atores.find((x) => x.uid === ev.alvo);
       if (a) {
@@ -349,7 +394,7 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
           de,
           para,
           distancia: ev.distancia,
-          heroi: ev.origem === HEROI,
+          heroi: ev.origem === HEROI || ev.origem === ECO,
           nasceu: s.agora,
         });
       break;

@@ -6,7 +6,7 @@
  */
 import { CONTEUDO } from '../../../content/index.ts';
 import type { RtActor } from '../../../engine/realtime/state.ts';
-import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
+import { ECO, HEROI, heroOf } from '../../../engine/realtime/state.ts';
 import { ENIGMA_MOSTRA_MS, actorEnemyDef, loadMap } from '../../../engine/realtime/world.ts';
 import type { WorldMap } from '../../../engine/world/map.ts';
 import { Tile } from '../../../engine/world/map.ts';
@@ -15,6 +15,7 @@ import { AMBIENTES, drawAmbiente, drawRaios } from './ambiente.ts';
 import { isPortalOpen } from '../../../engine/game/game.ts';
 import { useGame } from '../../store/game.ts';
 import { APARENCIA, aparenciaDaClasse, drawSprite, tom } from '../../art/sprites.ts';
+import { COR_AFINIDADE } from '../../art/afinidade.ts';
 
 export const TILE = 36;
 
@@ -920,6 +921,56 @@ interface Animacao {
   dy: number;
   lampejo: number;
   opacidade: number;
+  /** Cor da afinidade do Eco (só para o Eco). */
+  aura?: string;
+}
+
+/** O Eco: espírito translúcido que flutua, com o anel da afinidade embaixo. */
+function drawEco(
+  ctx: CanvasRenderingContext2D,
+  a: RtActor,
+  cx: number,
+  cy: number,
+  t: number,
+  an: Animacao,
+) {
+  const cor = an.aura ?? '#9fe8ff';
+  const flutua = Math.sin(t / 340) * 3 - 6;
+  const tamanho = TILE * 0.82;
+  const k = 0.5 + 0.5 * Math.sin(t / 420);
+  // Anel da afinidade girando no chão.
+  ctx.globalAlpha = 0.55 + 0.25 * k;
+  ctx.strokeStyle = cor;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.lineDashOffset = t / 80;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + TILE * 0.3, TILE * 0.34, TILE * 0.13, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Brilho em volta do corpo.
+  const g = ctx.createRadialGradient(cx, cy + flutua, 2, cx, cy + flutua, TILE * 0.7);
+  g.addColorStop(0, `${cor}55`);
+  g.addColorStop(1, `${cor}00`);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - TILE, cy - TILE + flutua, TILE * 2, TILE * 2);
+  if (a.moverTotal > 0 && a.x !== a.deX) OLHANDO_ESQUERDA.set(a.uid, a.x < a.deX);
+  const ap = APARENCIA[a.defId] ?? APARENCIA.carnical!;
+  ctx.globalAlpha = 0.78;
+  drawSprite(ctx, ap, cx + an.dx, cy + TILE * 0.36 + flutua + an.dy, tamanho, {
+    espelhar: OLHANDO_ESQUERDA.get(a.uid) ?? false,
+    olhos: cor,
+    lampejo: 0.22 + 0.12 * k,
+  });
+  // Rastro: duas fagulhas subindo.
+  for (let i = 0; i < 2; i++) {
+    const f = (((t / 900 + i * 0.5) % 1) + 1) % 1;
+    ctx.globalAlpha = (1 - f) * 0.7;
+    ctx.fillStyle = cor;
+    ctx.fillRect(Math.round(cx - 6 + i * 11), Math.round(cy + 4 - f * 20 + flutua), 2, 2);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawActor(
@@ -931,6 +982,7 @@ function drawActor(
   alvo: boolean,
   an: Animacao,
 ) {
+  if (a.uid === ECO) return drawEco(ctx, a, cx, cy, t, an);
   const heroi = a.uid === HEROI;
   const raio = heroi ? TILE * 0.3 : a.chefe ? TILE * 0.42 : TILE * 0.3;
   const respira = Math.sin(t / 260 + (heroi ? 0 : a.origemX * 1.7));
@@ -1511,6 +1563,18 @@ export function render(
     const k = (t - d.nasceu) / dur;
     const ap = APARENCIA[d.defId] ?? APARENCIA.carnical!;
     const tam = d.chefe ? TILE * 1.5 : TILE;
+    if (d.vinculo) {
+      // Vinculado: encolhe, sobe e vira luz.
+      ctx.globalAlpha = (1 - k) * opacidade(d.x, d.y);
+      const e = Math.max(0.05, 1 - k * 0.9);
+      drawSprite(ctx, ap, (d.x + 0.5) * TILE, (d.y + 0.5) * TILE + TILE * 0.42 - k * 18, tam, {
+        espelhar: d.esquerda,
+        escalaX: e,
+        escalaY: e,
+        lampejo: 0.4 + k * 0.6,
+      });
+      continue;
+    }
     ctx.globalAlpha = (1 - k) * opacidade(d.x, d.y);
     drawSprite(ctx, ap, (d.x + 0.5) * TILE, (d.y + 0.5) * TILE + TILE * 0.42, tam, {
       espelhar: d.esquerda,
@@ -1525,10 +1589,10 @@ export function render(
     .filter((a) => a.vida > 0)
     .map((a) => {
       const p = actorPos(a, alpha, tick);
-      return { a, p, o: a.uid === HEROI ? 1 : opacidade(p[0], p[1]) };
+      return { a, p, o: a.uid === HEROI || a.uid === ECO ? 1 : opacidade(p[0], p[1]) };
     })
     .filter((x) => x.o > 0)
-    .sort((p, q) => p.p[1] - q.p[1]);
+    .sort((p, q) => p.p[1] - q.p[1] || (p.a.uid === ECO ? -1 : q.a.uid === ECO ? 1 : 0));
   for (const { a, p, o } of atores) {
     let dx = 0;
     let dy = 0;
@@ -1554,6 +1618,9 @@ export function render(
       dy,
       lampejo: desdeGolpe < 120 ? 1 - desdeGolpe / 120 : 0,
       opacidade: o,
+      ...(a.uid === ECO && s.perfil.eco
+        ? { aura: COR_AFINIDADE[s.perfil.eco.afinidade] ?? '#9fe8ff' }
+        : {}),
     });
   }
 
@@ -1837,7 +1904,7 @@ export function renderOverlay(
     const h = heroOf(s.w);
     const raio = CONTEUDO.mundo.raioRevelado;
     for (const a of s.w.atores) {
-      if (a.uid === HEROI || a.vida <= 0) continue;
+      if (a.uid === HEROI || a.uid === ECO || a.vida <= 0) continue;
       if ((a.x - h.x) ** 2 + (a.y - h.y) ** 2 > raio * raio + 1) continue;
       ctx.fillStyle = a.chefe ? '#f2b56b' : '#e5536b';
       ctx.fillRect(ox + a.x * esc - 1, oy + a.y * esc - 1, esc + 2, esc + 2);

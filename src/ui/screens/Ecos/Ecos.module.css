@@ -1,0 +1,261 @@
+.tela {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.resumo > div:first-child {
+  flex: 1 1 320px;
+}
+
+.resumo kbd {
+  padding: 0 5px;
+  border: 1px solid var(--color-brass-dark);
+  border-radius: var(--radius-sm);
+  background: #0f0e12;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  color: var(--color-ember);
+}
+
+.contadores {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.contador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3) 4px var(--space-2);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-md);
+  background: #0f0e12;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  color: #e3f6ff;
+}
+
+/* Eco em destaque: retrato num nicho com a luz da afinidade. */
+.detalhe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  border-color: color-mix(in srgb, var(--cor) 45%, var(--color-ink));
+}
+
+.retrato {
+  display: grid;
+  place-items: center;
+  width: 140px;
+  height: 140px;
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(
+      circle at 50% 70%,
+      color-mix(in srgb, var(--cor) 30%, transparent),
+      transparent 70%
+    ),
+    #0f0e12;
+  box-shadow:
+    inset 0 0 0 1px #000,
+    inset 0 -10px 24px rgba(0, 0, 0, 0.6);
+  animation: flutuar 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes flutuar {
+  to {
+    box-shadow:
+      inset 0 0 0 1px #000,
+      inset 0 -10px 24px rgba(0, 0, 0, 0.6),
+      0 0 18px color-mix(in srgb, var(--cor) 25%, transparent);
+  }
+}
+
+.info {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.afinidade {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--cor);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--cor) 12%, transparent);
+  color: var(--cor);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.nivel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.numeros {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-3);
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.numeros dt {
+  color: var(--color-text-muted);
+}
+
+.numeros dd {
+  margin: 0;
+}
+
+.dom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.dom em {
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+.domAtivo {
+  border-style: solid;
+  border-color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 8%, transparent);
+  color: var(--color-text);
+}
+
+.domAtivo strong {
+  color: var(--cor);
+}
+
+.campo {
+  flex: 1;
+  min-width: 0;
+  max-width: 220px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-sm);
+  background: #0f0e12;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.vazio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+
+.carta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--color-ink);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #221e26, #16141a);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 200, 0.06);
+  overflow: hidden;
+}
+
+.carta::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--cor);
+  opacity: 0.7;
+}
+
+.vendo {
+  border-color: var(--color-brass-dark);
+}
+
+.ativo {
+  border-color: var(--cor);
+}
+
+.cartaCorpo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  border: 0;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--cor) 14%, transparent),
+    transparent 65%
+  );
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cartaNome {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cartaNivel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.cartaAcoes {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-ink);
+}
+
+.cartaAcoes button {
+  flex: 1;
+}
+
+.selo {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  background: var(--cor);
+  color: #0d0c10;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
