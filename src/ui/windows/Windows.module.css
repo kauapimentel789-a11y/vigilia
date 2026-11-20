@@ -142,7 +142,7 @@
 .botao {
   background: var(--color-arcane);
   border: 0;
-  color: #0b0d14;
+  color: #0c0b0f;
 }
 
 .botao:disabled {

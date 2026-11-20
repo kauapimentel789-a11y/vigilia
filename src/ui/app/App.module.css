@@ -12,7 +12,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) 0;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-ink);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 230, 190, 0.04), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 6px), #1a171d;
+  box-shadow: var(--moldura);
 }
 
 .marca {
@@ -28,13 +35,14 @@
 
 .nome {
   font-family: var(--font-display);
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  background: linear-gradient(180deg, #fff1d6 10%, #f2b56b 60%, #c2603a);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #e9cf96;
+  text-shadow:
+    0 1px 0 #6a4a1c,
+    0 2px 0 #000,
+    0 0 14px rgba(242, 160, 80, 0.25);
 }
 
 /* Placa do caçador: retrato, level, rank e XP. Leva à aba Caçador. */
@@ -46,9 +54,12 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: rgba(20, 24, 36, 0.8);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-md);
+  background: #0f0e12;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 236, 200, 0.06);
   color: var(--color-text);
   font: inherit;
   text-align: left;
@@ -56,12 +67,15 @@
 }
 
 .placa:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-brass-dark);
 }
 
 .retrato {
-  border-radius: var(--radius-md);
-  background: radial-gradient(circle at 50% 60%, rgba(139, 124, 246, 0.25), transparent 70%);
+  border: 1px solid var(--color-brass-dark);
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(circle at 50% 70%, rgba(242, 181, 107, 0.18), transparent 70%), #18151b;
+  box-shadow: inset 0 0 0 1px #000;
 }
 
 .placaInfo {
@@ -81,8 +95,9 @@
 
 .rank {
   padding: 0 var(--space-2);
-  border: 1px solid rgba(242, 181, 107, 0.45);
-  border-radius: 999px;
+  border: 1px solid var(--color-brass-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(201, 161, 90, 0.08);
   color: var(--color-ember);
   font-family: var(--font-display);
   font-size: 0.72rem;
@@ -93,7 +108,7 @@
 .pontos {
   margin-left: auto;
   padding: 0 var(--space-2);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: var(--color-ember);
   color: #1a1206;
   font-size: 0.7rem;
@@ -110,26 +125,35 @@
 .xp {
   position: relative;
   height: 14px;
-  border-radius: 999px;
-  background: #07080d;
-  border: 1px solid #22273a;
+  border-radius: var(--radius-sm);
+  background: #070609;
+  border: 1px solid #000;
   overflow: hidden;
+}
+
+.xp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 11px, rgba(0, 0, 0, 0.4) 11px 12px);
+  pointer-events: none;
 }
 
 .xp > span {
   position: absolute;
   inset: 0 auto 0 0;
-  background: linear-gradient(90deg, #6c5ce7, #a497ff);
-  box-shadow: 0 0 8px rgba(139, 124, 246, 0.6);
+  background: linear-gradient(180deg, #b6a8ff, #7a68f0 50%, #5444c0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transition: width 300ms ease-out;
 }
 
 .xp em {
   position: absolute;
   inset: 0;
+  z-index: 1;
   font-style: normal;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
   line-height: 12px;
   text-align: center;
   color: #f0eeff;
@@ -149,12 +173,17 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
+  min-width: 64px;
   padding: 0 var(--space-3) 0 var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: rgba(20, 24, 36, 0.8);
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-md);
+  background: #0f0e12;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 236, 200, 0.06);
+  font-family: var(--font-pixel);
+  font-size: 0.78rem;
+  color: #f0e2c4;
 }
 
 .expedicao {
@@ -164,7 +193,7 @@
   min-height: 32px;
   padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid var(--color-ember);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: rgba(242, 181, 107, 0.08);
   color: var(--color-ember);
   font: inherit;
@@ -172,26 +201,30 @@
   cursor: pointer;
 }
 
+/* Abas: placas de pedra penduradas; a ativa acende em latão e encosta no conteúdo. */
 .abas {
   display: flex;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: rgba(14, 17, 26, 0.85);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: 0 var(--space-2);
+  border-bottom: 2px solid var(--color-brass-dark);
 }
 
 .aba {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: 42px;
+  margin-bottom: -2px;
   padding: var(--space-1) var(--space-3);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
+  border: 2px solid var(--color-ink);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(180deg, #221e26, #18151b);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 200, 0.06);
   color: var(--color-text-muted);
   font-family: var(--font-display);
   font-weight: 700;
@@ -203,13 +236,13 @@
 }
 
 .aba svg {
-  opacity: 0.55;
+  opacity: 0.5;
   transition: opacity 0.15s;
 }
 
 .aba:hover {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, #2a252f, #1c1920);
 }
 
 .aba:hover svg,
@@ -218,10 +251,22 @@
 }
 
 .ativa {
-  color: #f4ead8;
-  border-color: rgba(242, 181, 107, 0.35);
-  background: linear-gradient(180deg, rgba(242, 181, 107, 0.14), rgba(242, 181, 107, 0.04));
-  box-shadow: inset 0 -2px 0 var(--color-ember);
+  color: #f6e3bc;
+  background: linear-gradient(180deg, #3a2f22, #18161c 85%);
+  box-shadow:
+    inset 0 2px 0 var(--color-brass),
+    inset 0 0 0 1px var(--color-brass-dark);
+  text-shadow: 0 0 10px rgba(242, 181, 107, 0.35);
+}
+
+.ativa::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: #18161c;
 }
 
 .conteudo {
@@ -240,10 +285,13 @@
   gap: var(--space-3);
   max-width: calc(100% - 32px);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-ember);
+  border: 2px solid var(--color-ink);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  font-size: 0.875rem;
+  box-shadow:
+    var(--moldura),
+    inset 0 2px 0 var(--color-ember);
+  font-size: 0.9rem;
 }
 
 /* No celular: topo enxuto e abas fixas embaixo. */
@@ -281,18 +329,22 @@
     right: 0;
     bottom: 0;
     z-index: 35;
+    gap: var(--space-1);
+    margin: 0;
     padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
-    border-radius: 0;
-    border-width: 1px 0 0;
-    background: rgba(14, 17, 26, 0.97);
-    backdrop-filter: blur(6px);
+    border-bottom: 0;
+    border-top: 2px solid var(--color-brass-dark);
+    background: #121015;
   }
 
   .aba {
     flex-direction: column;
     gap: 2px;
     min-height: 54px;
+    margin: 0;
     padding: var(--space-1) 0;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-md);
     font-family: var(--font-ui);
     font-size: 0.66rem;
     font-weight: 600;
@@ -300,7 +352,17 @@
   }
 
   .ativa {
-    box-shadow: inset 0 2px 0 var(--color-ember);
+    box-shadow:
+      inset 0 2px 0 var(--color-brass),
+      inset 0 0 0 1px var(--color-brass-dark);
+  }
+
+  .ativa::after {
+    display: none;
+  }
+
+  .topo {
+    margin-top: var(--space-2);
   }
 
   .aviso {
