@@ -230,4 +230,88 @@ describe('chefes com mecânicas', () => {
     const alvo = strikeTiles(m, chefe, heroi, { ...base, area: 0 });
     expect(alvo).toEqual([[2, 1]]);
   });
+
+  it('formas novas: X nas diagonais, faixa na direção do caçador, chuva sorteada e anel com raio mínimo', () => {
+    const m = loadMap(C.mapas.covil!);
+    const chefe = { x: 4, y: 2 };
+    const heroi = { x: 6, y: 2 };
+    const base = { id: 'x', nome: 'x', forte: true, efeitos: [] };
+    const xis = strikeTiles(m, chefe, heroi, { ...base, forma: 'xis', area: 9 });
+    expect(xis.every(([x, y]) => Math.abs(x - 4) === Math.abs(y - 2))).toBe(true);
+    expect(xis.some(([x, y]) => x === 5 && y === 3)).toBe(true);
+    const linha = strikeTiles(m, chefe, heroi, { ...base, forma: 'linha', area: 3 });
+    expect(linha.every(([x]) => x > 4)).toBe(true);
+    expect(linha.some(([x, y]) => x === 6 && y === 2)).toBe(true);
+    expect(linha.some(([x, y]) => x === 5 && y === 1)).toBe(true);
+    let n = 0;
+    const rng = { next: () => ((n = (n * 9301 + 49297) % 233280), n / 233280) };
+    const chuva = strikeTiles(
+      m,
+      chefe,
+      heroi,
+      { ...base, forma: 'chuva', area: 2, quantidade: 3 },
+      rng,
+    );
+    expect(chuva.some(([x, y]) => x === 6 && y === 2)).toBe(true);
+    expect(new Set(chuva.map(([x, y]) => `${x},${y}`)).size).toBe(chuva.length);
+    const anel = strikeTiles(m, chefe, heroi, { ...base, forma: 'anel', area: 3, raioMin: 3 });
+    expect(anel.every(([x, y]) => Math.max(Math.abs(x - 4), Math.abs(y - 2)) === 3)).toBe(true);
+  });
+
+  it('golpe encadeado prepara o seguinte, e o escudo dos ajudantes segura o dano', () => {
+    const senhor = C.inimigos.senhor!;
+    const conteudo = {
+      ...C,
+      inimigos: {
+        ...C.inimigos,
+        senhor: {
+          ...senhor,
+          acoes: [
+            {
+              id: 'onda1',
+              nome: 'Onda',
+              forte: true,
+              forma: 'emVolta' as const,
+              area: 1,
+              seguinte: 'onda2',
+              efeitos: [],
+            },
+            {
+              id: 'onda2',
+              nome: 'Onda 2',
+              forte: true,
+              soEncadeada: true,
+              forma: 'anel' as const,
+              raioMin: 2,
+              area: 3,
+              efeitos: [],
+            },
+          ],
+          fases: [{ abaixoDe: 0.6, anuncio: 'Escudo', invocar: ['boneco'], escudoAjudantes: true }],
+        },
+      },
+    };
+    const w = createWorld(conteudo, 'covil', PERFIL, 1);
+    const chefe = w.atores.find((a) => a.chefe)!;
+    const ev: RtEvent[] = [];
+    for (let i = 0; i < 400; i++) ev.push(...stepWorld(w, conteudo, PERFIL, {}));
+    const preparos = ev
+      .filter((e) => e.tipo === 'preparo')
+      .map((e) => e.tipo === 'preparo' && e.nome);
+    expect(preparos.slice(0, 2)).toEqual(['Onda', 'Onda 2']);
+    expect(ev.some((e) => e.tipo === 'impacto')).toBe(true);
+    // Fase com escudo: dano no chefe para no escudo enquanto o boneco vive.
+    chefe.vida = Math.round(chefe.vidaMax * 0.5);
+    for (let i = 0; i < 3; i++) stepWorld(w, conteudo, PERFIL, {});
+    expect(chefe.blindado).toBe(true);
+    const antes = chefe.vida;
+    heroOf(w).alvo = chefe.uid;
+    heroOf(w).x = chefe.x - 1;
+    heroOf(w).y = chefe.y;
+    for (let i = 0; i < 60; i++) stepWorld(w, conteudo, PERFIL, {});
+    expect(chefe.vida).toBe(antes);
+    for (const o of w.atores) if (o.invocado) o.vida = 0;
+    for (let i = 0; i < 3; i++) stepWorld(w, conteudo, PERFIL, {});
+    expect(chefe.blindado).toBe(false);
+  });
 });

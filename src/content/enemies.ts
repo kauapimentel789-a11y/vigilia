@@ -3,6 +3,7 @@
  * Velocidade 100 = uma ação por segundo.
  */
 import type { EnemyDef } from '../engine/definitions.ts';
+import { INIMIGOS_VEU } from './enemiesVeu.ts';
 
 const lista: EnemyDef[] = [
   {
@@ -338,6 +339,23 @@ const lista: EnemyDef[] = [
           { tipo: 'status', status: 'queimadura', valor: 1, alvo: 'alvo' },
         ],
       },
+      {
+        id: 'faisca2',
+        nome: 'Faísca',
+        efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }],
+      },
+      {
+        id: 'estouro',
+        nome: 'Estouro',
+        forte: true,
+        forma: 'emVolta',
+        area: 1,
+        preparoMs: 900,
+        efeitos: [
+          { tipo: 'dano', mult: 1.8, alvo: 'alvo' },
+          { tipo: 'status', status: 'queimadura', valor: 3, alvo: 'alvo' },
+        ],
+      },
     ],
   },
   {
@@ -362,6 +380,15 @@ const lista: EnemyDef[] = [
           { tipo: 'status', status: 'marca', valor: 3, alvo: 'alvo' },
         ],
       },
+      {
+        id: 'bote',
+        nome: 'Bote',
+        forte: true,
+        forma: 'linha',
+        area: 3,
+        preparoMs: 850,
+        efeitos: [{ tipo: 'dano', mult: 2, alvo: 'alvo' }],
+      },
     ],
   },
   {
@@ -384,6 +411,15 @@ const lista: EnemyDef[] = [
         forte: true,
         area: 1,
         efeitos: [{ tipo: 'dano', mult: 2.4, alvo: 'alvo' }],
+      },
+      { id: 'martelada3', nome: 'Martelada', efeitos: [{ tipo: 'dano', mult: 1, alvo: 'alvo' }] },
+      {
+        id: 'estilhacos',
+        nome: 'Estilhaços',
+        forte: true,
+        forma: 'xis',
+        area: 3,
+        efeitos: [{ tipo: 'dano', mult: 2, alvo: 'alvo' }],
       },
     ],
   },
@@ -413,7 +449,9 @@ const lista: EnemyDef[] = [
         id: 'chuvaDeFagulhas',
         nome: 'Chuva de Fagulhas',
         forte: true,
-        area: 1,
+        forma: 'chuva',
+        area: 2,
+        quantidade: 3,
         efeitos: [
           { tipo: 'dano', mult: 1.8, alvo: 'alvo' },
           { tipo: 'status', status: 'queimadura', valor: 4, alvo: 'alvo' },
@@ -447,6 +485,17 @@ const lista: EnemyDef[] = [
           { tipo: 'status', status: 'vulneravel', valor: 2, alvo: 'alvo' },
         ],
       },
+      {
+        id: 'investidaDeEscudo',
+        nome: 'Investida de Escudo',
+        forte: true,
+        forma: 'linha',
+        area: 2,
+        efeitos: [
+          { tipo: 'dano', mult: 1.8, alvo: 'alvo' },
+          { tipo: 'status', status: 'vulneravel', valor: 2, alvo: 'alvo' },
+        ],
+      },
     ],
   },
   {
@@ -474,6 +523,18 @@ const lista: EnemyDef[] = [
         efeitos: [
           { tipo: 'dano', mult: 1, alvo: 'alvo' },
           { tipo: 'status', status: 'queimadura', valor: 2, alvo: 'alvo' },
+        ],
+      },
+      {
+        id: 'circuloDeChamas',
+        nome: 'Círculo de Chamas',
+        forte: true,
+        forma: 'alvo',
+        area: 1,
+        preparoMs: 1100,
+        efeitos: [
+          { tipo: 'dano', mult: 1.6, alvo: 'alvo' },
+          { tipo: 'status', status: 'queimadura', valor: 3, alvo: 'alvo' },
         ],
       },
     ],
@@ -669,16 +730,52 @@ const lista: EnemyDef[] = [
         nome: 'Terremoto',
         forte: true,
         forma: 'emVolta',
+        area: 2,
+        preparoMs: 1300,
+        seguinte: 'tremor2',
+        efeitos: [{ tipo: 'dano', mult: 2.6, alvo: 'alvo' }],
+      },
+      {
+        id: 'tremor2',
+        nome: 'Tremor',
+        forte: true,
+        soEncadeada: true,
+        forma: 'anel',
+        raioMin: 3,
+        area: 4,
+        preparoMs: 700,
+        seguinte: 'tremor3',
+        efeitos: [{ tipo: 'dano', mult: 2.2, alvo: 'alvo' }],
+      },
+      {
+        id: 'tremor3',
+        nome: 'Tremor',
+        forte: true,
+        soEncadeada: true,
+        forma: 'anel',
+        raioMin: 5,
+        area: 6,
+        preparoMs: 700,
+        efeitos: [{ tipo: 'dano', mult: 2.2, alvo: 'alvo' }],
+      },
+      {
+        id: 'chuvaDeEscoria',
+        nome: 'Chuva de Escória',
+        forte: true,
+        forma: 'chuva',
         area: 3,
-        preparoMs: 1400,
-        efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }],
+        quantidade: 7,
+        preparoMs: 1200,
+        efeitos: [{ tipo: 'dano', mult: 2.4, alvo: 'alvo' }],
       },
     ],
     fases: [
       {
         abaixoDe: 0.6,
-        anuncio: 'O Colosso chama a guarda de ferro!',
+        anuncio: 'O Colosso se fecha atrás da guarda de ferro! Derrube os escudeiros.',
         invocar: ['escudeiro', 'escudeiro'],
+        escudoAjudantes: true,
+        acoes: ['pisao', 'chuvaDeEscoria', 'pisao2', 'terremoto'],
       },
       {
         abaixoDe: 0.3,
@@ -711,7 +808,31 @@ const lista: EnemyDef[] = [
         forte: true,
         forma: 'cruz',
         area: 7,
+        seguinte: 'xisSolar',
         efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }],
+      },
+      {
+        id: 'xisSolar',
+        nome: 'Cruz Solar (diagonal)',
+        forte: true,
+        soEncadeada: true,
+        forma: 'xis',
+        area: 7,
+        preparoMs: 800,
+        efeitos: [{ tipo: 'dano', mult: 3, alvo: 'alvo' }],
+      },
+      {
+        id: 'chuvaSolar',
+        nome: 'Chuva Solar',
+        forte: true,
+        forma: 'chuva',
+        area: 3,
+        quantidade: 8,
+        preparoMs: 1200,
+        efeitos: [
+          { tipo: 'dano', mult: 2.6, alvo: 'alvo' },
+          { tipo: 'status', status: 'queimadura', valor: 4, alvo: 'alvo' },
+        ],
       },
       {
         id: 'lamina2',
@@ -748,17 +869,19 @@ const lista: EnemyDef[] = [
         abaixoDe: 0.7,
         anuncio: 'O Arauto espalha centelhas! (Explosão de Brasa)',
         invocar: ['centelha', 'centelha', 'centelha'],
-        acoes: ['lamina', 'anelSolar', 'lamina2', 'explosao'],
+        acoes: ['lamina', 'anelSolar', 'chuvaSolar', 'lamina2', 'explosao'],
       },
       {
         abaixoDe: 0.35,
         anuncio: 'O Arauto arde por inteiro! (+6 de Força)',
         efeitos: [{ tipo: 'status', status: 'forca', valor: 6, alvo: 'proprio' }],
         invocar: ['acolita'],
-        acoes: ['cruzSolar', 'anelSolar', 'explosao'],
+        acoes: ['cruzSolar', 'chuvaSolar', 'anelSolar', 'explosao'],
       },
     ],
   },
 ];
 
-export const INIMIGOS: Record<string, EnemyDef> = Object.fromEntries(lista.map((i) => [i.id, i]));
+export const INIMIGOS: Record<string, EnemyDef> = Object.fromEntries(
+  [...lista, ...INIMIGOS_VEU].map((i) => [i.id, i]),
+);

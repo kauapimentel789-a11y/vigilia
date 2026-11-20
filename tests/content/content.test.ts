@@ -52,7 +52,7 @@ describe('integridade do conteúdo', () => {
   });
 
   it('portais alcançáveis em sequência, só com inimigos existentes', () => {
-    expect(C.ordemPortais).toHaveLength(11);
+    expect(C.ordemPortais).toHaveLength(15);
     const vistos = new Set<string>();
     for (const id of C.ordemPortais) {
       const p = C.portais[id]!;
@@ -74,6 +74,10 @@ describe('integridade do conteúdo', () => {
     expect(exames).toHaveLength(1);
     for (const p of Object.values(C.portais).filter((x) => x.rank === 'brasa'))
       expect(p.levelRecomendado).toBeGreaterThan(exames[0]!.levelRecomendado);
+    const exameVeu = Object.values(C.portais).filter((p) => p.promove === 'veu');
+    expect(exameVeu).toHaveLength(1);
+    for (const p of Object.values(C.portais).filter((x) => x.rank === 'veu'))
+      expect(p.levelRecomendado).toBeGreaterThan(exameVeu[0]!.levelRecomendado);
   });
 });
 

@@ -46,6 +46,8 @@ export interface RtActor extends BattleUnit {
   /** Índice do tile do objeto com que o caçador vai interagir ao chegar perto. */
   interagir: number | null;
   /** Golpe forte sendo preparado: a área avisada no chão e o tempo que falta. */
+  /** Chefe protegido enquanto os ajudantes invocados vivem. */
+  blindado?: boolean;
   preparo: { acao: string; restante: number; total: number; tiles: Array<[number, number]> } | null;
 }
 
@@ -88,6 +90,7 @@ type Body =
   | { tipo: 'aviso'; texto: string }
   | { tipo: 'especial'; origem: string; anuncio: string }
   | { tipo: 'preparo'; origem: string; nome: string; tiles: Array<[number, number]> }
+  | { tipo: 'impacto'; origem: string; tiles: Array<[number, number]> }
   | { tipo: 'esquiva'; origem: string; alvo: string }
   | { tipo: 'abate'; alvo: string; defId: string; xp: number; ouro: number; chefe: boolean }
   | { tipo: 'renasceu'; alvo: string }

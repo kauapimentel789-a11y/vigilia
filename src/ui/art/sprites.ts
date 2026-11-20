@@ -208,6 +208,14 @@ export const APARENCIA: Record<string, Aparencia> = {
   caldeira: { forma: 'olho', cor: '#5c1d0c', detalhe: '#ff7a3c', olhos: '#1a0805' },
   colosso: { forma: 'armadura', cor: '#6f5f5a', detalhe: '#ff7a3c' },
   arauto: { forma: 'manto', cor: '#ffcf5a', detalhe: '#b0402a' },
+  afogado: { forma: 'cacador', cor: '#3f6a6a', detalhe: '#9fd8c8', olhos: '#c8fff4' },
+  enguia: { forma: 'fera', cor: '#7fd6e0' },
+  sineira: { forma: 'manto', cor: '#2f5a6a', detalhe: '#e0c46a', olhos: '#fff2b8' },
+  vigiaCego: { forma: 'arqueiro', cor: '#4a5a7a', detalhe: '#b8c8e0', olhos: '#0a0a14' },
+  juizDasMares: { forma: 'armadura', cor: '#2f8a8a', detalhe: '#d8f0e8', olhos: '#c8fff4' },
+  abadessa: { forma: 'manto', cor: '#1f3a4a', detalhe: '#7fe0d0', olhos: '#e8fffb' },
+  hidra: { forma: 'aranha', cor: '#5fc8d0', detalhe: '#e8fbff' },
+  soberano: { forma: 'armadura', cor: '#1a4a5a', detalhe: '#ffd27a', olhos: '#fff2b8' },
 };
 
 /** Visual do caçador conforme a classe. */

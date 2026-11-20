@@ -94,6 +94,19 @@ const BASES: ItemBaseDef[] = [
     { poder: 0.21, danoCritico: 0.35 },
     115,
   ),
+  // Rank Véu: faixas 36 e 40.
+  item('arpaoDeVidro', 'Arpão de Vidro', 'arma', 36, { ataque: 16 }, 150),
+  item('cetroAfogado', 'Cetro Afogado', 'arma', 40, { ataque: 18 }, 190),
+  item('elmoDeCoral', 'Elmo de Coral', 'cabeca', 36, { vida: 64, reducao: 0.045 }, 150),
+  item('coroaAfogada', 'Coroa Afogada', 'cabeca', 40, { vida: 72, reducao: 0.05 }, 190),
+  item('escamasDaHidra', 'Escamas da Hidra', 'peito', 36, { vida: 120, reducao: 0.09 }, 150),
+  item('mantoDoSoberano', 'Manto do Soberano', 'peito', 40, { vida: 135, reducao: 0.1 }, 190),
+  item('luvasDeMare', 'Luvas de Maré', 'maos', 36, { ataque: 8, critico: 0.09 }, 150),
+  item('maosDoAbismo', 'Mãos do Abismo', 'maos', 40, { ataque: 9, critico: 0.1 }, 190),
+  item('botasEncharcadas', 'Botas Encharcadas', 'pes', 36, { velocidade: 17, vida: 40 }, 150),
+  item('passosDoVeu', 'Passos do Véu', 'pes', 40, { velocidade: 19, vida: 45 }, 190),
+  item('perolaNegra', 'Pérola Negra', 'amuleto', 36, { poder: 0.24, danoCritico: 0.4 }, 150),
+  item('olhoDoVeu', 'Olho do Véu', 'amuleto', 40, { poder: 0.27, danoCritico: 0.45 }, 190),
 ];
 
 const AFIXOS: AffixDef[] = [
@@ -169,6 +182,10 @@ export const ITENS: ItemsDef = {
     brasa3: [21, 26],
     brasa4: [26, 31],
     brasa5: [31],
+    exameVeu: [31, 36],
+    veu1: [36],
+    veu2: [36, 40],
+    veu3: [40],
   },
   capacidadeMochila: 20,
   capacidadeBau: 60,

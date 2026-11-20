@@ -310,11 +310,16 @@ function checkPhases(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): void 
     emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: f.anuncio });
     if (f.efeitos) runEffects(host, f.efeitos, { unidade: a, fonte: 'especial' });
     for (const id of f.invocar ?? []) summon(ctx, a, id);
+    if (f.escudoAjudantes && (f.invocar ?? []).length > 0) a.blindado = true;
     if (f.acoes) {
       a.acoesFase = f.acoes;
       a.cicloIndice = 0;
       if (!a.preparo) chooseIntent(ctx, a);
     }
+  }
+  if (a.blindado && !ctx.w.atores.some((o) => o.invocado && vivo(o))) {
+    a.blindado = false;
+    emit(ctx, { tipo: 'especial', origem: a.uid, anuncio: `O escudo de ${def.nome} se parte!` });
   }
   if (vivo(a) && a.chefe && !a.furiaFinal && a.vida / a.vidaMax < FURIA_FINAL) {
     a.furiaFinal = true;
@@ -420,8 +425,9 @@ function createHost(ctx: StepCtx): EffectHost<RtActor> {
       const atk = origem.unidade;
       const critico = atk.critico > 0 && ctx.rng.next() < atk.critico;
       const valor = computeHit(atk, alvo, mult, critico);
-      const bloqueado = Math.min(alvo.bloqueio, valor);
-      alvo.bloqueio -= bloqueado;
+      // Chefe blindado pelos ajudantes: o golpe para no escudo.
+      const bloqueado = alvo.blindado ? valor : Math.min(alvo.bloqueio, valor);
+      if (!alvo.blindado) alvo.bloqueio -= bloqueado;
       const perda = Math.min(alvo.vida, valor - bloqueado);
       alvo.vida -= perda;
       emit(ctx, {
@@ -693,7 +699,7 @@ function enemyDef(ctx: StepCtx, a: RtActor): EnemyDef {
 function chooseIntent(ctx: StepCtx, a: RtActor): EnemyActionDef {
   const def = enemyDef(ctx, a);
   const temAliados = monstersNear(ctx, a.x, a.y, RAIO_ALIADOS).some((o) => o !== a);
-  const ok = (x: EnemyActionDef) => !x.requerAliados || temAliados;
+  const ok = (x: EnemyActionDef) => !x.soEncadeada && (!x.requerAliados || temAliados);
   const acoes = phaseActions(def, a.acoesFase);
   let acao: EnemyActionDef | undefined;
   if (def.padrao === 'ciclo') {
@@ -727,42 +733,94 @@ export function strikeTiles(
   a: { x: number; y: number },
   h: { x: number; y: number },
   acao: EnemyActionDef,
+  rng?: { next(): number },
 ): Array<[number, number]> {
   const r = acao.area ?? 0;
   const tiles: Array<[number, number]> = [];
+  const visto = new Set<number>();
+  const add = (x: number, y: number) => {
+    const i = y * m.largura + x;
+    if (visto.has(i) || !isWalkable(m, x, y)) return;
+    visto.add(i);
+    tiles.push([x, y]);
+  };
   const forma = acao.forma ?? 'alvo';
-  if (forma === 'cruz') {
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ] as const) {
+  const raios = (dirs: ReadonlyArray<readonly [number, number]>) => {
+    for (const [dx, dy] of dirs) {
       for (let k = 1; k <= r; k++) {
         const x = a.x + dx * k;
         const y = a.y + dy * k;
         if (!isWalkable(m, x, y)) break;
-        tiles.push([x, y]);
+        add(x, y);
       }
+    }
+  };
+  if (forma === 'cruz') {
+    raios([
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]);
+    return tiles;
+  }
+  if (forma === 'xis') {
+    raios([
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ]);
+    return tiles;
+  }
+  if (forma === 'linha') {
+    const dx = Math.sign(h.x - a.x);
+    const dy = Math.sign(h.y - a.y);
+    if (dx === 0 && dy === 0) return tiles;
+    for (let k = 1; k <= r; k++) {
+      const x = a.x + dx * k;
+      const y = a.y + dy * k;
+      if (!isWalkable(m, x, y)) break;
+      add(x, y);
+      add(x - dy, y + dx);
+      add(x + dy, y - dx);
+    }
+    return tiles;
+  }
+  if (forma === 'chuva') {
+    const cruzinha = (cx: number, cy: number) => {
+      add(cx, cy);
+      add(cx + 1, cy);
+      add(cx - 1, cy);
+      add(cx, cy + 1);
+      add(cx, cy - 1);
+    };
+    cruzinha(h.x, h.y);
+    const n = acao.quantidade ?? 6;
+    const sorte = rng ?? { next: () => 0.5 };
+    for (let i = 0; i < n; i++) {
+      const cx = h.x + Math.round((sorte.next() * 2 - 1) * r);
+      const cy = h.y + Math.round((sorte.next() * 2 - 1) * r);
+      cruzinha(cx, cy);
     }
     return tiles;
   }
   const c = forma === 'alvo' ? h : a;
-  const minimo = forma === 'anel' ? 2 : 0;
+  const minimo = acao.raioMin ?? (forma === 'anel' ? 2 : 0);
   for (let y = c.y - r; y <= c.y + r; y++) {
     for (let x = c.x - r; x <= c.x + r; x++) {
       if (!isWalkable(m, x, y)) continue;
       if (forma !== 'alvo' && x === a.x && y === a.y) continue;
       if (chebyshev(x, y, c.x, c.y) < minimo) continue;
       if (forma !== 'alvo' && !hasLineOfSight(m, a.x, a.y, x, y)) continue;
-      tiles.push([x, y]);
+      add(x, y);
     }
   }
   return tiles;
 }
 
 function startPrepare(ctx: StepCtx, a: RtActor, acao: EnemyActionDef): void {
-  const tiles = strikeTiles(ctx.m, a, ctx.heroi, acao);
+  const tiles = strikeTiles(ctx.m, a, ctx.heroi, acao, ctx.rng);
   const total = acao.preparoMs ?? ctx.content.mundo.preparoForteMs;
   a.preparo = { acao: acao.id, restante: total, total, tiles };
   emit(ctx, { tipo: 'preparo', origem: a.uid, nome: acao.nome, tiles });
@@ -787,9 +845,20 @@ function strikePrepared(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): vo
   const efeitos = dentro
     ? acao.efeitos
     : acao.efeitos.filter((e) => e.alvo !== 'alvo' && e.alvo !== 'inimigos');
+  emit(ctx, { tipo: 'impacto', origem: a.uid, tiles: p.tiles });
   if (!dentro) emit(ctx, { tipo: 'esquiva', origem: a.uid, alvo: h.uid });
   runEffects(host, efeitos, { unidade: a, fonte: acao.id, alvo: h });
-  if (vivo(a)) chooseIntent(ctx, a);
+  if (!vivo(a)) return;
+  // Golpes em sequência: a próxima área já aparece (ondas, X depois de cruz...).
+  const seguinte = acao.seguinte
+    ? enemyDef(ctx, a).acoes.find((x) => x.id === acao.seguinte)
+    : undefined;
+  if (seguinte && a.agressivo && vivo(h) && !ctx.w.heroiCaido) {
+    a.intencao = seguinte.id;
+    startPrepare(ctx, a, seguinte);
+    return;
+  }
+  chooseIntent(ctx, a);
 }
 
 function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: number): void {
@@ -814,6 +883,7 @@ function monsterStep(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor, dt: nu
       a.fase = 0;
       a.acoesFase = null;
       a.preparo = null;
+      a.blindado = false;
       emit(ctx, { tipo: 'renasceu', alvo: a.uid });
     }
     return;
