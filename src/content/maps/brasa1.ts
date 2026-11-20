@@ -1,6 +1,6 @@
 /**
  * Brasa I: Canis da escória. Matilhas grandes: golpes em área ajudam.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ lava · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ lava · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -25,11 +25,11 @@ export const BRASA1: MapDef = {
     '####################################.#########',
     '####################################.#########',
     '##########..............####,,,,,,,,,,,,,,,,##',
-    '##########.T..........c.####,,,,,,,,,,,,,c,,##',
+    '##########.T..........c.####,,,,,1,,,,,,,c,,##',
     '##########..c.c.........####,,,,,,,,,c,,,,,,##',
-    '##########..................,f,,,,,,,,,,,,,,##',
+    '##########..................,f,4,Q,2,,,,,,,,##',
     '##########..............####,,,,,,,,,,c,,,,,##',
-    '##########..............####,,,,,,,,,,,,,,,,##',
+    '##########..............####,,,,,3,,,,,,,,,,##',
     '##########..............####,,,,,,,,,,,,,,,,##',
     '############.#################################',
     '#,,,,,,,,,,,,,,,,,,,,,,#######################',
@@ -44,7 +44,8 @@ export const BRASA1: MapDef = {
   legenda: {
     monstros: { c: 'caoDeEscoria', f: 'ferreiro' },
     chefes: { K: 'matilheiro' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

@@ -37,7 +37,7 @@
   padding: 2px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: #0b0d14;
+  background: #0c0b0f;
 }
 
 .passo button {
@@ -171,10 +171,11 @@
 }
 
 .classeAtiva {
-  border-color: var(--color-arcane);
+  border-color: var(--color-brass);
+  background: linear-gradient(180deg, rgba(201, 161, 90, 0.14), transparent 70%);
   box-shadow:
-    0 0 0 1px var(--color-arcane),
-    0 0 14px rgba(139, 124, 246, 0.35);
+    inset 0 2px 0 var(--color-brass),
+    0 0 14px rgba(201, 161, 90, 0.25);
 }
 
 @media (max-width: 560px) {

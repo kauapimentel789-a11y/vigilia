@@ -51,6 +51,14 @@ export interface RtActor extends BattleUnit {
   preparo: { acao: string; restante: number; total: number; tiles: Array<[number, number]> } | null;
 }
 
+export interface Enigma {
+  sequencia: number[];
+  progresso: number;
+  ativo: boolean;
+  resolvido: boolean;
+  prazo: number;
+}
+
 export interface WorldState {
   mapa: string;
   t: number;
@@ -69,6 +77,11 @@ export interface WorldState {
   abertos: number[];
   /** Recarga da poção, em ms. */
   recargaPocao: number;
+  /**
+   * Enigma do relicário: a ordem das runas, quantas já foram pisadas certo, se está valendo
+   * agora e o tempo que falta (ms) para terminar. Sem relicário no mapa: null.
+   */
+  enigma?: Enigma | null;
 }
 
 type Body =
@@ -103,6 +116,10 @@ type Body =
   | { tipo: 'itemNoChao'; ids: string[] }
   /** Chegou perto de um objeto (personagem do Posto ou baú). */
   | { tipo: 'interagir'; objeto: string; x: number; y: number }
+  | { tipo: 'enigma'; sequencia: number[]; prazo: number }
+  | { tipo: 'runa'; runa: number; certo: boolean; x: number; y: number }
+  | { tipo: 'enigmaFalhou'; motivo: 'errou' | 'tempo' }
+  | { tipo: 'enigmaResolvido'; x: number; y: number }
   | { tipo: 'pocao'; cura: number }
   | { tipo: 'heroiCaiu' }
   | { tipo: 'portao'; destino: string; rotulo: string };

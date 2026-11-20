@@ -1,6 +1,6 @@
 /**
  * Véu I: Nave dos Sinos. Os pilares bloqueiam o Olhar do Véu: quem está atrás deles não é visto.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ água · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ água · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -33,11 +33,11 @@ export const VEU1: MapDef = {
     '####,,,,##,,,,,,##,,,,,,##,,,,,,##,,,,,,##,,,#',
     '####,,,,##,,,,,,##,,,,,,##,,,,,,##,,,,,,##,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '####,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,,,#',
+    '####4,Q,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '####,,3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,##,,,,,,##,,,,,,##,,,,,,##,,,,,,##,,,#',
     '####,,,,##,,,,,,##,,,,,,##,,,,,,##,,,,,,##,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
@@ -48,7 +48,8 @@ export const VEU1: MapDef = {
   legenda: {
     monstros: { a: 'afogado', n: 'enguia', s: 'sineira' },
     chefes: { K: 'abadessa' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

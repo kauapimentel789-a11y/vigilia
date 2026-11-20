@@ -8,7 +8,7 @@
  */
 import { createRng, restoreRng } from '../core/index.ts';
 import type { Rng } from '../core/index.ts';
-import type { EnemyActionDef, EnemyDef, GameContent, MapDef } from '../definitions.ts';
+import type { EnemyActionDef, EnemyDef, GameContent, MapDef, PortalDef } from '../definitions.ts';
 import type { Effect, EffectHost, EffectSource, TargetSpec } from '../effects/effects.ts';
 import { runEffects } from '../effects/effects.ts';
 import type { HunterProfile } from '../hunter/stats.ts';
@@ -20,7 +20,7 @@ import type { WorldMap } from '../world/map.ts';
 import { chebyshev, gateAt, isWalkable, objectAt, parseMap } from '../world/map.ts';
 import { hasLineOfSight } from '../world/los.ts';
 import { DIRECOES, canStep, findPath } from '../world/path.ts';
-import type { RtActor, RtEvent, RtInput, WorldState } from './state.ts';
+import type { Enigma, RtActor, RtEvent, RtInput, WorldState } from './state.ts';
 import { HEROI } from './state.ts';
 
 /** Multiplicadores do chefe de um mapa. */
@@ -108,6 +108,88 @@ function baseActor(
   };
 }
 
+/** Runas por rank: mais runas e menos tempo nos ranks altos. */
+const ENIGMA: Record<string, { runas: number; tempo: number }> = {
+  cinza: { runas: 3, tempo: 14000 },
+  brasa: { runas: 4, tempo: 11000 },
+  veu: { runas: 5, tempo: 9000 },
+};
+/** Tempo de cada runa acesa enquanto o relicário mostra a ordem. */
+export const ENIGMA_MOSTRA_MS = 700;
+
+function createRiddle(m: WorldMap, portal: PortalDef | undefined, semente: number): Enigma | null {
+  const tipos = new Set(Object.values(m.runas));
+  if (tipos.size === 0 || !Object.values(m.objetos).includes('relicario')) return null;
+  const regra = ENIGMA[portal?.rank ?? 'cinza'] ?? ENIGMA.cinza!;
+  // Sorteio próprio: não mexe na sequência de sorte do resto do mapa.
+  const rng = createRng(semente * 31 + 7);
+  const lista = [...tipos].sort((a, b) => a - b);
+  const sequencia: number[] = [];
+  for (let i = 0; i < regra.runas; i++) {
+    let r = lista[Math.floor(rng.next() * lista.length)] as number;
+    // Sem a mesma runa duas vezes seguidas.
+    if (r === sequencia.at(-1)) r = lista[(lista.indexOf(r) + 1) % lista.length] as number;
+    sequencia.push(r);
+  }
+  return { sequencia, progresso: 0, ativo: false, resolvido: false, prazo: 0 };
+}
+
+function riddleTime(ctx: StepCtx): number {
+  const rank = ctx.content.portais[ctx.content.mapas[ctx.w.mapa]?.portal ?? '']?.rank ?? 'cinza';
+  const e = ctx.w.enigma;
+  return (e?.sequencia.length ?? 0) * ENIGMA_MOSTRA_MS + (ENIGMA[rank] ?? ENIGMA.cinza!).tempo;
+}
+
+/** Errou a ordem ou o tempo acabou: maldição e guardiões. É só tentar de novo no relicário. */
+function failRiddle(ctx: StepCtx, motivo: 'errou' | 'tempo'): void {
+  const e = ctx.w.enigma;
+  if (!e) return;
+  e.ativo = false;
+  e.progresso = 0;
+  emit(ctx, { tipo: 'enigmaFalhou', motivo });
+  const h = ctx.heroi;
+  const perda = Math.min(h.vida - 1, Math.round(h.vidaMax * 0.15));
+  if (perda > 0) {
+    h.vida -= perda;
+    emit(ctx, { tipo: 'perdaDeVida', alvo: h.uid, valor: perda, motivo: 'veneno' });
+  }
+  const comum = ctx.m.spawns.find((sp) => !sp.chefe);
+  if (comum) for (let i = 0; i < 2; i++) summon(ctx, h, comum.defId, false);
+}
+
+function stepOnRune(ctx: StepCtx, x: number, y: number): void {
+  const e = ctx.w.enigma;
+  const runa = ctx.m.runas[y * ctx.m.largura + x];
+  if (!e || !e.ativo || runa === undefined) return;
+  const certo = e.sequencia[e.progresso] === runa;
+  emit(ctx, { tipo: 'runa', runa, certo, x, y });
+  if (!certo) return failRiddle(ctx, 'errou');
+  e.progresso++;
+  if (e.progresso < e.sequencia.length) return;
+  e.ativo = false;
+  e.resolvido = true;
+  const idx = Number(
+    Object.keys(ctx.m.objetos).find((k) => ctx.m.objetos[Number(k)] === 'relicario'),
+  );
+  ctx.w.abertos.push(idx);
+  const rx = idx % ctx.m.largura;
+  const ry = (idx - rx) / ctx.m.largura;
+  emit(ctx, { tipo: 'enigmaResolvido', x: rx, y: ry });
+  // Recompensa: uma peça rara garantida e mais uma.
+  const portal = ctx.content.mapas[ctx.w.mapa]?.portal;
+  if (!portal) return;
+  const ids: string[] = [];
+  for (const minimo of ['rara', 'incomum'] as const) {
+    const id = `c${ctx.w.proximoId++}`;
+    const item = rollItem(ctx.content, portal, ctx.rng, id, minimo);
+    if (!item) continue;
+    ctx.w.chao.push({ id, item, x: ctx.heroi.x, y: ctx.heroi.y });
+    emit(ctx, { tipo: 'saque', id, x: ctx.heroi.x, y: ctx.heroi.y });
+    ids.push(id);
+  }
+  if (ids.length > 0) emit(ctx, { tipo: 'itemNoChao', ids });
+}
+
 /** Cria o mundo de um mapa, com o caçador no início (ou no ponto indicado). */
 export function createWorld(
   content: GameContent,
@@ -154,6 +236,7 @@ export function createWorld(
     chao: [],
     abertos: [],
     recargaPocao: 0,
+    enigma: createRiddle(m, portal, semente),
   };
   for (const sp of m.spawns) {
     const e = content.inimigos[sp.defId];
@@ -330,7 +413,7 @@ function checkPhases(ctx: StepCtx, host: EffectHost<RtActor>, a: RtActor): void 
 }
 
 /** Põe um ajudante do chefe num tile livre perto dele, já na luta. */
-function summon(ctx: StepCtx, chefe: RtActor, defId: string): void {
+function summon(ctx: StepCtx, chefe: RtActor, defId: string, ajudante = true): void {
   const e = ctx.content.inimigos[defId];
   if (!e) return;
   const livre = occupiedBy(ctx, chefe);
@@ -360,7 +443,7 @@ function summon(ctx: StepCtx, chefe: RtActor, defId: string): void {
     { vida: 1, ataque: 1, recompensa: 0.5 },
     false,
   );
-  novo.invocado = true;
+  novo.invocado = ajudante;
   novo.agressivo = true;
   novo.renascer = -1;
   ctx.w.atores.push(novo);
@@ -559,6 +642,23 @@ function drinkPotion(ctx: StepCtx): void {
 function interact(ctx: StepCtx, idx: number, x: number, y: number): void {
   const objeto = ctx.m.objetos[idx];
   if (!objeto) return;
+  if (objeto === 'relicario') {
+    const e = ctx.w.enigma;
+    if (!e || e.resolvido) {
+      emit(ctx, { tipo: 'aviso', texto: 'O relicário já está vazio.' });
+      return;
+    }
+    if (e.ativo) {
+      emit(ctx, { tipo: 'aviso', texto: 'As runas já estão valendo. Pise na ordem!' });
+      return;
+    }
+    e.ativo = true;
+    e.progresso = 0;
+    e.prazo = riddleTime(ctx);
+    emit(ctx, { tipo: 'interagir', objeto, x, y });
+    emit(ctx, { tipo: 'enigma', sequencia: [...e.sequencia], prazo: e.prazo });
+    return;
+  }
   if (objeto !== 'tesouro') {
     emit(ctx, { tipo: 'interagir', objeto, x, y });
     return;
@@ -635,6 +735,7 @@ function heroStep(ctx: StepCtx, host: EffectHost<RtActor>, input: RtInput, dt: n
     }
     if (andou) {
       reveal(w, ctx.m, h, ctx.content.mundo.raioRevelado);
+      stepOnRune(ctx, h.x, h.y);
       const g = gateAt(ctx.m, h.x, h.y);
       if (g) emit(ctx, { tipo: 'portao', destino: g.destino, rotulo: g.rotulo });
       const aqui = w.chao.filter((c) => c.x === h.x && c.y === h.y).map((c) => c.id);
@@ -992,6 +1093,10 @@ export function stepWorld(
   w.t += dt;
 
   w.recargaPocao = Math.max(0, w.recargaPocao - dt);
+  if (w.enigma?.ativo) {
+    w.enigma.prazo -= dt;
+    if (w.enigma.prazo <= 0) failRiddle(ctx, 'tempo');
+  }
   for (const id of Object.keys(w.recargas))
     w.recargas[id] = Math.max(0, (w.recargas[id] ?? 0) - dt);
 

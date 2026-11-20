@@ -1,6 +1,6 @@
 /**
  * Cinza II: Ratos de cinza em bando e carniçais. O chefe é um rato gigante.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -13,11 +13,11 @@ export const CINZA2: MapDef = {
   linhas: [
     '############################################',
     '#........###,,,,,,,,,,,,####..............##',
-    '#.E@.....###,r,,,,,,,,,,####............T.##',
+    '#.E@.....###,r,,,,,,1,,,####............T.##',
     '#........###,,,,,,,,,,,,####..............##',
-    '#...........,,rr,,,,,,,,..................##',
+    '#...........,,rr,,4,Q,2,..................##',
     '#........#..,,,,,,,,,,,,..................##',
-    '#........#.#,,,,,,,,,,,,####.r..cr........##',
+    '#........#.#,,,,,,,,3,,,####.r..cr........##',
     '##########.#,,,,,,,,,,,,####..............##',
     '##########.#################..............##',
     '##########.#################################',
@@ -41,7 +41,8 @@ export const CINZA2: MapDef = {
   legenda: {
     monstros: { c: 'carnical', r: 'ratoDeCinza' },
     chefes: { K: 'ratoDeCinza' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

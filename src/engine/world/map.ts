@@ -49,6 +49,8 @@ export interface WorldMap {
   /** Índice do tile → id do objeto (ex.: 'mercadora', 'tesouro'). */
   objetos: Record<number, string>;
   spawns: MapSpawn[];
+  /** Índice do tile → número da runa do enigma. O tile é chão comum. */
+  runas: Record<number, number>;
 }
 
 /** Legenda que o conteúdo usa para descrever um mapa. */
@@ -61,6 +63,8 @@ export interface MapLegend {
   portoes?: Record<string, MapGate>;
   /** Caractere → objeto de interação. */
   objetos?: Record<string, string>;
+  /** Caractere → runa do enigma (chão em que se pisa). */
+  runas?: Record<string, number>;
 }
 
 export function parseMap(id: string, linhas: readonly string[], legenda: MapLegend = {}): WorldMap {
@@ -70,6 +74,7 @@ export function parseMap(id: string, linhas: readonly string[], legenda: MapLege
   const portoes: Record<number, MapGate> = {};
   const spawns: MapSpawn[] = [];
   const objetos: Record<number, string> = {};
+  const runas: Record<number, number> = {};
   let inicio: { x: number; y: number } | null = null;
 
   for (let y = 0; y < altura; y++) {
@@ -92,13 +97,16 @@ export function parseMap(id: string, linhas: readonly string[], legenda: MapLege
       } else if (legenda.objetos?.[c]) {
         tiles[i] = Tile.Objeto;
         objetos[i] = legenda.objetos[c];
+      } else if (legenda.runas?.[c] !== undefined) {
+        tiles[i] = Tile.Chao;
+        runas[i] = legenda.runas[c];
       } else {
         throw new Error(`Mapa ${id}: caractere desconhecido "${c}" em (${x}, ${y})`);
       }
     }
   }
   if (!inicio) throw new Error(`Mapa ${id}: falta o ponto de início "@"`);
-  return { id, largura, altura, tiles, inicio, portoes, objetos, spawns };
+  return { id, largura, altura, tiles, inicio, portoes, objetos, spawns, runas };
 }
 
 export function inBounds(m: WorldMap, x: number, y: number): boolean {

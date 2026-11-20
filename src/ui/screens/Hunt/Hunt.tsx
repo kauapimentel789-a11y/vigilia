@@ -125,6 +125,22 @@ export function Hunt() {
       if (ev.tipo === 'aviso') avisar(ev.texto);
       if (ev.tipo === 'interagir' && JANELAS.has(ev.objeto)) setJanela(ev.objeto as JanelaId);
       if (ev.tipo === 'pocao') useGame.getState().gastarPocao();
+      if (ev.tipo === 'enigma') {
+        avisar('O relicário mostra a ordem das runas. Memorize e pise nelas!');
+        registrar(se, 'Enigma das runas começou', '#f2d27a');
+      }
+      if (ev.tipo === 'enigmaFalhou') {
+        const t =
+          ev.motivo === 'tempo'
+            ? 'O tempo acabou! A maldição chama os guardiões.'
+            : 'Runa errada! A maldição chama os guardiões.';
+        avisar(t);
+        registrar(se, t, '#ff8a8a');
+      }
+      if (ev.tipo === 'enigmaResolvido') {
+        avisar('Enigma resolvido! O relicário se abre.');
+        registrar(se, 'Relicário aberto', '#f2d27a');
+      }
       if (ev.tipo === 'especial') {
         avisar(ev.anuncio);
         registrar(se, ev.anuncio, '#ff8a8a');
@@ -319,7 +335,8 @@ export function Hunt() {
         beber();
       } else if (e.code === 'KeyR') {
         alternarAuto();
-      } else if (e.code === 'KeyE') {
+      } else if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
         const h = heroOf(se.w);
         const m = loadMap(CONTEUDO.mapas[se.w.mapa]!);
         for (let dy = -1; dy <= 1; dy++)
@@ -460,8 +477,8 @@ export function Hunt() {
               <dd>habilidades</dd>
               <dt>Q</dt>
               <dd>poção</dd>
-              <dt>E</dt>
-              <dd>falar, abrir baú</dd>
+              <dt>Espaço / E</dt>
+              <dd>falar, abrir baú, relicário</dd>
               <dt>R</dt>
               <dd>auto-caçar</dd>
               <dt>I</dt>
