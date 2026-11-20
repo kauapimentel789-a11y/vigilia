@@ -369,3 +369,83 @@
     bottom: 80px;
   }
 }
+
+/* Celular em pé, na caça: topo enxuto (só a placa) para sobrar tela para o mapa. */
+@media (max-width: 640px) {
+  .modoCaca .topo {
+    margin-top: var(--space-1);
+    padding: 4px var(--space-2);
+  }
+
+  .modoCaca .recursos,
+  .modoCaca .marca {
+    display: none;
+  }
+
+  .modoCaca .placa {
+    max-width: none;
+  }
+
+  .modoCaca .conteudo {
+    padding: var(--space-1) 0 0;
+  }
+}
+
+/* Celular deitado: abas viram uma coluna à esquerda e a caça usa a tela toda. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .app {
+    max-width: none;
+    padding: 0 var(--space-2) 0 calc(64px + env(safe-area-inset-left));
+  }
+
+  .abas {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 35;
+    width: calc(60px + env(safe-area-inset-left));
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 4px 4px 4px calc(4px + env(safe-area-inset-left));
+    border-bottom: 0;
+    border-right: 2px solid var(--color-brass-dark);
+    background: #121015;
+  }
+
+  .aba {
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
+    min-height: 0;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-md);
+    font-family: var(--font-ui);
+    font-size: 0.56rem;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .ativa::after {
+    display: none;
+  }
+
+  .nome {
+    display: none;
+  }
+
+  .modoCaca .topo {
+    display: none;
+  }
+
+  .modoCaca .conteudo {
+    padding: var(--space-2) 0;
+  }
+
+  .aviso {
+    bottom: var(--space-2);
+  }
+}

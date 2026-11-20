@@ -1869,6 +1869,7 @@ export function renderOverlay(
   s: Sessao,
   cam: Camera,
   dpr: number,
+  toque = false,
 ): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const m = loadMap(CONTEUDO.mapas[s.w.mapa]!);
@@ -1876,8 +1877,9 @@ export function renderOverlay(
     const esc = Math.max(2, Math.min(150 / m.largura, 110 / m.altura));
     const mw = m.largura * esc;
     const mh = m.altura * esc;
-    const ox = cam.largura - mw - 12;
-    const oy = cam.altura - mh - 12;
+    // No toque, os botões ocupam o canto de baixo: o minimapa sobe para a esquerda.
+    const ox = toque ? 12 : cam.largura - mw - 12;
+    const oy = toque ? 92 : cam.altura - mh - 12;
     ctx.fillStyle = 'rgba(5,6,10,0.78)';
     ctx.fillRect(ox - 4, oy - 4, mw + 8, mh + 8);
     ctx.strokeStyle = '#262c40';
@@ -1915,9 +1917,12 @@ export function renderOverlay(
   // Registro: as últimas linhas somem depois de alguns segundos.
   ctx.font = '12px system-ui, sans-serif';
   ctx.textAlign = 'left';
-  const recentes = s.log.filter((l) => s.agora - l.t < 10000);
+  // Tela estreita (celular): menos linhas e acima do joystick.
+  const estreita = cam.largura < 560;
+  const recentes = s.log.filter((l) => s.agora - l.t < 10000).slice(estreita ? -3 : -5);
+  const base = estreita ? cam.altura - 160 : cam.altura - 14;
   recentes.forEach((l, i) => {
-    const y = cam.altura - 14 - (recentes.length - 1 - i) * 17;
+    const y = base - (recentes.length - 1 - i) * 17;
     ctx.globalAlpha = Math.min(1, (10000 - (s.agora - l.t)) / 1500);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(10, y - 12, ctx.measureText(l.texto).width + 10, 16);

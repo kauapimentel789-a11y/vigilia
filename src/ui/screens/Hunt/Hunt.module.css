@@ -8,6 +8,11 @@
   background: #05060a;
   box-shadow: var(--moldura);
   overflow: hidden;
+  /* Toque longo e toque duplo não selecionam texto nem dão zoom no meio da luta. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .quadro {
@@ -432,5 +437,198 @@
 @keyframes pulsoCristal {
   to {
     box-shadow: 0 0 10px rgba(159, 232, 255, 0.45);
+  }
+}
+
+/* Mira do botão de alvo. */
+.mira {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ff8a8a;
+  border-radius: 50%;
+}
+
+.mira::before,
+.mira::after {
+  content: '';
+  position: absolute;
+  background: #ff8a8a;
+}
+
+.mira::before {
+  left: 50%;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.mira::after {
+  top: 50%;
+  left: -6px;
+  right: -6px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+/*
+ * Toque (celular e tablet): o mapa ocupa a tela inteira e os comandos ficam por
+ * cima dele, como num jogo de celular. Joystick à esquerda, ações em leque à direita.
+ */
+@media (pointer: coarse) {
+  .tela {
+    --altura-mapa: calc(100svh - 158px - env(safe-area-inset-bottom));
+  }
+
+  .canvas {
+    min-height: 300px;
+  }
+
+  .dock {
+    position: absolute;
+    right: 10px;
+    bottom: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 0;
+    background: none;
+    border: 0;
+    pointer-events: none;
+  }
+
+  .dock > * {
+    pointer-events: auto;
+  }
+
+  .divisor,
+  .slotNome,
+  .tecla,
+  .slotAjuda,
+  .ajuda {
+    display: none;
+  }
+
+  .grupoHab {
+    display: grid;
+    grid-template-columns: repeat(2, 60px);
+    gap: 8px;
+  }
+
+  .grupoUtil {
+    display: grid;
+    grid-template-columns: repeat(2, 46px);
+    gap: 6px;
+  }
+
+  .slot {
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 50% 35%,
+      rgba(52, 44, 58, 0.92),
+      rgba(18, 16, 22, 0.92) 70%
+    );
+    border: 2px solid var(--color-brass-dark);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .grupoUtil .slot {
+    width: 46px;
+    height: 46px;
+    border-width: 1px;
+  }
+
+  .grupoUtil .slot svg,
+  .grupoUtil .slot canvas {
+    width: 24px;
+    height: 24px;
+  }
+
+  .slotVazio {
+    display: none;
+  }
+
+  .contagem {
+    top: auto;
+    bottom: 2px;
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 0.62rem;
+  }
+
+  .recarga {
+    border-radius: 50%;
+  }
+
+  .slot:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  .joystick {
+    left: 14px;
+    bottom: 16px;
+    width: 128px;
+    height: 128px;
+    background: rgba(18, 16, 22, 0.55);
+    border: 2px solid rgba(201, 161, 90, 0.5);
+  }
+
+  .pino {
+    width: 52px;
+    height: 52px;
+    background: radial-gradient(circle at 40% 35%, #e9cf96, #a07a3c);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  }
+
+  .alvo {
+    top: var(--space-2);
+    bottom: auto;
+    left: auto;
+    right: var(--space-2);
+    transform: none;
+    min-width: 0;
+    max-width: 46%;
+    font-size: 0.78rem;
+  }
+
+  .alvoChefe {
+    min-width: 0;
+  }
+
+  .topoEsq {
+    max-width: 46%;
+  }
+
+  .mensagem {
+    top: 18%;
+    max-width: 92%;
+    font-size: 0.85rem;
+  }
+}
+
+/* Celular deitado: quase não há altura, então o mapa usa toda ela. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .tela {
+    --altura-mapa: calc(100svh - 16px);
+  }
+
+  .grupoHab {
+    grid-template-columns: repeat(2, 54px);
+  }
+
+  .grupoHab .slot {
+    width: 54px;
+    height: 54px;
+  }
+
+  .joystick {
+    width: 116px;
+    height: 116px;
   }
 }
