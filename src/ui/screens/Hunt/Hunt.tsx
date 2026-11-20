@@ -110,6 +110,9 @@ export function Hunt() {
   const perfilRef = useRef(perfil);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera | null>(null);
+  /** Aproximação do mapa em telas pequenas (celular): tiles maiores, mais fáceis de tocar. */
+  const zoomRef = useRef(1);
+  const alvoRef = useRef<() => void>(() => {});
   const [hud, setHud] = useState<Hud>(() => hudOf(getSessao(perfil)));
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [ajuda, setAjuda] = useState(false);
@@ -276,6 +279,7 @@ export function Hunt() {
       }
     };
 
+    const toque = window.matchMedia('(pointer: coarse)').matches;
     let ultimo = performance.now();
     let acumulado = 0;
     let hudEm = 0;
@@ -304,10 +308,12 @@ export function Hunt() {
         canvas.height = Math.round(altura * dpr);
       }
       const alpha = acumulado / tick;
-      const cam = cameraFor(se, largura, altura, alpha);
+      const zoom = Math.min(largura, altura) < 520 ? 1.4 : largura < 760 ? 1.2 : 1;
+      zoomRef.current = zoom;
+      const cam = cameraFor(se, largura / zoom, altura / zoom, alpha);
       camRef.current = cam;
-      render(ctx, se, cam, alpha, dpr);
-      renderOverlay(ctx, se, cam, dpr);
+      render(ctx, se, cam, alpha, dpr * zoom);
+      renderOverlay(ctx, se, { ...cam, largura, altura }, dpr, toque);
       if (agora - hudEm > 100) {
         hudEm = agora;
         setHud(hudOf(se));
@@ -430,15 +436,25 @@ export function Hunt() {
       if (!cam) return;
       const se = getSessao(perfilRef.current);
       const rect = canvas.getBoundingClientRect();
-      const wx = (e.clientX - rect.left + cam.x) / TILE;
-      const wy = (e.clientY - rect.top + cam.y) / TILE;
+      const z = zoomRef.current;
+      const wx = ((e.clientX - rect.left) / z + cam.x) / TILE;
+      const wy = ((e.clientY - rect.top) / z + cam.y) / TILE;
       const tx = Math.floor(wx);
       const ty = Math.floor(wy);
-      const monstro = se.w.atores.find((a) => {
-        if (a.lado !== 'inimigo' || a.vida <= 0) return false;
+      // No toque o dedo é impreciso: aceita um pouco mais longe e pega o mais perto.
+      const folga = e.pointerType === 'touch' ? 0.95 : 0.65;
+      let monstro: (typeof se.w.atores)[number] | undefined;
+      let melhor = Infinity;
+      for (const a of se.w.atores) {
+        if (a.lado !== 'inimigo' || a.vida <= 0) continue;
         const [ax, ay] = actorPos(a, 0, CONTEUDO.mundo.tickMs);
-        return Math.abs(ax + 0.5 - wx) < 0.65 && Math.abs(ay + 0.5 - wy) < 0.65;
-      });
+        const dx = Math.abs(ax + 0.5 - wx);
+        const dy = Math.abs(ay + 0.5 - wy);
+        if (dx < folga && dy < folga && dx + dy < melhor) {
+          melhor = dx + dy;
+          monstro = a;
+        }
+      }
       if (monstro) {
         se.fila.push({ alvo: monstro.uid });
         return;
@@ -451,6 +467,8 @@ export function Hunt() {
       if (isWalkable(m, tx, ty) && se.w.revelado[ty * m.largura + tx])
         se.fila.push({ irPara: [tx, ty] });
     };
+
+    alvoRef.current = () => proximoAlvo(getSessao(perfilRef.current));
 
     window.addEventListener('keydown', baixo);
     window.addEventListener('keyup', cima);
@@ -479,7 +497,12 @@ export function Hunt() {
   return (
     <section className={s.tela} aria-label="Mapa de caça">
       <div className={s.quadro}>
-        <canvas ref={canvasRef} className={s.canvas} data-testid="mapa" />
+        <canvas
+          ref={canvasRef}
+          className={s.canvas}
+          data-testid="mapa"
+          onContextMenu={(e) => e.preventDefault()}
+        />
         <Joystick
           onDir={(d) => {
             getSessao(perfilRef.current).dir = d;
@@ -583,7 +606,7 @@ export function Hunt() {
       {janela === 'expedicao' && <ExpeditionTable onFechar={() => setJanela(null)} />}
 
       <div className={s.dock}>
-        <div className={s.grupo}>
+        <div className={`${s.grupo} ${s.grupoHab}`}>
           {Array.from({ length: CONTEUDO.progressao.espacosDeHabilidade }, (_, i) => {
             const h = hud.habilidades[i];
             if (!h)
@@ -615,7 +638,18 @@ export function Hunt() {
           })}
         </div>
         <span className={s.divisor} aria-hidden />
-        <div className={s.grupo}>
+        <div className={`${s.grupo} ${s.grupoUtil}`}>
+          <button
+            className={`${s.slot} ${s.slotAlvo}`}
+            onClick={() => alvoRef.current()}
+            disabled={hud.caido}
+            title="Próximo alvo (tecla Tab)"
+            aria-label="Próximo alvo"
+          >
+            <span className={s.tecla}>Tab</span>
+            <span className={s.mira} aria-hidden />
+            <span className={s.slotNome}>Alvo</span>
+          </button>
           <button
             className={s.slot}
             onClick={() => beberRef.current()}

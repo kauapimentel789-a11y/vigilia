@@ -41,7 +41,7 @@ export function App() {
   const proximo = xpParaProximo(P, c.level);
 
   return (
-    <div className={s.app}>
+    <div className={`${s.app} ${aba === 'cacar' ? s.modoCaca : ''}`}>
       <header className={s.topo}>
         <div className={s.marca}>
           <img className={s.icone} src="/icone.svg" alt="" width={30} height={30} />
