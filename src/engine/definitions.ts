@@ -143,9 +143,20 @@ export interface EnemyActionDef {
    * Mapa: onde fica a área do golpe forte.
    * 'alvo' (padrão): quadrado em volta do caçador · 'emVolta': quadrado em volta de quem golpeia ·
    * 'cruz': linhas retas a partir de quem golpeia · 'anel': em volta de quem golpeia, menos perto
-   * dele (encostar é o lugar seguro).
+   * dele (encostar é o lugar seguro) · 'xis': diagonais a partir de quem golpeia · 'linha': faixa
+   * de 3 tiles de largura na direção do caçador · 'chuva': o tile do caçador e vários pontos
+   * sorteados em volta dele, cada um em forma de cruz pequena.
+   * Áreas em volta de quem golpeia só pegam o que ele enxerga: atrás de um pilar fica seguro.
    */
-  forma?: 'alvo' | 'emVolta' | 'cruz' | 'anel';
+  forma?: 'alvo' | 'emVolta' | 'cruz' | 'anel' | 'xis' | 'linha' | 'chuva';
+  /** Mapa: distância mínima até quem golpeia ('emVolta' e 'anel'). Padrão: 0, ou 2 no anel. */
+  raioMin?: number;
+  /** Mapa: quantos pontos caem na 'chuva' (padrão 6). */
+  quantidade?: number;
+  /** Mapa: id da ação preparada logo em seguida (ex.: ondas que se abrem uma após a outra). */
+  seguinte?: string;
+  /** Só aparece como `seguinte` de outra ação, nunca no sorteio ou no ciclo. */
+  soEncadeada?: boolean;
   /** Mapa: tempo de preparo deste golpe forte, em ms (padrão: mundo.preparoForteMs). */
   preparoMs?: number;
   /** Peso no sorteio, quando o padrão é aleatório. */
@@ -194,10 +205,12 @@ export interface FaseDef {
   invocar?: string[];
   /** Ids das ações usadas a partir desta fase (no lugar das anteriores). */
   acoes?: string[];
+  /** Mapa: o chefe não sofre dano enquanto houver ajudante invocado vivo. */
+  escudoAjudantes?: boolean;
 }
 
-export type RankId = 'cinza' | 'brasa';
-export const RANKS_ORDEM: readonly RankId[] = ['cinza', 'brasa'];
+export type RankId = 'cinza' | 'brasa' | 'veu';
+export const RANKS_ORDEM: readonly RankId[] = ['cinza', 'brasa', 'veu'];
 
 export interface RankDef {
   id: RankId;
@@ -263,7 +276,7 @@ export interface MapDef {
   nome: string;
   tipo: 'posto' | 'portal';
   /** Paleta do mapa (padrão: 'cinza'). Em 'brasa', a água vira lava. */
-  tema?: 'cinza' | 'brasa';
+  tema?: 'cinza' | 'brasa' | 'veu';
   /** Portal (da Caçada) que este mapa representa: define escala e recompensas. */
   portal?: string;
   /** Multiplicadores do chefe deste mapa (padrão: vida ×4, ataque ×1,3). */

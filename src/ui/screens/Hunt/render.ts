@@ -60,6 +60,18 @@ const TEMAS: Record<string, Partial<typeof COR_BASE>> = {
     sombra: '10,4,4',
     luz: '255,170,110',
   },
+  veu: {
+    chao: '#16222a',
+    chaoB: '#142027',
+    detalhe: '#1f3440',
+    paredeTopo: '#24404a',
+    paredeFace: '#0c171d',
+    agua: '#0d3a44',
+    aguaBrilho: 'rgba(120,230,220,0.3)',
+    portao: '#4fd1c5',
+    sombra: '3,8,12',
+    luz: '170,235,230',
+  },
 };
 
 let COR = COR_BASE;
@@ -105,7 +117,6 @@ function drawTile(
   px: number,
   py: number,
   t: number,
-  aberto = false,
 ) {
   const tile = m.tiles[y * m.largura + x];
   const r = hash(x, y);
@@ -152,29 +163,6 @@ function drawTile(
     }
     return;
   }
-  if (tile === Tile.Agua) {
-    ctx.fillStyle = COR.agua;
-    ctx.fillRect(px, py, TILE, TILE);
-    if (COR.agua !== COR_BASE.agua) {
-      // Lava: pulsa devagar, cada tile no seu tempo.
-      const k = 0.18 + 0.12 * Math.sin(t / 700 + r * 6.28);
-      ctx.fillStyle = `rgba(255,140,60,${k})`;
-      ctx.fillRect(px, py, TILE, TILE);
-    }
-    ctx.strokeStyle = COR.aguaBrilho;
-    ctx.lineWidth = 2;
-    const onda = Math.sin(t / 600 + x * 0.9 + y * 0.6) * 3;
-    ctx.beginPath();
-    ctx.moveTo(px + 6, py + TILE / 2 + onda);
-    ctx.quadraticCurveTo(
-      px + TILE / 2,
-      py + TILE / 2 - 4 + onda,
-      px + TILE - 6,
-      py + TILE / 2 + onda,
-    );
-    ctx.stroke();
-    return;
-  }
   // Lajes de pedra com tom variado, chanfro claro em cima e escuro embaixo.
   ctx.fillStyle = (x + y) % 2 === 0 ? COR.chao : COR.chaoB;
   ctx.fillRect(px, py, TILE, TILE);
@@ -196,10 +184,8 @@ function drawTile(
     ctx.lineTo(px + 11 + r * 8, py + 27);
     ctx.stroke();
   }
-  if (tile === Tile.Objeto) {
-    drawObject(ctx, m.objetos[y * m.largura + x] ?? '', px, py, t, aberto);
-    return;
-  }
+  // Água e objetos são desenhados depois, por cima do chão.
+  if (tile === Tile.Agua || tile === Tile.Objeto) return;
   // Sombra da parede logo acima.
   if (y > 0 && m.tiles[(y - 1) * m.largura + x] === Tile.Parede) {
     ctx.fillStyle = COR.paredeSombra;
@@ -213,19 +199,194 @@ function drawTile(
   const enfeite = hash(x * 29 + 3, y * 31 + 7);
   if ((tile === Tile.ChaoDetalhe && enfeite < 0.45) || enfeite > 0.93)
     drawDecoracao(ctx, m, x, y, px, py, t, r);
-  if (tile === Tile.Portao) {
-    const pulso = 0.55 + 0.25 * Math.sin(t / 400);
-    const cx = px + TILE / 2;
-    const cy = py + TILE / 2;
-    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, TILE * 0.55);
-    g.addColorStop(0, `rgba(190,180,255,${pulso})`);
-    g.addColorStop(1, 'rgba(139,124,246,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(px - 4, py - 4, TILE + 8, TILE + 8);
-    ctx.strokeStyle = COR.portao;
+}
+
+function ehAgua(m: WorldMap, x: number, y: number): boolean {
+  return (
+    x >= 0 && y >= 0 && x < m.largura && y < m.altura && m.tiles[y * m.largura + x] === Tile.Agua
+  );
+}
+
+/**
+ * Lagos (ou lava) de uma vez só: a forma é a união de círculos nos tiles e pontes
+ * entre vizinhos, então a margem sai arredondada, sem degraus. Os reflexos usam
+ * coordenadas do mundo e correm contínuos pela superfície.
+ */
+function drawLagos(
+  ctx: CanvasRenderingContext2D,
+  m: WorldMap,
+  tiles: ReadonlyArray<[number, number]>,
+  t: number,
+): void {
+  if (tiles.length === 0) return;
+  const lava = COR.aguaBrilho.startsWith('rgba(255');
+  const r = TILE * 0.62;
+  const forma = new Path2D();
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of tiles) {
+    const cx = (x + 0.5) * TILE;
+    const cy = (y + 0.5) * TILE;
+    forma.moveTo(cx + r, cy);
+    forma.arc(cx, cy, r, 0, Math.PI * 2);
+    if (ehAgua(m, x + 1, y)) forma.rect(cx, cy - r, TILE, r * 2);
+    if (ehAgua(m, x, y + 1)) forma.rect(cx - r, cy, r * 2, TILE);
+    if (ehAgua(m, x + 1, y) && ehAgua(m, x, y + 1) && ehAgua(m, x + 1, y + 1))
+      forma.rect(cx, cy, TILE, TILE);
+    minX = Math.min(minX, cx - r);
+    minY = Math.min(minY, cy - r);
+    maxX = Math.max(maxX, cx + r);
+    maxY = Math.max(maxY, cy + r);
+  }
+  ctx.save();
+  // Margem: traços largos por baixo; a água cobre a parte de dentro.
+  ctx.strokeStyle = lava ? '#2a120c' : '#263246';
+  ctx.lineWidth = 8;
+  ctx.stroke(forma);
+  ctx.strokeStyle = lava
+    ? `rgba(255,190,110,${0.45 + 0.15 * Math.sin(t / 400)})`
+    : `rgba(190,225,250,${0.3 + 0.1 * Math.sin(t / 700)})`;
+  ctx.lineWidth = 3;
+  ctx.stroke(forma);
+  ctx.fillStyle = COR.agua;
+  ctx.fill(forma);
+  ctx.clip(forma);
+  // Profundidade: mais escuro no meio, sem emendas entre tiles.
+  const meioX = (minX + maxX) / 2;
+  const meioY = (minY + maxY) / 2;
+  const raio = Math.max(maxX - minX, maxY - minY) / 2;
+  const fundo = ctx.createRadialGradient(meioX, meioY, 4, meioX, meioY, raio);
+  fundo.addColorStop(0, lava ? 'rgba(255,170,70,0.35)' : 'rgba(0,0,0,0.3)');
+  fundo.addColorStop(1, lava ? 'rgba(120,20,0,0)' : 'rgba(80,140,190,0.12)');
+  ctx.fillStyle = fundo;
+  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+  if (lava) {
+    ctx.fillStyle = `rgba(255,150,60,${0.12 + 0.08 * Math.sin(t / 900)})`;
+    ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+  }
+  // Reflexos: linhas onduladas que acendem e apagam devagar.
+  const passo = 6;
+  const esp = 9;
+  ctx.lineWidth = lava ? 2 : 1.5;
+  const onda = (wx: number, j: number) =>
+    j * esp + 3 * Math.sin(wx / 23 + t / 900 + j * 1.7) + 1.5 * Math.sin(wx / 9 - t / 600 + j);
+  for (let j = Math.floor(minY / esp); j <= Math.ceil(maxY / esp); j++) {
+    for (let wx = Math.floor(minX / passo) * passo; wx < maxX; wx += passo) {
+      const brilho = Math.sin(wx / 37 + j * 2.3 + t / 1300);
+      if (brilho < 0.35) continue;
+      const alfa = (brilho - 0.35) * (lava ? 0.7 : 0.4);
+      ctx.strokeStyle = lava ? `rgba(255,190,90,${alfa})` : `rgba(150,205,240,${alfa})`;
+      ctx.beginPath();
+      ctx.moveTo(wx, onda(wx, j));
+      ctx.lineTo(wx + passo, onda(wx + passo, j));
+      ctx.stroke();
+    }
+  }
+  // Cintilas.
+  for (const [x, y] of tiles) {
+    const h = hash(x * 7 + 1, y * 11 + 5);
+    if (Math.sin(t / 500 + h * 40) <= 0.75) continue;
+    ctx.fillStyle = lava ? 'rgba(255,230,160,0.9)' : 'rgba(230,245,255,0.85)';
+    ctx.fillRect(x * TILE + 6 + h * 22, y * TILE + 8 + ((h * 97) % 1) * 18, 2, 2);
+  }
+  ctx.restore();
+}
+
+/** Portal: arco de pedra com um vórtice girando e fagulhas sendo puxadas para dentro. */
+const COR_RANK: Record<string, string> = { cinza: '#8b7cf6', brasa: '#ff8a3c', veu: '#4fd1c5' };
+
+function rgb(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
+function drawPortal(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  t: number,
+  cor: string,
+  fechado: boolean,
+): void {
+  const c = fechado
+    ? rgb(cor)
+        .split(',')
+        .map((v) => Math.round(Number(v) * 0.35 + 120 * 0.65))
+        .join(',')
+    : rgb(cor);
+  const cx = px + TILE / 2;
+  const cy = py + TILE * 0.42;
+  const rx = TILE * 0.36;
+  const ry = TILE * 0.52;
+  const vel = fechado ? 0.25 : 1;
+  // Brilho no chão.
+  const chao = ctx.createRadialGradient(cx, py + TILE * 0.85, 2, cx, py + TILE * 0.85, TILE * 0.8);
+  chao.addColorStop(0, `rgba(${c},${fechado ? 0.12 : 0.35 + 0.1 * Math.sin(t / 400)})`);
+  chao.addColorStop(1, `rgba(${c},0)`);
+  ctx.fillStyle = chao;
+  ctx.fillRect(px - TILE * 0.4, py + TILE * 0.3, TILE * 1.8, TILE * 0.9);
+  // Pedras do arco.
+  ctx.fillStyle = '#3a3f55';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx + 6, ry + 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#4c5270';
+  for (let i = 0; i < 9; i++) {
+    const ang = Math.PI * (0.95 + (i / 8) * 1.1) - Math.PI * 0.5;
+    const bx = cx + Math.cos(ang - Math.PI / 2) * (rx + 3);
+    const by = cy + Math.sin(ang - Math.PI / 2) * (ry + 3);
+    ctx.fillRect(bx - 3, by - 3, 6, 6);
+  }
+  // Vórtice.
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, ry);
+  g.addColorStop(0, fechado ? 'rgba(40,40,50,1)' : 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.35, `rgba(${c},${fechado ? 0.5 : 0.9})`);
+  g.addColorStop(1, 'rgba(6,6,14,1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+  ctx.lineWidth = 2;
+  for (let braco = 0; braco < 3; braco++) {
+    ctx.strokeStyle = `rgba(${fechado ? c : '255,255,255'},${fechado ? 0.25 : 0.45})`;
+    ctx.beginPath();
+    for (let k = 0; k <= 1.001; k += 0.08) {
+      const ang = (t / 500) * vel + (braco * Math.PI * 2) / 3 + k * 4.2;
+      const xx = cx + Math.cos(ang) * rx * k;
+      const yy = cy + Math.sin(ang) * ry * k;
+      if (k === 0) ctx.moveTo(xx, yy);
+      else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Fagulhas puxadas para o centro.
+  if (!fechado) {
+    for (let i = 0; i < 6; i++) {
+      const fase = (t / 1400 + i / 6) % 1;
+      const ang = i * 2.1 + fase * 5;
+      const dist = (1 - fase) * 1.5;
+      ctx.fillStyle = `rgba(${c},${fase})`;
+      ctx.fillRect(
+        cx + Math.cos(ang) * rx * dist - 1,
+        cy + Math.sin(ang) * ry * dist - 1,
+        2.5,
+        2.5,
+      );
+    }
+  } else {
+    // Correntes de trancado.
+    ctx.strokeStyle = 'rgba(160,160,175,0.7)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, TILE * 0.32, TILE * 0.4, 0, 0, Math.PI * 2);
+    ctx.moveTo(cx - rx, cy - ry * 0.6);
+    ctx.lineTo(cx + rx, cy + ry * 0.6);
+    ctx.moveTo(cx + rx, cy - ry * 0.6);
+    ctx.lineTo(cx - rx, cy + ry * 0.6);
     ctx.stroke();
   }
 }
@@ -352,6 +513,175 @@ export const NOME_OBJETO: Record<string, string> = {
   tesouro: '',
 };
 
+/** Barraca da mercadora: toldo listrado, balcão com frascos e lanterna balançando. */
+function drawMercadora(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number): void {
+  const L = TILE * 0.82;
+  const topo = cy - TILE * 0.86;
+  // Luz quente em volta.
+  const luz = ctx.createRadialGradient(cx, cy - 6, 2, cx, cy - 6, TILE * 1.1);
+  luz.addColorStop(0, `rgba(242,181,107,${0.22 + 0.05 * Math.sin(t / 300)})`);
+  luz.addColorStop(1, 'rgba(242,181,107,0)');
+  ctx.fillStyle = luz;
+  ctx.fillRect(cx - TILE * 1.1, cy - TILE * 1.2, TILE * 2.2, TILE * 2.2);
+  // Postes.
+  ctx.fillStyle = '#4a3322';
+  ctx.fillRect(cx - L, topo + 4, 3, TILE * 1.1);
+  ctx.fillRect(cx + L - 3, topo + 4, 3, TILE * 1.1);
+  // Mercadora: capuz roxo com borda clara, rosto na sombra, olhos acesos e mãos no balcão.
+  const resp = Math.sin(t / 700) * 1;
+  ctx.fillStyle = '#6a4a82';
+  ctx.beginPath();
+  ctx.moveTo(cx - 11, cy + 4);
+  ctx.quadraticCurveTo(cx - 12, cy - 18 + resp, cx, cy - 21 + resp);
+  ctx.quadraticCurveTo(cx + 12, cy - 18 + resp, cx + 11, cy + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#a98bc4';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 10 + resp, 6.5, 7, 0, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.stroke();
+  ctx.fillStyle = '#120c16';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 9 + resp, 5.5, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const piscou = Math.sin(t / 1900) > 0.97;
+  if (!piscou) {
+    ctx.fillStyle = '#ffd27a';
+    ctx.fillRect(cx - 3, cy - 10 + resp, 2, 1.5);
+    ctx.fillRect(cx + 1, cy - 10 + resp, 2, 1.5);
+  }
+  ctx.fillStyle = '#d8b89a';
+  ctx.fillRect(cx - 8, cy - 4, 3, 2);
+  ctx.fillRect(cx + 5, cy - 4, 3, 2);
+  // Balcão com frascos.
+  ctx.fillStyle = '#6b4a2b';
+  ctx.fillRect(cx - L, cy - 1, L * 2, 12);
+  ctx.fillStyle = '#82593a';
+  ctx.fillRect(cx - L, cy - 3, L * 2, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(cx - L, cy + 6, L * 2, 1);
+  const frascos = ['#d4475e', '#4fa3c7', '#6fcf97', '#b07cf6'];
+  frascos.forEach((f, i) => {
+    const fx = cx - L + 5 + i * 7 + (i > 1 ? L : 0) * 0.55;
+    ctx.fillStyle = f;
+    ctx.fillRect(fx, cy - 9, 4, 6);
+    ctx.fillStyle = '#d8ccb0';
+    ctx.fillRect(fx + 1, cy - 11, 2, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(fx + 0.5, cy - 8, 1, 3);
+  });
+  // Toldo listrado com borda em ondas.
+  const faixas = 6;
+  const w = (L * 2 + 6) / faixas;
+  for (let i = 0; i < faixas; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#8e2f3c' : '#d8ccb0';
+    ctx.beginPath();
+    ctx.moveTo(cx - L - 3 + i * w, topo + 10);
+    ctx.lineTo(cx - L + 3 + i * w - 2, topo);
+    ctx.lineTo(cx - L + 3 + (i + 1) * w - 2, topo);
+    ctx.lineTo(cx - L - 3 + (i + 1) * w, topo + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx - L - 3 + (i + 0.5) * w, topo + 10, w / 2, 0, Math.PI);
+    ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(cx - L - 3, topo + 10, L * 2 + 6, 1);
+  // Lanterna pendurada, balançando.
+  const bal = Math.sin(t / 650) * 0.25;
+  const lx = cx + L + 2;
+  const ly = topo + 8;
+  const ex = lx + Math.sin(bal) * 10;
+  const ey = ly + Math.cos(bal) * 10;
+  ctx.strokeStyle = '#2a2220';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  const chama = 0.8 + 0.2 * Math.sin(t / 90);
+  const brilho = ctx.createRadialGradient(ex, ey + 4, 1, ex, ey + 4, 14);
+  brilho.addColorStop(0, `rgba(255,200,110,${0.7 * chama})`);
+  brilho.addColorStop(1, 'rgba(255,200,110,0)');
+  ctx.fillStyle = brilho;
+  ctx.fillRect(ex - 14, ey - 10, 28, 28);
+  ctx.fillStyle = '#2a2220';
+  ctx.fillRect(ex - 3.5, ey, 7, 9);
+  ctx.fillStyle = `rgba(255,214,140,${chama})`;
+  ctx.fillRect(ex - 2, ey + 2, 4, 5);
+}
+
+/** Baú de madeira com cintas de ferro e tampa abaulada. O do Posto brilha de leve. */
+function drawBau(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  t: number,
+  tesouro: boolean,
+  aberto: boolean,
+): void {
+  const madeira = tesouro ? (aberto ? '#4a3a2a' : '#8a5a2a') : '#6b4a2b';
+  const tampa = tesouro ? (aberto ? '#3a2d21' : '#a06a30') : '#7d5632';
+  const ferro = tesouro ? '#d9b45a' : '#5d6378';
+  const W = 26;
+  const top = cy - 2;
+  if (!aberto) {
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, TILE * 0.75);
+    const cor = tesouro ? '242,181,107' : '139,124,246';
+    g.addColorStop(0, `rgba(${cor},${0.18 + 0.1 * Math.sin(t / 380)})`);
+    g.addColorStop(1, `rgba(${cor},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - TILE, cy - TILE, TILE * 2, TILE * 2);
+  }
+  // Corpo.
+  ctx.fillStyle = madeira;
+  ctx.fillRect(cx - W / 2, top, W, 13);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(cx - W / 2, top + 4, W, 1);
+  ctx.fillRect(cx - W / 2, top + 8, W, 1);
+  if (aberto) {
+    // Tampa aberta para trás e interior vazio.
+    ctx.fillStyle = tampa;
+    ctx.fillRect(cx - W / 2, top - 12, W, 9);
+    ctx.fillStyle = '#120d09';
+    ctx.fillRect(cx - W / 2 + 2, top - 3, W - 4, 4);
+  } else {
+    // Tampa abaulada.
+    ctx.fillStyle = tampa;
+    ctx.beginPath();
+    ctx.moveTo(cx - W / 2, top);
+    ctx.lineTo(cx - W / 2, top - 5);
+    ctx.quadraticCurveTo(cx, top - 15, cx + W / 2, top - 5);
+    ctx.lineTo(cx + W / 2, top);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(cx - W / 2 + 3, top - 5);
+    ctx.quadraticCurveTo(cx, top - 13, cx + W / 2 - 3, top - 5);
+    ctx.lineTo(cx + W / 2 - 3, top - 4);
+    ctx.quadraticCurveTo(cx, top - 11, cx - W / 2 + 3, top - 4);
+    ctx.fill();
+  }
+  // Cintas de ferro e rebites.
+  ctx.fillStyle = ferro;
+  for (const bx of [cx - W / 2 + 4, cx + W / 2 - 7]) {
+    ctx.fillRect(bx, aberto ? top : top - 9, 3, aberto ? 13 : 22);
+  }
+  ctx.fillRect(cx - W / 2, top, W, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (const bx of [cx - W / 2 + 5, cx + W / 2 - 6]) ctx.fillRect(bx, top + 9, 1, 1);
+  // Fechadura.
+  if (!aberto) {
+    ctx.fillStyle = ferro;
+    ctx.fillRect(cx - 3, top - 2, 6, 7);
+    ctx.fillStyle = tesouro ? '#fff1b8' : `rgba(190,180,255,${0.7 + 0.3 * Math.sin(t / 300)})`;
+    ctx.fillRect(cx - 1, top + 1, 2, 3);
+  }
+}
+
 function drawObject(
   ctx: CanvasRenderingContext2D,
   id: string,
@@ -367,32 +697,9 @@ function drawObject(
   ctx.ellipse(cx, cy + TILE * 0.3, TILE * 0.36, TILE * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
   if (id === 'mercadora') {
-    ctx.fillStyle = '#7a5a3a';
-    ctx.beginPath();
-    ctx.moveTo(cx - 10, cy + 12);
-    ctx.quadraticCurveTo(cx - 12, cy - 12, cx, cy - 13);
-    ctx.quadraticCurveTo(cx + 12, cy - 12, cx + 10, cy + 12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#1a1410';
-    ctx.beginPath();
-    ctx.arc(cx, cy - 4, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = `rgba(242,181,107,${0.75 + 0.25 * Math.sin(t / 300)})`;
-    ctx.beginPath();
-    ctx.arc(cx + 11, cy + 2, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    drawMercadora(ctx, cx, cy, t);
   } else if (id === 'bau' || id === 'tesouro') {
-    ctx.fillStyle = id === 'bau' ? '#6b4a2b' : aberto ? '#3d3329' : '#8a6a2a';
-    ctx.fillRect(cx - 12, cy - 4, 24, 15);
-    ctx.fillStyle = aberto ? '#2a231c' : '#a07d3a';
-    ctx.fillRect(cx - 12, cy - 10, 24, 7);
-    ctx.fillStyle = '#d9c27a';
-    ctx.fillRect(cx - 2, cy - 4, 4, 5);
-    if (id === 'tesouro' && !aberto) {
-      ctx.fillStyle = `rgba(242,181,107,${0.25 + 0.2 * Math.sin(t / 250)})`;
-      ctx.fillRect(cx - 14, cy - 12, 28, 25);
-    }
+    drawBau(ctx, cx, cy, t, id === 'tesouro', aberto);
   } else if (id === 'altar') {
     ctx.fillStyle = '#4a4f66';
     ctx.fillRect(cx - 11, cy - 2, 22, 13);
@@ -797,6 +1104,80 @@ function drawMagias(
   }
 }
 
+/** Área de um golpe forte: preenchimento único, borda só por fora, rachaduras no fim. */
+function drawPerigo(
+  ctx: CanvasRenderingContext2D,
+  m: WorldMap,
+  tiles: ReadonlyArray<[number, number]>,
+  k: number,
+  t: number,
+  origem: [number, number],
+  chefe: boolean,
+): void {
+  const dentro = new Set(tiles.map(([x, y]) => y * m.largura + x));
+  const tem = (x: number, y: number) => dentro.has(y * m.largura + x);
+  let longe = 1;
+  for (const [x, y] of tiles) longe = Math.max(longe, Math.hypot(x - origem[0], y - origem[1]));
+  const cor = chefe ? '255,120,60' : '229,83,107';
+  const pulso = 0.5 + 0.5 * Math.sin(t / 90);
+  for (const [x, y] of tiles) {
+    const px = x * TILE;
+    const py = y * TILE;
+    // Frente que avança de quem golpeia até a borda da área.
+    const d = Math.hypot(x - origem[0], y - origem[1]) / longe;
+    const cheio = Math.max(0, Math.min(1, (k * 1.15 - d) * 4));
+    ctx.fillStyle = `rgba(${cor},${0.1 + 0.06 * pulso + 0.32 * cheio})`;
+    ctx.fillRect(px, py, TILE, TILE);
+    // Rachaduras que aparecem no fim do preparo.
+    if (k > 0.45) {
+      const hsh = hash(x, y);
+      ctx.strokeStyle = `rgba(255,${chefe ? 200 : 170},140,${(k - 0.45) * 1.6})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const cx = px + TILE * (0.3 + (hsh % 5) * 0.1);
+      const cy = py + TILE * (0.3 + ((hsh >> 3) % 5) * 0.1);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + TILE * 0.22, cy - TILE * 0.12);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx - TILE * 0.18, cy - TILE * 0.2);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + TILE * 0.05, cy + TILE * 0.24);
+      ctx.stroke();
+    }
+  }
+  // Borda: só os lados que dão para fora, tracejada e andando.
+  ctx.save();
+  ctx.strokeStyle = `rgba(${cor},${0.75 + 0.25 * pulso})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.lineDashOffset = -t / 40;
+  ctx.shadowColor = `rgba(${cor},0.9)`;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  for (const [x, y] of tiles) {
+    const px = x * TILE;
+    const py = y * TILE;
+    if (!tem(x, y - 1)) {
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + TILE, py);
+    }
+    if (!tem(x, y + 1)) {
+      ctx.moveTo(px, py + TILE);
+      ctx.lineTo(px + TILE, py + TILE);
+    }
+    if (!tem(x - 1, y)) {
+      ctx.moveTo(px, py);
+      ctx.lineTo(px, py + TILE);
+    }
+    if (!tem(x + 1, y)) {
+      ctx.moveTo(px + TILE, py);
+      ctx.lineTo(px + TILE, py + TILE);
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   s: Sessao,
@@ -837,7 +1218,36 @@ export function render(
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       if (!s.w.revelado[y * m.largura + x]) continue;
-      drawTile(ctx, m, x, y, x * TILE, y * TILE, t, s.w.abertos.includes(y * m.largura + x));
+      drawTile(ctx, m, x, y, x * TILE, y * TILE, t);
+    }
+  }
+  {
+    const lagos: Array<[number, number]> = [];
+    for (let y = Math.max(0, y0 - 1); y <= Math.min(m.altura - 1, y1 + 1); y++)
+      for (let x = Math.max(0, x0 - 1); x <= Math.min(m.largura - 1, x1 + 1); x++)
+        if (s.w.revelado[y * m.largura + x] && ehAgua(m, x, y)) lagos.push([x, y]);
+    drawLagos(ctx, m, lagos, t);
+  }
+  // Objetos e portais por cima do chão: podem passar do tile (toldo, vórtice).
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = y * m.largura + x;
+      if (!s.w.revelado[i]) continue;
+      if (m.tiles[i] === Tile.Objeto) {
+        drawObject(ctx, m.objetos[i] ?? '', x * TILE, y * TILE, t, s.w.abertos.includes(i));
+      } else if (m.tiles[i] === Tile.Portao) {
+        const destino = CONTEUDO.mapas[m.portoes[i]?.destino ?? '']?.portal;
+        const portal = destino ? CONTEUDO.portais[destino] : undefined;
+        const fechado = !!portal && !isPortalOpen(useGame.getState().estado, CONTEUDO, portal.id);
+        drawPortal(
+          ctx,
+          x * TILE,
+          y * TILE,
+          t,
+          portal ? (COR_RANK[portal.rank] ?? '#8b7cf6') : '#d9d3ff',
+          fechado,
+        );
+      }
     }
   }
 
@@ -862,22 +1272,33 @@ export function render(
     ctx.fill();
   }
 
-  // Avisos de golpe forte: área vermelha que enche até o golpe.
+  // Avisos de golpe forte: uma área só, com borda viva, que se enche a partir de
+  // quem golpeia e racha o chão perto do fim.
   for (const a of s.w.atores) {
     const p = a.vida > 0 ? a.preparo : null;
     if (!p) continue;
     const k = 1 - Math.max(0, p.restante - alpha * tick) / p.total;
-    for (const [x, y] of p.tiles) {
+    drawPerigo(ctx, m, p.tiles, k, t, [a.x, a.y], a.chefe);
+  }
+
+  // Impacto: o chão da área acende e apaga.
+  s.impactos = s.impactos.filter((i) => t - i.nasceu < 420);
+  for (const i of s.impactos) {
+    const k = (t - i.nasceu) / 420;
+    for (const [x, y] of i.tiles) {
       const px = x * TILE;
       const py = y * TILE;
-      ctx.fillStyle = `rgba(229,83,107,${0.16 + 0.1 * Math.sin(t / 90)})`;
-      ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
-      ctx.fillStyle = 'rgba(229,83,107,0.45)';
-      const lado = (TILE - 2) * k;
-      ctx.fillRect(px + TILE / 2 - lado / 2, py + TILE / 2 - lado / 2, lado, lado);
-      ctx.strokeStyle = '#e5536b';
+      ctx.fillStyle =
+        k < 0.25
+          ? `rgba(255,240,220,${0.7 * (1 - k * 4) + 0.2})`
+          : `rgba(${i.chefe ? '255,150,70' : '255,95,80'},${0.55 * (1 - k)})`;
+      ctx.fillRect(px, py, TILE, TILE);
+      const r = TILE * (0.2 + 0.5 * k);
+      ctx.strokeStyle = `rgba(255,210,160,${0.6 * (1 - k)})`;
       ctx.lineWidth = 2;
-      ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      ctx.beginPath();
+      ctx.arc(px + TILE / 2, py + TILE / 2, r, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 
@@ -1068,9 +1489,9 @@ export function render(
     const oy = Math.floor(i / m.largura) * TILE;
     const w = ctx.measureText(nome).width + 10;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(ox - w / 2, oy - 16, w, 15);
+    ctx.fillRect(ox - w / 2, oy + TILE + 1, w, 15);
     ctx.fillStyle = '#f2d9b0';
-    ctx.fillText(nome, ox, oy - 5);
+    ctx.fillText(nome, ox, oy + TILE + 12);
   }
 
   // Rótulos dos portões.
@@ -1086,9 +1507,9 @@ export function render(
     const rotulo = fechado ? `🔒 ${g.rotulo}` : g.rotulo;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     const w = ctx.measureText(rotulo).width + 10;
-    ctx.fillRect(gx * TILE + TILE / 2 - w / 2, gy * TILE - 16, w, 15);
+    ctx.fillRect(gx * TILE + TILE / 2 - w / 2, (gy + 1) * TILE + 1, w, 15);
     ctx.fillStyle = fechado ? '#7d7f8f' : '#d9d3ff';
-    ctx.fillText(rotulo, gx * TILE + TILE / 2, gy * TILE - 5);
+    ctx.fillText(rotulo, gx * TILE + TILE / 2, (gy + 1) * TILE + 12);
   }
 
   // Números flutuantes.

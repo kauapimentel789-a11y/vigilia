@@ -37,7 +37,7 @@ function escapeStep(
   const primeiro = new Map<number, readonly [number, number]>();
   let fronteira: Array<[number, number]> = [[x0, y0]];
   const visto = new Set([y0 * m.largura + x0]);
-  for (let passo = 0; passo < 6 && fronteira.length > 0; passo++) {
+  for (let passo = 0; passo < 9 && fronteira.length > 0; passo++) {
     const proxima: Array<[number, number]> = [];
     for (const [x, y] of fronteira) {
       for (const d of DIRECOES) {
@@ -70,7 +70,7 @@ export function autoHuntInput(
   const vidaPct = h.vida / h.vidaMax;
   const monstros = w.atores.filter((a) => a.lado === 'inimigo' && vivo(a));
 
-  // 1. Sair de uma área de golpe forte: o tile seguro mais perto (até 6 passos).
+  // 1. Sair de uma área de golpe forte: o tile seguro mais perto (até 9 passos).
   const perigo = monstros.filter((a) => a.preparo?.tiles.some(([x, y]) => x === h.x && y === h.y));
   if (perigo.length > 0 && h.moverRestante <= 0) {
     const tiles = new Set(
@@ -139,6 +139,13 @@ export function autoHuntInput(
       .filter((a) => a.invocado && a.agressivo && chebyshev(a.x, a.y, h.x, h.y) <= 3)
       .sort((a, b) => a.vida - b.vida)[0];
     if (ajudante) return { alvo: ajudante.uid };
+    // Chefe blindado: o dano para no escudo, então vai atrás de qualquer ajudante vivo.
+    if (alvo.blindado) {
+      const qualquer = monstros
+        .filter((a) => a.invocado)
+        .sort((a, b) => chebyshev(a.x, a.y, h.x, h.y) - chebyshev(b.x, b.y, h.x, h.y))[0];
+      if (qualquer) return { alvo: qualquer.uid };
+    }
   }
 
   // 4. Habilidades, na ordem de prioridade.

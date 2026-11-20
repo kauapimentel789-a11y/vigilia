@@ -15,6 +15,12 @@ export const RANKS: Record<RankId, RankDef> = {
     nome: 'Brasa',
     descricao: 'Aprovado no Exame. Abre as Forjas Caídas, onde os chefes têm mecânicas.',
   },
+  veu: {
+    id: 'veu',
+    nome: 'Véu',
+    descricao:
+      'Aprovado pelo Juiz das Marés. Abre a Catedral Submersa: até os comuns avisam golpes.',
+  },
 };
 
 const lista: SeloDef[] = [
@@ -29,6 +35,10 @@ const lista: SeloDef[] = [
   { id: 'seloCaldeira', nome: 'Selo da Caldeira', descricao: 'Do chefe da Brasa III.' },
   { id: 'seloColosso', nome: 'Selo do Colosso', descricao: 'Do chefe da Brasa IV.' },
   { id: 'seloArauto', nome: 'Selo do Arauto', descricao: 'Do chefe da Brasa V.' },
+  { id: 'seloMares', nome: 'Selo das Marés', descricao: 'Do Juiz do Exame do Véu.' },
+  { id: 'seloAbadessa', nome: 'Selo da Abadessa', descricao: 'Do chefe do Véu I.' },
+  { id: 'seloHidra', nome: 'Selo da Hidra', descricao: 'Do chefe do Véu II.' },
+  { id: 'seloSoberano', nome: 'Selo do Soberano', descricao: 'Do chefe do Véu III.' },
 ];
 
 export const SELOS: Record<string, SeloDef> = Object.fromEntries(lista.map((s) => [s.id, s]));

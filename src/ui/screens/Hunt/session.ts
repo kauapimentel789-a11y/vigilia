@@ -80,6 +80,8 @@ export interface Sessao {
   /** Lampejo de fase de chefe (anel que se expande a partir dele). */
   ondas: Array<{ x: number; y: number; cor: string; nasceu: number }>;
   magias: Magia[];
+  /** Golpes fortes que acabaram de cair: a área pisca e solta fagulhas. */
+  impactos: Array<{ tiles: Array<[number, number]>; nasceu: number; chefe: boolean }>;
   /** Comandos de um passo só (clique, alvo, habilidade), na ordem em que chegaram. */
   fila: RtInput[];
   /** Direção segurada no teclado. */
@@ -101,6 +103,7 @@ function efeitosVazios() {
     tremor: { forca: 0, ate: 0 },
     ondas: [] as Array<{ x: number; y: number; cor: string; nasceu: number }>,
     magias: [] as Magia[],
+    impactos: [] as Array<{ tiles: Array<[number, number]>; nasceu: number; chefe: boolean }>,
   };
 }
 
@@ -240,6 +243,18 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
     case 'preparo':
       flut(ev.origem, `⚠ ${ev.nome}`, '#ff8a8a');
       break;
+    case 'impacto': {
+      const chefe = s.w.atores.find((x) => x.uid === ev.origem)?.chefe ?? false;
+      s.impactos.push({ tiles: ev.tiles, nasceu: s.agora, chefe });
+      if (s.impactos.length > 12) s.impactos.shift();
+      const passo = Math.max(1, Math.floor(ev.tiles.length / 8));
+      for (let i = 0; i < ev.tiles.length; i += passo) {
+        const [x, y] = ev.tiles[i]!;
+        fagulhas(s, x, y, chefe ? '#ffb35a' : '#ff7a6a', 3, 0.8);
+      }
+      tremer(s, chefe ? 6 : 3, chefe ? 260 : 140);
+      break;
+    }
     case 'esquiva':
       flut(ev.alvo, 'Esquivou!', '#d9d3ff');
       break;

@@ -88,7 +88,8 @@ function prepare(e: GameState): GameState {
 
 function levelUpTo(level: number): GameState {
   const e = newGame(C, 1, 0);
-  while (e.cacador.level < level) {
+  const alvo = Math.min(level, C.progressao.levelMax);
+  while (e.cacador.level < alvo) {
     const falta =
       Math.round(C.progressao.xpBase * Math.pow(e.cacador.level, C.progressao.xpExpoente)) -
       e.cacador.xp;
@@ -106,7 +107,7 @@ console.log('  mapa           level | venceu  luta média  vida mínima  poçõe
 for (const portal of C.ordemPortais) {
   const mapa = Object.values(C.mapas).find((m) => m.portal === portal)!;
   const rec = C.portais[portal]!.levelRecomendado;
-  for (const lv of [rec, rec + 3]) {
+  for (const lv of [...new Set([rec, Math.min(rec + 3, C.progressao.levelMax)])]) {
     const perfil = buildProfile(prepare(levelUpTo(lv)).cacador, C);
     let vitorias = 0;
     let quedas = 0;

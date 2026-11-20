@@ -11,6 +11,10 @@ import { CINZA4 } from './cinza4.ts';
 import { CINZA5 } from './cinza5.ts';
 import { EXAME_BRASA } from './exameBrasa.ts';
 import { POSTO } from './posto.ts';
+import { EXAME_VEU } from './exameVeu.ts';
+import { VEU1 } from './veu1.ts';
+import { VEU2 } from './veu2.ts';
+import { VEU3 } from './veu3.ts';
 
 export const MAPAS: Record<string, MapDef> = Object.fromEntries(
   [
@@ -26,5 +30,9 @@ export const MAPAS: Record<string, MapDef> = Object.fromEntries(
     BRASA3,
     BRASA4,
     BRASA5,
+    EXAME_VEU,
+    VEU1,
+    VEU2,
+    VEU3,
   ].map((m) => [m.id, m]),
 );

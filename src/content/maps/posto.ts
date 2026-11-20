@@ -1,7 +1,7 @@
 /**
  * Posto da Vigília: a base segura. Sem monstros.
  * Legenda: # parede · . chão · , chão com detalhe · ~ água · @ início · 1-5 portões da Cinza
- * R Exame de Rank · 6-0 portões da Brasa
+ * R Exame de Rank · 6-0 portões da Brasa · V Exame do Véu · P Q W portões do Véu
  * M mercadora · B baú · A altar dos atributos · X mesa de expedições
  */
 import type { MapDef } from '../../engine/definitions.ts';
@@ -14,10 +14,10 @@ export const POSTO: MapDef = {
     '############################',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '#,#####,,,,,,,,,,,,,,#####,#',
-    '#,#M.B#,,,,,,,,,,,,,,#A.X#,#',
-    '#,#...#,,,,~~~~~~,,,,#...#,#',
-    '#,##.##,,,,~~~~~~,,,,##.##,#',
-    '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '#,#M.B#,,,,,,~~~~,,,,#A.X#,#',
+    '#,#...#,,,,~~~~~~~,,,#...#,#',
+    '#,##.##,,,~~~~~~~~~,,##.##,#',
+    '#,,,,,,,,,,,~~~~~~,,,,,,,,,#',
     '#,,,,,,,,,,,,..,,,,,,,,,,,,#',
     '#,,,,,,,,,,,,@.,,,,,,,,,,,,#',
     '#,,,,,,,,,,,,..,,,,,,,,,,,,#',
@@ -27,6 +27,10 @@ export const POSTO: MapDef = {
     '#,,,,,,,,,,,,R,,,,,,,,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '#,,,6,,,,7,,,,8,,,,9,,,,0,,#',
+    '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '#,,,,,,,,,,,,V,,,,,,,,,,,,,#',
+    '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '#,,,,,P,,,,,,Q,,,,,,W,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '############################',
   ],
@@ -44,6 +48,10 @@ export const POSTO: MapDef = {
       '8': { destino: 'brasa3', rotulo: 'Brasa III' },
       '9': { destino: 'brasa4', rotulo: 'Brasa IV' },
       '0': { destino: 'brasa5', rotulo: 'Brasa V' },
+      V: { destino: 'exameVeu', rotulo: 'Exame do Véu' },
+      P: { destino: 'veu1', rotulo: 'Véu I' },
+      Q: { destino: 'veu2', rotulo: 'Véu II' },
+      W: { destino: 'veu3', rotulo: 'Véu III' },
     },
   },
 };
