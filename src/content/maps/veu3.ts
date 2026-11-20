@@ -1,6 +1,6 @@
 /**
  * Véu III: Trono Afogado. Pilares para o Olhar, espaço aberto para as marés.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ água · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ água · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -36,11 +36,11 @@ export const VEU3: MapDef = {
     '####,,,,,,##,,,,,,##,,,,,,,,,,,,##,,,,,,##,,,,,,,#',
     '####,,,,,,##,,,,,,##,,,,,,,,,,,,##,,,,,,##,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+    '####,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,##,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,##,,,,,,,,,,,,,,,,,,,,,,#',
+    '####,4,Q,2,,,,,,,,,,,,,,,##,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '####,,,,,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,,,,,,#',
+    '####,,,3,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '####,,,,,,##,,,,,,##,,,,,,,,,,,,##,,,,,,##,,,,,,,#',
     '####,,,,,,##,,,,,,##,,,,,,,,,,,,##,,,,,,##,,,,,,,#',
@@ -52,7 +52,8 @@ export const VEU3: MapDef = {
   legenda: {
     monstros: { a: 'afogado', n: 'enguia', s: 'sineira', v: 'vigiaCego' },
     chefes: { K: 'soberano' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

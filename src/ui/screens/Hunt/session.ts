@@ -82,6 +82,10 @@ export interface Sessao {
   magias: Magia[];
   /** Golpes fortes que acabaram de cair: a área pisca e solta fagulhas. */
   impactos: Array<{ tiles: Array<[number, number]>; nasceu: number; chefe: boolean }>;
+  /** Enigma do relicário: quando a ordem começou a ser mostrada. */
+  enigmaVisto: { sequencia: number[]; inicio: number } | null;
+  /** Runas pisadas há pouco: acendem verde (certo) ou vermelho (errado). */
+  runasPisadas: Array<{ x: number; y: number; certo: boolean; nasceu: number }>;
   /** Comandos de um passo só (clique, alvo, habilidade), na ordem em que chegaram. */
   fila: RtInput[];
   /** Direção segurada no teclado. */
@@ -104,6 +108,8 @@ function efeitosVazios() {
     ondas: [] as Array<{ x: number; y: number; cor: string; nasceu: number }>,
     magias: [] as Magia[],
     impactos: [] as Array<{ tiles: Array<[number, number]>; nasceu: number; chefe: boolean }>,
+    enigmaVisto: null as { sequencia: number[]; inicio: number } | null,
+    runasPisadas: [] as Array<{ x: number; y: number; certo: boolean; nasceu: number }>,
   };
 }
 
@@ -242,6 +248,22 @@ export function efeitosVisuais(s: Sessao, ev: RtEvent): void {
       break;
     case 'preparo':
       flut(ev.origem, `⚠ ${ev.nome}`, '#ff8a8a');
+      break;
+    case 'enigma':
+      s.enigmaVisto = { sequencia: ev.sequencia, inicio: s.agora };
+      break;
+    case 'runa':
+      s.runasPisadas.push({ x: ev.x, y: ev.y, certo: ev.certo, nasceu: s.agora });
+      fagulhas(s, ev.x, ev.y, ev.certo ? '#6fcf97' : '#ff5a6e', 10, 0.8);
+      break;
+    case 'enigmaFalhou':
+      s.enigmaVisto = null;
+      tremer(s, 6, 300);
+      break;
+    case 'enigmaResolvido':
+      s.enigmaVisto = null;
+      fagulhas(s, ev.x, ev.y, '#f2d27a', 40, 1.6);
+      s.ondas.push({ x: ev.x, y: ev.y, cor: '#f2d27a', nasceu: s.agora });
       break;
     case 'impacto': {
       const chefe = s.w.atores.find((x) => x.uid === ev.origem)?.chefe ?? false;

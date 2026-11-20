@@ -1,6 +1,6 @@
 /**
  * Brasa III: Caldeiras. Mate as acólitas primeiro; contra o Anel de Fogo, encoste na Caldeira.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ lava · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ lava · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -28,11 +28,11 @@ export const BRASA3: MapDef = {
     '###############################...............##',
     '##############,,,,,,,,,,,,,####...............##',
     '##############,c,,,,,,,,,,,####.a..........f..##',
-    '##############,,,,,,,,,,,,,####...............##',
+    '##############,,,,,,1,,,,,,####...............##',
     '##############,,,,,,,,,,,,,.........l.........##',
-    '#######.......,,,,,,,,,,a,,####...............##',
+    '#######.......,,,,4,Q,2,a,,####...............##',
     '#............#,,,,,,,,,,,,,####...............##',
-    '#............#,,a,,,,,,,,,,####...............##',
+    '#............#,,a,,,3,,,,,,####...............##',
     '#............#,T,,,,,,,,,,,#####################',
     '#............###################################',
     '#............###################################',
@@ -46,7 +46,8 @@ export const BRASA3: MapDef = {
   legenda: {
     monstros: { a: 'acolita', c: 'caoDeEscoria', f: 'ferreiro', l: 'lancadora' },
     chefes: { K: 'caldeira' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

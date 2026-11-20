@@ -286,8 +286,13 @@ export interface MapDef {
     monstros?: Record<string, string>;
     chefes?: Record<string, string>;
     portoes?: Record<string, { destino: string; rotulo: string }>;
-    /** Objetos: personagens do Posto ('mercadora', 'bau', 'altar', 'expedicao') ou 'tesouro'. */
+    /**
+     * Objetos: personagens do Posto ('mercadora', 'bau', 'altar', 'expedicao'), 'tesouro'
+     * ou 'relicario' (baú selado por um enigma de runas).
+     */
     objetos?: Record<string, string>;
+    /** Runas do enigma do relicário: caractere → número da runa (0, 1, 2...). Pisa-se nelas. */
+    runas?: Record<string, number>;
   };
 }
 

@@ -1,6 +1,6 @@
 /**
  * Cinza III: Ninhos de tecelãs venenosas. A rainha da teia espera no fundo.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -26,11 +26,11 @@ export const CINZA3: MapDef = {
     '#####################################.########',
     '###############################.............##',
     '##############,,,,,,,,,,,,,####..........t..##',
-    '##############,,,,,,,,,,,,,####.........c...##',
+    '##############,,,,,,,,,,,,,####...1.....c...##',
     '##############,,,,,,,,,,,,,####........c....##',
-    '##############,,,,,,,,,,,,,.................##',
+    '##############,,,,,,,,,,,,,.....4.Q.2.......##',
     '######........,,,,,,,,,t,,,####.............##',
-    '######.#######,,,,,,,,c,,,,####.............##',
+    '######.#######,,,,,,,,c,,,,####...3.........##',
     '#...........##,,,,t,,,,,,,,####.............##',
     '#...........##,T,,,,,,,,,,,###################',
     '#...........##,,,,,,,,,,,,,###################',
@@ -45,7 +45,8 @@ export const CINZA3: MapDef = {
   legenda: {
     monstros: { c: 'carnical', t: 'tecela' },
     chefes: { K: 'tecela' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

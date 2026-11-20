@@ -1,6 +1,6 @@
 /**
  * Brasa IV: Salão do Colosso. Quando ele erguer os braços, afaste-se três passos.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ lava · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ lava · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -37,18 +37,19 @@ export const BRASA4: MapDef = {
     '#########################.########################',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '#,,,,,,,,,#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#,,,,,,,,#',
+    '#,,,1,,,,,#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#,,,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '#,,,,,,,,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,,,,,,#',
+    '#,4,Q,2,,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-    '#,,,,,,,,,#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#,,,,,,,,#',
+    '#,,,3,,,,,#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#,,,,,,,,#',
     '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
     '##################################################',
   ],
   legenda: {
     monstros: { a: 'acolita', e: 'escudeiro', f: 'ferreiro', l: 'lancadora' },
     chefes: { K: 'colosso' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

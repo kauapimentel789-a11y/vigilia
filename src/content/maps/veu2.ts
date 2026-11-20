@@ -1,6 +1,6 @@
 /**
  * Véu II: Cisterna de Vidro. O canal fecha a arena em anel: as quatro passagens são as saídas das cabeças da Hidra.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ água · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ água · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -36,17 +36,18 @@ export const VEU2: MapDef = {
     '######,,,,,,~,,,,,,,,,,,,,,,,,,,,,,,~,,,,,,###',
     '######,,,,,,,,,,,,,,,,,,K,,,,,,,,,,,,,,,,,,###',
     '######,,,,,,~,,,,,,,,,,,,,,,,,,,,,,,~,,,,,,###',
+    '######,,1,,,~,,,,,,,,,,,,,,,,,,,,,,,~,,,,,,###',
     '######,,,,,,~,,,,,,,,,,,,,,,,,,,,,,,~,,,,,,###',
-    '######,,,,,,~,,,,,,,,,,,,,,,,,,,,,,,~,,,,,,###',
-    '######,,,,,,~~~~~~~~~~~~,~~~~~~~~~~~~,,,,,,###',
+    '######4,Q,2,~~~~~~~~~~~~,~~~~~~~~~~~~,,,,,,###',
     '######,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,###',
-    '######,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,###',
+    '######,,3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,###',
     '##############################################',
   ],
   legenda: {
     monstros: { a: 'afogado', n: 'enguia', s: 'sineira', v: 'vigiaCego' },
     chefes: { K: 'hidra' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

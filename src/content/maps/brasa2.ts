@@ -1,6 +1,6 @@
 /**
  * Brasa II: Oficinas em chamas. Saia do Malho e da Cruz Incandescente.
- * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · ~ lava · E saída para o Posto
+ * Legenda: letras minúsculas são monstros · K chefe · T baú de tesouro · Q relicário (enigma) · 1-4 runas · ~ lava · E saída para o Posto
  */
 import type { MapDef } from '../../engine/definitions.ts';
 
@@ -14,11 +14,11 @@ export const BRASA2: MapDef = {
   linhas: [
     '################################################',
     '#........##,,,,,,,,,,,,,,###..................##',
-    '#.E@.....##,,,,,,,,,,,,,,###............c...T.##',
+    '#.E@.....##,,,,,,,,,,,,,,###........1...c...T.##',
     '#........##,,,f,,,,,,,,,,###...............l..##',
-    '#..........,,,,,,,,,,,,,,###..................##',
+    '#..........,,,,,,,,,,,,,,###......4.Q.2.......##',
     '#........##,,,,,,,,,,,,,,.....................##',
-    '#........##,l,,,,,,,,,,,,###..................##',
+    '#........##,l,,,,,,,,,,,,###........3.........##',
     '###########,,,,,,,,,,,,,,###....l.............##',
     '###########,,,,,,,,,,,,,,###..................##',
     '###########,,,,,,,,,,,,,,#############.#########',
@@ -46,7 +46,8 @@ export const BRASA2: MapDef = {
   legenda: {
     monstros: { c: 'caoDeEscoria', f: 'ferreiro', l: 'lancadora' },
     chefes: { K: 'forjadora' },
-    objetos: { T: 'tesouro' },
+    objetos: { T: 'tesouro', Q: 'relicario' },
+    runas: { '1': 0, '2': 1, '3': 2, '4': 3 },
     portoes: { E: { destino: 'posto', rotulo: 'Voltar ao Posto' } },
   },
 };

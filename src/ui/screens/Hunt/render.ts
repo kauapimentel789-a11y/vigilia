@@ -7,13 +7,14 @@
 import { CONTEUDO } from '../../../content/index.ts';
 import type { RtActor } from '../../../engine/realtime/state.ts';
 import { HEROI, heroOf } from '../../../engine/realtime/state.ts';
-import { actorEnemyDef, loadMap } from '../../../engine/realtime/world.ts';
+import { ENIGMA_MOSTRA_MS, actorEnemyDef, loadMap } from '../../../engine/realtime/world.ts';
 import type { WorldMap } from '../../../engine/world/map.ts';
 import { Tile } from '../../../engine/world/map.ts';
 import type { Magia, Sessao } from './session.ts';
+import { AMBIENTES, drawAmbiente, drawRaios } from './ambiente.ts';
 import { isPortalOpen } from '../../../engine/game/game.ts';
 import { useGame } from '../../store/game.ts';
-import { APARENCIA, aparenciaDaClasse, drawSprite } from '../../art/sprites.ts';
+import { APARENCIA, aparenciaDaClasse, drawSprite, tom } from '../../art/sprites.ts';
 
 export const TILE = 36;
 
@@ -511,6 +512,7 @@ export const NOME_OBJETO: Record<string, string> = {
   altar: 'Altar',
   expedicao: 'Expedições',
   tesouro: '',
+  relicario: 'Relicário',
 };
 
 /** Barraca da mercadora: toldo listrado, balcão com frascos e lanterna balançando. */
@@ -613,6 +615,19 @@ function drawMercadora(ctx: CanvasRenderingContext2D, cx: number, cy: number, t:
   ctx.fillRect(ex - 2, ey + 2, 4, 5);
 }
 
+const PALETA_BAU: Record<
+  string,
+  { madeira: string; tampa: string; ferro: string; brilho: string }
+> = {
+  posto: { madeira: '#6b4a2b', tampa: '#7d5632', ferro: '#5d6378', brilho: '190,180,255' },
+  cinza: { madeira: '#5a4632', tampa: '#6b5238', ferro: '#8a8174', brilho: '220,205,170' },
+  brasa: { madeira: '#2e2220', tampa: '#3d2c26', ferro: '#c8642a', brilho: '255,130,60' },
+  veu: { madeira: '#1f5a5a', tampa: '#2a7070', ferro: '#e8d8b0', brilho: '120,230,220' },
+};
+
+/** Tema do mapa desenhado agora (baús e enfeites mudam com ele). */
+let temaAtual = 'cinza';
+
 /** Baú de madeira com cintas de ferro e tampa abaulada. O do Posto brilha de leve. */
 function drawBau(
   ctx: CanvasRenderingContext2D,
@@ -622,14 +637,16 @@ function drawBau(
   tesouro: boolean,
   aberto: boolean,
 ): void {
-  const madeira = tesouro ? (aberto ? '#4a3a2a' : '#8a5a2a') : '#6b4a2b';
-  const tampa = tesouro ? (aberto ? '#3a2d21' : '#a06a30') : '#7d5632';
-  const ferro = tesouro ? '#d9b45a' : '#5d6378';
+  // Cada região tem o seu baú: madeira podre na Cinza, ferro queimado na Brasa, coral no Véu.
+  const p = tesouro ? (PALETA_BAU[temaAtual] ?? PALETA_BAU.cinza!) : PALETA_BAU.posto!;
+  const madeira = aberto ? tom(p.madeira, -0.35) : p.madeira;
+  const tampa = aberto ? tom(p.tampa, -0.35) : p.tampa;
+  const ferro = p.ferro;
   const W = 26;
   const top = cy - 2;
   if (!aberto) {
     const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, TILE * 0.75);
-    const cor = tesouro ? '242,181,107' : '139,124,246';
+    const cor = p.brilho;
     g.addColorStop(0, `rgba(${cor},${0.18 + 0.1 * Math.sin(t / 380)})`);
     g.addColorStop(1, `rgba(${cor},0)`);
     ctx.fillStyle = g;
@@ -677,9 +694,158 @@ function drawBau(
   if (!aberto) {
     ctx.fillStyle = ferro;
     ctx.fillRect(cx - 3, top - 2, 6, 7);
-    ctx.fillStyle = tesouro ? '#fff1b8' : `rgba(190,180,255,${0.7 + 0.3 * Math.sin(t / 300)})`;
+    ctx.fillStyle = `rgba(${p.brilho},${0.7 + 0.3 * Math.sin(t / 300)})`;
     ctx.fillRect(cx - 1, top + 1, 2, 3);
   }
+  // Enfeite da região.
+  if (tesouro && temaAtual === 'cinza') {
+    ctx.fillStyle = 'rgba(110,140,80,0.8)';
+    ctx.fillRect(cx - W / 2, top + 10, 5, 3);
+    ctx.fillRect(cx + W / 2 - 8, top + 11, 6, 2);
+  } else if (tesouro && temaAtual === 'brasa' && !aberto) {
+    ctx.strokeStyle = `rgba(255,140,60,${0.6 + 0.3 * Math.sin(t / 200)})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, top + 3);
+    ctx.lineTo(cx - 5, top + 7);
+    ctx.lineTo(cx - 7, top + 11);
+    ctx.moveTo(cx + 6, top + 4);
+    ctx.lineTo(cx + 9, top + 9);
+    ctx.stroke();
+  } else if (tesouro && temaAtual === 'veu') {
+    ctx.fillStyle = '#e8f4f0';
+    for (const [bx, by] of [
+      [-10, 4],
+      [-7, 9],
+      [9, 6],
+    ] as const)
+      ctx.fillRect(cx + bx, top + by, 2, 2);
+  }
+}
+
+/** Relicário: baú de pedra preso por correntes de runas. Só abre com o enigma. */
+function drawRelicario(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  t: number,
+  aberto: boolean,
+): void {
+  const g = ctx.createRadialGradient(cx, cy - 4, 2, cx, cy - 4, TILE);
+  g.addColorStop(0, `rgba(242,210,122,${aberto ? 0.08 : 0.25 + 0.1 * Math.sin(t / 420)})`);
+  g.addColorStop(1, 'rgba(242,210,122,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - TILE, cy - TILE, TILE * 2, TILE * 2);
+  // Pedestal.
+  ctx.fillStyle = '#3c4054';
+  ctx.fillRect(cx - 15, cy + 6, 30, 7);
+  ctx.fillStyle = '#4e536b';
+  ctx.fillRect(cx - 15, cy + 6, 30, 2);
+  // Caixa de pedra com tampa em arco.
+  ctx.fillStyle = aberto ? '#4a4d5c' : '#6c7088';
+  ctx.fillRect(cx - 12, cy - 6, 24, 12);
+  ctx.fillStyle = aberto ? '#2a2c36' : '#8a8fa8';
+  ctx.beginPath();
+  if (aberto) {
+    ctx.fillRect(cx - 12, cy - 18, 24, 9);
+  } else {
+    ctx.moveTo(cx - 12, cy - 6);
+    ctx.lineTo(cx - 12, cy - 10);
+    ctx.quadraticCurveTo(cx, cy - 20, cx + 12, cy - 10);
+    ctx.lineTo(cx + 12, cy - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
+  if (aberto) {
+    ctx.fillStyle = '#0d0e14';
+    ctx.fillRect(cx - 10, cy - 8, 20, 4);
+    return;
+  }
+  // Selo e correntes que brilham.
+  const pulso = 0.6 + 0.4 * Math.sin(t / 260);
+  ctx.strokeStyle = `rgba(242,210,122,${pulso})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 13, cy - 9);
+  ctx.lineTo(cx + 13, cy + 4);
+  ctx.moveTo(cx + 13, cy - 9);
+  ctx.lineTo(cx - 13, cy + 4);
+  ctx.stroke();
+  ctx.fillStyle = '#f2d27a';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 2, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a4020';
+  ctx.fillRect(cx - 1, cy - 4, 2, 4);
+}
+
+/** Cores e formas das runas do enigma. */
+const RUNAS = [
+  { cor: '79,209,197', forma: 'triangulo' },
+  { cor: '242,190,90', forma: 'losango' },
+  { cor: '176,124,246', forma: 'circulo' },
+  { cor: '255,110,110', forma: 'xis' },
+  { cor: '140,200,120', forma: 'barras' },
+] as const;
+
+function drawRuna(
+  ctx: CanvasRenderingContext2D,
+  runa: number,
+  px: number,
+  py: number,
+  acesa: number,
+  t: number,
+): void {
+  const r = RUNAS[runa % RUNAS.length]!;
+  const cx = px + TILE / 2;
+  const cy = py + TILE / 2;
+  // Placa de pedra.
+  ctx.fillStyle = '#2b2f40';
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const brilho = 0.35 + 0.1 * Math.sin(t / 500 + runa) + acesa * 0.65;
+  if (acesa > 0) {
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, TILE * 0.9);
+    g.addColorStop(0, `rgba(${r.cor},${0.6 * acesa})`);
+    g.addColorStop(1, `rgba(${r.cor},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - TILE, cy - TILE, TILE * 2, TILE * 2);
+  }
+  ctx.strokeStyle = `rgba(${r.cor},${brilho})`;
+  ctx.fillStyle = `rgba(${r.cor},${brilho * 0.5})`;
+  ctx.lineWidth = 2.5;
+  const k = TILE * 0.2;
+  ctx.beginPath();
+  if (r.forma === 'triangulo') {
+    ctx.moveTo(cx, cy - k);
+    ctx.lineTo(cx + k, cy + k * 0.8);
+    ctx.lineTo(cx - k, cy + k * 0.8);
+    ctx.closePath();
+  } else if (r.forma === 'losango') {
+    ctx.moveTo(cx, cy - k);
+    ctx.lineTo(cx + k, cy);
+    ctx.lineTo(cx, cy + k);
+    ctx.lineTo(cx - k, cy);
+    ctx.closePath();
+  } else if (r.forma === 'circulo') {
+    ctx.arc(cx, cy, k * 0.9, 0, Math.PI * 2);
+  } else if (r.forma === 'xis') {
+    ctx.moveTo(cx - k, cy - k);
+    ctx.lineTo(cx + k, cy + k);
+    ctx.moveTo(cx + k, cy - k);
+    ctx.lineTo(cx - k, cy + k);
+  } else {
+    for (const dx of [-k * 0.6, 0, k * 0.6]) {
+      ctx.moveTo(cx + dx, cy - k);
+      ctx.lineTo(cx + dx, cy + k);
+    }
+  }
+  if (r.forma !== 'xis' && r.forma !== 'barras') ctx.fill();
+  ctx.stroke();
 }
 
 function drawObject(
@@ -700,6 +866,8 @@ function drawObject(
     drawMercadora(ctx, cx, cy, t);
   } else if (id === 'bau' || id === 'tesouro') {
     drawBau(ctx, cx, cy, t, id === 'tesouro', aberto);
+  } else if (id === 'relicario') {
+    drawRelicario(ctx, cx, cy, t, aberto);
   } else if (id === 'altar') {
     ctx.fillStyle = '#4a4f66';
     ctx.fillRect(cx - 11, cy - 2, 22, 13);
@@ -1187,8 +1355,10 @@ export function render(
 ): void {
   const t = s.agora;
   const def = CONTEUDO.mapas[s.w.mapa]!;
-  COR = { ...COR_BASE, ...TEMAS[def.tema ?? 'cinza'] };
+  const amb = AMBIENTES[def.id];
+  COR = { ...COR_BASE, ...TEMAS[def.tema ?? 'cinza'], ...amb?.cores };
   ehPosto = def.tipo === 'posto';
+  temaAtual = def.tema ?? 'cinza';
   const m = loadMap(def);
   const tick = CONTEUDO.mundo.tickMs;
   const heroi = heroOf(s.w);
@@ -1227,6 +1397,37 @@ export function render(
       for (let x = Math.max(0, x0 - 1); x <= Math.min(m.largura - 1, x1 + 1); x++)
         if (s.w.revelado[y * m.largura + x] && ehAgua(m, x, y)) lagos.push([x, y]);
     drawLagos(ctx, m, lagos, t);
+  }
+  // Runas do enigma: acendem na ordem enquanto o relicário mostra, e quando pisadas.
+  {
+    const e = s.w.enigma;
+    const vis = s.enigmaVisto;
+    let mostrando = -1;
+    let forca = 0;
+    if (vis && e?.ativo) {
+      const passo = (t - vis.inicio) / ENIGMA_MOSTRA_MS;
+      const k = Math.floor(passo);
+      if (k < vis.sequencia.length) {
+        mostrando = vis.sequencia[k]!;
+        forca = Math.sin((passo - k) * Math.PI);
+      }
+    }
+    s.runasPisadas = s.runasPisadas.filter((r) => t - r.nasceu < 600);
+    for (const [idx, runa] of Object.entries(m.runas)) {
+      const i = Number(idx);
+      if (!s.w.revelado[i]) continue;
+      const x = i % m.largura;
+      const y = (i - x) / m.largura;
+      let acesa = runa === mostrando ? forca : 0;
+      const pis = s.runasPisadas.find((r) => r.x === x && r.y === y);
+      if (pis) acesa = Math.max(acesa, 1 - (t - pis.nasceu) / 600);
+      if (e?.resolvido) acesa = 0.25;
+      drawRuna(ctx, runa, x * TILE, y * TILE, acesa, t);
+      if (pis && !pis.certo) {
+        ctx.fillStyle = `rgba(255,60,80,${0.5 * (1 - (t - pis.nasceu) / 600)})`;
+        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+      }
+    }
   }
   // Objetos e portais por cima do chão: podem passar do tile (toldo, vórtice).
   for (let y = y0; y <= y1; y++) {
@@ -1415,6 +1616,9 @@ export function render(
   }
   ctx.globalAlpha = 1;
 
+  // Clima do mapa: poeira, cinzas, brasas, bolhas, névoa.
+  if (amb) drawAmbiente(ctx, amb, cam, t);
+
   // Luz e sombra: a escuridão cobre o mapa, com buracos de luz suaves em volta
   // do caçador e de cada tocha. Tudo tremula de leve, como fogo.
   {
@@ -1475,6 +1679,17 @@ export function render(
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // Tom do lugar e raios de luz.
+  if (amb?.raios) {
+    ctx.globalCompositeOperation = 'lighter';
+    drawRaios(ctx, cam, t);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (amb?.tom) {
+    ctx.fillStyle = `rgba(${amb.tom})`;
+    ctx.fillRect(cam.x - 20, cam.y - 20, cam.largura + 40, cam.altura + 40);
+  }
+
   // Habilidades brilham por cima da sombra.
   drawMagias(ctx, s, t, [hx, hy]);
 
@@ -1510,6 +1725,58 @@ export function render(
     ctx.fillRect(gx * TILE + TILE / 2 - w / 2, (gy + 1) * TILE + 1, w, 15);
     ctx.fillStyle = fechado ? '#7d7f8f' : '#d9d3ff';
     ctx.fillText(rotulo, gx * TILE + TILE / 2, (gy + 1) * TILE + 12);
+  }
+
+  // Dica de interação: objeto ao lado do caçador.
+  {
+    let alvo: string | undefined;
+    for (let dy = -1; dy <= 1 && !alvo; dy++)
+      for (let dx = -1; dx <= 1 && !alvo; dx++) {
+        const id = m.objetos[(heroi.y + dy) * m.largura + heroi.x + dx];
+        if (id) alvo = id;
+      }
+    if (alvo) {
+      const verbo: Record<string, string> = {
+        mercadora: 'Negociar',
+        bau: 'Abrir baú',
+        altar: 'Usar altar',
+        expedicao: 'Expedições',
+        tesouro: 'Abrir baú',
+        relicario: 'Tocar o relicário',
+      };
+      const texto = `Espaço  ${verbo[alvo] ?? 'Usar'}`;
+      ctx.font = '600 11px system-ui, sans-serif';
+      const w = ctx.measureText(texto).width + 14;
+      const bx = (hx + 0.5) * TILE - w / 2;
+      const by = (hy + 1) * TILE + 4;
+      ctx.fillStyle = 'rgba(10,10,16,0.85)';
+      ctx.fillRect(bx, by, w, 17);
+      ctx.strokeStyle = 'rgba(242,210,122,0.6)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, w - 1, 16);
+      ctx.fillStyle = '#f2d9b0';
+      ctx.textAlign = 'center';
+      ctx.fillText(texto, bx + w / 2, by + 12);
+    }
+  }
+  // Enigma valendo: runas certas e tempo, em cima do caçador.
+  {
+    const e = s.w.enigma;
+    if (e?.ativo) {
+      const n = e.sequencia.length;
+      const bx = (hx + 0.5) * TILE;
+      const by = (hy - 0.2) * TILE - 44;
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = i < e.progresso ? '#6fcf97' : 'rgba(255,255,255,0.25)';
+        ctx.beginPath();
+        ctx.arc(bx - (n - 1) * 6 + i * 12, by, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.font = '700 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = e.prazo < 4000 ? '#ff8a8a' : '#f2d27a';
+      ctx.fillText(`${Math.ceil(e.prazo / 1000)}s`, bx, by - 8);
+    }
   }
 
   // Números flutuantes.
