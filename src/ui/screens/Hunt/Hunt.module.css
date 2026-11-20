@@ -410,3 +410,27 @@
     display: flex;
   }
 }
+
+/* Alvo enfraquecido: aviso de que dá para vincular com o cristal. */
+.vinculavel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px var(--space-2);
+  border: 1px solid #4fb8d8;
+  border-radius: var(--radius-sm);
+  background: rgba(79, 184, 216, 0.12);
+  color: #bff2ff;
+  font: inherit;
+  font-size: 0.75rem;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: pulsoCristal 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulsoCristal {
+  to {
+    box-shadow: 0 0 10px rgba(159, 232, 255, 0.45);
+  }
+}

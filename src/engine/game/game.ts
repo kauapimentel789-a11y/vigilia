@@ -32,6 +32,8 @@ import { baseOf, rollItem, sellValue } from '../items/items.ts';
 import { createRng } from '../core/index.ts';
 import type { ArenaState } from './arena.ts';
 import { newArenaState } from './arena.ts';
+import type { EcosState } from './ecos.ts';
+import { ECOS, feedActiveEco, newEcosState } from './ecos.ts';
 
 export const VERSAO_DO_ESTADO = 4;
 
@@ -56,6 +58,8 @@ export interface GameState {
   /** Selos de chefes: id → quantidade. */
   selos: Record<string, number>;
   arena: ArenaState;
+  /** Ecos vinculados e Cristais de Vínculo. Ausente em saves antigos. */
+  ecos?: EcosState;
 }
 
 export type GameResult<Extra = object> =
@@ -78,6 +82,7 @@ export function newGame(content: GameContent, semente: number, agora: number): G
     rank: 'cinza',
     selos: {},
     arena: newArenaState(),
+    ecos: newEcosState(),
   };
 }
 
@@ -309,6 +314,8 @@ export interface KillReward {
   selo?: string;
   /** Novo rank do caçador (primeira vitória num Exame de Rank). */
   promovido?: RankId;
+  /** Níveis que o Eco ativo subiu com este abate. */
+  ecoNiveis?: number;
 }
 
 /**
@@ -347,8 +354,9 @@ export function rewardKill(
   const r = gainXp(novo.cacador, content, xp);
   novo.cacador = r.cacador;
   novo.ouro += ouro;
+  const eco = feedActiveEco(novo, xp * ECOS.parteXp);
   return {
-    estado: novo,
+    estado: eco.estado,
     recompensa: {
       xp,
       ouro,
@@ -356,6 +364,7 @@ export function rewardKill(
       primeiraVitoria,
       ...(selo ? { selo } : {}),
       ...(promovido ? { promovido } : {}),
+      ...(eco.niveis > 0 ? { ecoNiveis: eco.niveis } : {}),
     },
   };
 }

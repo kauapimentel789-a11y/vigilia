@@ -19,7 +19,9 @@ export type IconeId =
   | 'torre'
   | 'elmo'
   | 'coracao'
-  | 'dado';
+  | 'dado'
+  | 'cristal'
+  | 'eco';
 
 interface IconeDef {
   grade: string[];
@@ -298,6 +300,40 @@ export const ICONES: Record<IconeId, IconeDef> = {
       '............',
     ],
     cores: { w: '#e8dccb', d: '#2a2f40', s: '#a89a86' },
+  },
+  cristal: {
+    grade: [
+      '.....ww.....',
+      '....wcca....',
+      '...wccbba...',
+      '...wcbbba...',
+      '..wccbbbba..',
+      '..wcbbbbba..',
+      '..wcbbbbda..',
+      '...cbbbda...',
+      '...abbdda...',
+      '....abda....',
+      '.....aa.....',
+      '............',
+    ],
+    cores: { w: '#e8fbff', c: '#9fe8ff', b: '#4fb8d8', d: '#2d7a9c', a: '#1f5670' },
+  },
+  eco: {
+    grade: [
+      '....wwww....',
+      '..wwccccww..',
+      '.wccccccccw.',
+      '.wcceccecccw',
+      'wccceccecccw',
+      'wccccccccccw',
+      'wccccccccccw',
+      '.wccccccccw.',
+      '.wcc.cc.ccw.',
+      '..c..cc..c..',
+      '.....c......',
+      '............',
+    ],
+    cores: { w: '#bff2ff', c: '#6fcfe0', e: '#1a2a3a' },
   },
 };
 

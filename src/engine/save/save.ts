@@ -11,6 +11,8 @@ import type { ItemInstance } from '../items/items.ts';
 import type { GameState } from '../game/game.ts';
 import { VERSAO_DO_ESTADO } from '../game/game.ts';
 import { newArenaState } from '../game/arena.ts';
+import type { Eco } from '../game/ecos.ts';
+import { ECOS, newEcosState } from '../game/ecos.ts';
 
 export interface SaveFile {
   v: number;
@@ -137,6 +139,7 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     })
     .slice(0, content.progressao.espacosDeHabilidade);
   if (e.expedicao && !content.portais[e.expedicao.portal]) e.expedicao = null;
+  e.ecos = sanitizeEcos(e.ecos, content);
   // Itens cuja base saiu do conteúdo somem; afixos desconhecidos são ignorados.
   const valido = (i: ItemInstance) => !!content.itens.bases[i.base];
   const limpo = (i: ItemInstance): ItemInstance => ({
@@ -153,6 +156,33 @@ function sanitize(estado: GameState, content: GameContent): GameState {
     else e.cacador.equipamento[slot] = limpo(i);
   }
   return e;
+}
+
+/** Ecos: um save antigo (ou estragado nesta parte) começa sem Ecos, sem perder o resto. */
+function sanitizeEcos(x: unknown, content: GameContent): NonNullable<GameState['ecos']> {
+  if (!isObj(x) || !Array.isArray(x.lista)) return newEcosState();
+  const ranks = RANKS_ORDEM as readonly string[];
+  const lista = x.lista
+    .filter(
+      (e): e is Eco =>
+        isObj(e) &&
+        typeof e.uid === 'string' &&
+        typeof e.defId === 'string' &&
+        !!content.inimigos[e.defId] &&
+        isInt(e.nivel, 1) &&
+        e.nivel <= ECOS.nivelMax &&
+        isInt(e.xp) &&
+        typeof e.afinidade === 'string' &&
+        ranks.includes(e.afinidade) &&
+        (e.apelido === undefined || typeof e.apelido === 'string'),
+    )
+    .slice(0, ECOS.maximo);
+  const ativo =
+    typeof x.ativo === 'string' && lista.some((e) => e.uid === x.ativo) ? x.ativo : null;
+  const cristais = isInt(x.cristais) ? Math.min(x.cristais, ECOS.maxCristais) : 0;
+  const maior = lista.reduce((m, e) => Math.max(m, Number(e.uid.slice(1)) || 0), 0);
+  const proximo = isInt(x.proximo, 1) ? Math.max(x.proximo, maior + 1) : maior + 1;
+  return { lista, ativo, cristais, proximo };
 }
 
 function validMatch(m: unknown, content: GameContent): boolean {

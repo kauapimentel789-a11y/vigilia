@@ -9,6 +9,7 @@ import type { Comportamento, HunterState } from './hunter.ts';
 import { abilityLevel, isUnlocked } from './abilities.ts';
 import { classOf } from './hunter.ts';
 import { equipmentStats } from '../items/items.ts';
+import type { EcoProfile } from '../game/ecos.ts';
 
 export interface HunterStats {
   vidaMax: number;
@@ -89,6 +90,8 @@ export interface HunterProfile {
   stats: HunterStats;
   habilidades: EquippedAbility[];
   comportamento: Comportamento;
+  /** Eco ativo que acompanha o caçador nos mapas. */
+  eco?: EcoProfile;
 }
 
 export function buildProfile(cacador: HunterState, content: GameContent): HunterProfile {

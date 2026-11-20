@@ -48,6 +48,8 @@ export interface RtActor extends BattleUnit {
   /** Golpe forte sendo preparado: a área avisada no chão e o tempo que falta. */
   /** Chefe protegido enquanto os ajudantes invocados vivem. */
   blindado?: boolean;
+  /** Eco: tempo até o próximo dom (escudo ou cura) para o caçador. */
+  domCd?: number;
   preparo: { acao: string; restante: number; total: number; tiles: Array<[number, number]> } | null;
 }
 
@@ -121,6 +123,16 @@ type Body =
   | { tipo: 'enigmaFalhou'; motivo: 'errou' | 'tempo' }
   | { tipo: 'enigmaResolvido'; x: number; y: number }
   | { tipo: 'pocao'; cura: number }
+  /** Cristal de Vínculo lançado num monstro enfraquecido. */
+  | {
+      tipo: 'vinculo';
+      alvo: string;
+      defId: string;
+      sucesso: boolean;
+      chance: number;
+      x: number;
+      y: number;
+    }
   | { tipo: 'heroiCaiu' }
   | { tipo: 'portao'; destino: string; rotulo: string };
 
@@ -140,9 +152,13 @@ export interface RtInput {
   interagir?: readonly [number, number];
   /** Beber uma poção (a interface confere se há poções). */
   pocao?: boolean;
+  /** Lançar um Cristal de Vínculo no alvo (a interface confere se há cristais). */
+  vincular?: boolean;
 }
 
 export const HEROI = 'heroi';
+/** O Eco que acompanha o caçador (espírito: não ocupa tile e não é atacado). */
+export const ECO = 'eco';
 
 export function heroOf(w: WorldState): RtActor {
   return w.atores.find((a) => a.uid === HEROI) as RtActor;
